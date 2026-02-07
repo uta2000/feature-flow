@@ -8,7 +8,7 @@
     {
       "name": "spec-driven",
       "description": "Machine-verifiable acceptance criteria in plans + automated verification before completion",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "source": "./",
       "author": {
         "name": "uta2000"
