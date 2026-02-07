@@ -20,6 +20,19 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Review the conversation. Answer TWO questions:\n\n1. Did the assistant IMPLEMENT code changes (create files, edit files, write code) based on tasks from an implementation plan that has acceptance criteria (- [ ] items)?\n2. Was the verify-acceptance-criteria skill invoked during this session?\n\nIf the answer to #1 is YES and #2 is NO, respond with EXACTLY:\nBLOCK: Code was implemented from a plan with acceptance criteria, but verify-acceptance-criteria was not run. Run it before ending this session.\n\nIf #1 is NO (no implementation was done, just research/discussion/planning), or #2 is YES (verification was already run), respond with EXACTLY:\npass",
+            "model": "claude-haiku-4-5-20251001",
+            "timeout": 30,
+            "statusMessage": "Checking acceptance criteria verification..."
+          }
+        ]
+      }
     ]
   }
 }
