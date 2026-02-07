@@ -1,0 +1,12 @@
+{
+  "name": "spec-driven",
+  "description": "Acceptance criteria discipline for AI-assisted development: machine-verifiable criteria in plans, automated verification before completion",
+  "version": "1.0.0",
+  "author": {
+    "name": "uta2000"
+  },
+  "homepage": "https://github.com/uta2000/spec-driven",
+  "repository": "https://github.com/uta2000/spec-driven",
+  "license": "MIT",
+  "keywords": ["spec-driven", "acceptance-criteria", "verification", "plans", "quality"]
+}

@@ -1,0 +1,25 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if echo \"$CLAUDE_FILE_PATH\" | grep -q 'plans/.*\\.md'; then echo 'ACTION REQUIRED: Plan file written. Run verify-plan-criteria to validate acceptance criteria coverage before proceeding.'; fi"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'SPEC-DRIVEN DEVELOPMENT ACTIVE: (1) Every task in an implementation plan MUST include **Acceptance Criteria:** with machine-verifiable - [ ] items. After writing a plan, run verify-plan-criteria. (2) Before claiming any task is complete, run verify-acceptance-criteria to mechanically check all criteria against the codebase.'"
+          }
+        ]
+      }
+    ]
+  }
+}
