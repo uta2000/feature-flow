@@ -8,9 +8,15 @@ Features get brainstormed, then jump straight to code. Halfway through, you disc
 
 ## The Solution
 
-Six skills that cover the full pre- and post-implementation lifecycle. Catch conflicts when they're cheap to fix — a line edit in a design doc instead of a code rewrite.
+Seven skills and an orchestrator that cover the full feature development lifecycle. Catch conflicts when they're cheap to fix — a line edit in a design doc instead of a code rewrite.
 
 ## Skills
+
+### Lifecycle Orchestrator
+
+| Skill | Purpose |
+|-------|---------|
+| `start-feature` | Orchestrates the full lifecycle from idea to PR — classifies scope, builds the step list, and invokes the right skill at each stage |
 
 ### Pre-Implementation (Design Phase)
 
