@@ -1,0 +1,142 @@
+---
+name: design-document
+description: This skill should be used when the user asks to "write a design doc", "create a design document", "document the design", "write up the design", "write a spec", "spec this out", or when brainstorming is complete and decisions need to be captured before implementation planning.
+tools: Read, Glob, Grep, Write, Edit, AskUserQuestion, Task
+---
+
+# Design Document
+
+Turn brainstorming decisions into a structured, implementable design document. The document serves as the single source of truth between brainstorming and implementation planning.
+
+**Announce at start:** "Writing design document to capture the agreed design before implementation."
+
+## When to Use
+
+- After brainstorming a feature (decisions have been made)
+- When the user has a clear idea of what to build and needs it documented
+- Before writing an implementation plan
+- When translating requirements into technical design
+
+## Process
+
+### Step 1: Gather Context
+
+Collect the inputs needed to write the document:
+
+1. **From the conversation:** Extract all decisions made during brainstorming — scope, approach, UX flow, data model, technical choices
+2. **From the codebase:** Explore existing patterns, tech stack, file structure, and conventions
+
+- Use Glob to find source files (e.g., `src/**/*.ts`, `src/**/*.tsx`)
+- Use Grep to search for relevant patterns in the existing codebase
+- Read existing design docs in `docs/plans/` for format reference
+
+If the conversation does not contain enough decisions, ask the user to clarify. Use `AskUserQuestion` — one question at a time, with options when possible.
+
+### Step 2: Determine Sections
+
+Select sections based on what the feature requires. Not every feature needs every section.
+
+**Required sections:**
+- **Overview** — What the feature does, in 2-3 sentences
+- **User Flow** — Step-by-step from the user's perspective
+- **Scope** — What is included and what is explicitly excluded
+
+**Include when applicable:**
+
+| Section | Include When |
+|---------|-------------|
+| Example | The feature has input/output that benefits from a concrete example |
+| Data Model Changes | The feature requires new or modified database tables/columns |
+| Migration Requirements | Database migrations are needed (numbered list) |
+| API / Integration | The feature calls external APIs or introduces new internal API routes |
+| Pipeline / Architecture | The feature involves multi-step processing, async flows, or new hooks |
+| LLM Integration | The feature uses an LLM (model, prompt design, output format, validation) |
+| UI Adaptations | Existing UI components need modification for the new feature |
+| New Components | New UI components, hooks, or utilities need to be built |
+
+### Step 3: Write the Document
+
+Write each section following these principles (see `references/section-templates.md` for templates):
+
+- **Specific over vague:** Use actual table names, column types, file paths, and component names from the codebase
+- **Decisions over options:** The design doc records what was decided, not what could be decided. If something is unresolved, flag it explicitly.
+- **Minimal necessary detail:** Enough for an implementation plan to be written from it, but not implementation-level pseudocode
+- **Cross-reference the codebase:** When referencing existing patterns, mention the actual files and functions
+
+**Document format:**
+
+```markdown
+# [Feature Name] — Design Document
+
+**Date:** YYYY-MM-DD
+**Status:** Draft
+
+## Overview
+[2-3 sentences]
+
+## Example
+[Concrete input/output if applicable]
+
+## User Flow
+### Step 1 — [Name]
+### Step 2 — [Name]
+### Step 3 — [Name]
+
+## [Technical sections as needed]
+
+## Migration Requirements
+[Numbered list of all schema/type changes]
+
+## Scope
+- [What's included]
+- [What's explicitly excluded]
+```
+
+### Step 4: Save the Document
+
+Write the document to the plans directory:
+
+```
+docs/plans/YYYY-MM-DD-[feature-name].md
+```
+
+Use today's date. Use kebab-case for the feature name.
+
+If a design doc for this feature already exists (from a previous session), update it rather than creating a new file.
+
+### Step 5: Present for Review
+
+Present the document section by section (200-300 words per section). After each section, confirm with the user:
+
+```
+Does this section look right, or should I adjust anything?
+```
+
+If the document is short enough (under 1,000 words total), present it all at once.
+
+### Step 6: Suggest Next Steps
+
+After the document is approved:
+
+```
+Design document saved to `docs/plans/YYYY-MM-DD-[feature-name].md`.
+
+Recommended next steps:
+1. Run `design-verification` to check this design against the codebase
+2. Run `create-issue` to create a GitHub issue from this design
+3. Run `writing-plans` to create an implementation plan with acceptance criteria
+```
+
+## Quality Rules
+
+- **No orphan decisions:** Every decision from brainstorming must appear in the document. Review the conversation to confirm nothing was missed.
+- **No unresolved ambiguity:** If something is unclear, ask the user rather than guessing. Flag explicitly unresolved items with `[TBD]`.
+- **Match codebase terminology:** Use the same names for tables, columns, types, and components as they exist in the codebase.
+- **Migration completeness:** Every proposed schema change must appear in the Migration Requirements section as a numbered item.
+
+## Additional Resources
+
+### Reference Files
+
+For section templates and examples across different feature types:
+- **`references/section-templates.md`** — Templates for each section type with examples from different feature categories (API features, UI features, data migrations, integrations)
