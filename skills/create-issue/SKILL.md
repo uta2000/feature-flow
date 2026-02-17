@@ -47,7 +47,11 @@ gh issue list --limit 5
 
 ### Step 3: Determine Issue Structure
 
-Read `references/issue-templates.md` to select the appropriate template for the feature type, then map the design document sections to issue sections:
+Read `references/issue-templates.md` to select the appropriate template for the feature type.
+
+**Check project context:** If `.spec-driven.yml` exists and `platform` is `ios`, `android`, or `cross-platform`, include mobile-specific sections in the issue (Feature Flag Strategy, Rollback Plan, Device Compatibility, Beta Testing Requirements). See `../../references/platforms/mobile.md` for section content.
+
+Map the design document sections to issue sections:
 
 | Design Doc Section | Issue Section |
 |-------------------|---------------|
@@ -158,3 +162,6 @@ Recommended next steps:
 
 For issue templates across different feature types:
 - **`references/issue-templates.md`** — Templates and examples for different issue types (new feature, API integration, UI feature, data migration, refactor)
+
+For platform-specific issue sections:
+- **`../../references/platforms/mobile.md`** — Mobile-specific sections: Feature Flag Strategy, Rollback Plan, API Versioning, Beta Testing Requirements

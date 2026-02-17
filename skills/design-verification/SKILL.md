@@ -33,7 +33,20 @@ Confirm with the user: "Verifying design: `[path]`. Is this correct?"
 
 Read the full document and extract all proposed changes.
 
-### Step 2: Explore the Codebase
+### Step 2: Load Project Context
+
+Check for a `.spec-driven.yml` file in the project root:
+
+1. If found, read the `platform`, `stack`, and `gotchas` fields
+2. For each entry in `stack`, look for a matching reference file at `../../references/stacks/{name}.md` (relative to this skill's directory)
+3. For the declared `platform`, load the platform reference from `../../references/platforms/{platform}.md` (use `mobile.md` for `ios`, `android`, or `cross-platform`)
+4. If a stack has no matching reference file, note it and use `WebSearch` to research known gotchas for that technology
+
+If `.spec-driven.yml` does not exist, proceed with the base checklist only. Mention to the user that project-specific context can be added via `.spec-driven.yml`.
+
+See `../../references/project-context-schema.md` for the full schema documentation.
+
+### Step 3: Explore the Codebase
 
 Launch exploration agents to understand the areas of the codebase affected by the design. Use the Task tool with `subagent_type=Explore` for thorough analysis.
 
@@ -44,11 +57,11 @@ Key areas to explore:
 - UI components that will be modified or reused
 - Configuration files and environment variables
 
-### Step 3: Run Verification Checklist
+### Step 4: Run Verification Checklist
 
 Execute each category from the verification checklist. For each item, record: PASS, FAIL, or WARNING.
 
-**Read `references/checklist.md` for the full detailed checklist before proceeding with verification.** The categories are:
+**Read `references/checklist.md` for the full detailed checklist before proceeding with verification.** The base categories are:
 
 1. **Schema Compatibility** — Nullability, constraints, FKs, column types
 2. **Type Compatibility** — TypeScript/language types match proposed schema changes
@@ -64,7 +77,13 @@ Execute each category from the verification checklist. For each item, record: PA
 12. **Build Compatibility** — TypeScript strict mode, linting rules, framework config
 13. **Route & Layout Chain** — New pages inherit auth, layout, providers correctly
 
-### Step 4: Report Findings
+**Then run additional checks from project context (if loaded in Step 2):**
+
+14. **Stack-Specific Checks** — Run every check from the loaded stack reference files (e.g., Supabase PostgREST limits, Next.js server/client boundaries)
+15. **Platform-Specific Checks** — Run checks from the platform reference file (e.g., mobile backward compatibility, feature flag requirements)
+16. **Project Gotchas** — Check every entry in `.spec-driven.yml` `gotchas` against the design. Each gotcha is a mandatory verification item.
+
+### Step 5: Report Findings
 
 Present a structured report:
 
@@ -98,7 +117,7 @@ Present a structured report:
 [Specific edits to make to the design document]
 ```
 
-### Step 5: Apply Corrections
+### Step 6: Apply Corrections
 
 If the user approves, update the design document with corrections:
 - Add missing migration requirements
@@ -131,4 +150,9 @@ Adjust depth based on the design's scope:
 ### Reference Files
 
 For the full detailed verification checklist with specific checks per category:
-- **`references/checklist.md`** — Complete verification checklist with 13 categories, specific checks, and examples of common findings
+- **`references/checklist.md`** — Base verification checklist with 13 categories, specific checks, and examples of common findings
+
+For project context and stack/platform-specific checks:
+- **`../../references/project-context-schema.md`** — Schema for `.spec-driven.yml`
+- **`../../references/stacks/`** — Stack-specific verification checks (supabase, next-js, react-native, vercel)
+- **`../../references/platforms/`** — Platform-specific lifecycle adjustments and checks (mobile, web)

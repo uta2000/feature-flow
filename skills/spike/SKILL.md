@@ -17,6 +17,8 @@ Run time-boxed technical experiments to de-risk unknowns before committing to a 
 - When a design document references an external API, library feature, or integration pattern that has not been tested
 - When the user explicitly asks to validate something
 
+**Project context:** Check for `.spec-driven.yml` in the project root. If found, load the `stack` entries and check for matching stack-specific assumption patterns at `../../references/stacks/{name}.md`. Each stack file includes a "Risky Assumptions (for Spike)" section with common assumptions and how to test them.
+
 ## When to Skip
 
 - The feature uses only well-understood, previously tested patterns in the codebase
@@ -126,3 +128,6 @@ If the user wants to keep any scripts for reference, move them to `docs/spikes/`
 
 For detailed guidance on identifying risky assumptions across different domains:
 - **`references/assumption-patterns.md`** — Common risky assumptions by category (APIs, databases, performance, libraries, integrations)
+
+For stack-specific risky assumptions:
+- **`../../references/stacks/`** — Each stack file (supabase, next-js, react-native, vercel) includes a "Risky Assumptions (for Spike)" section with stack-specific assumptions and testing approaches

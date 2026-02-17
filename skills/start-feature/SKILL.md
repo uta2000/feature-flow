@@ -8,13 +8,26 @@ tools: Read, Glob, Grep, Write, Edit, Bash, Task, AskUserQuestion, Skill
 
 Guide development work through the correct lifecycle steps, invoking the right skill at each stage. This is the single entry point for any non-trivial work.
 
-**Announce at start:** "Starting the feature lifecycle. Let me determine the right steps for this work."
+**Announce at start:** "Starting the feature lifecycle. Let me check project context and determine the right steps."
 
 ## Purpose
 
 Ensure the lifecycle is followed from start to finish. Track which steps are complete, invoke the right skill at each stage, and do not advance until the current step is done.
 
 ## Process
+
+### Step 0: Load Project Context
+
+Check for a `.spec-driven.yml` file in the project root.
+
+If found, read it and extract:
+- **`platform`** — determines lifecycle adjustments (web, ios, android, cross-platform)
+- **`stack`** — determines which stack-specific checks are loaded during verification
+- **`gotchas`** — project-specific pitfalls injected into every verification
+
+See `../../references/project-context-schema.md` for the full schema.
+
+If not found, proceed with the standard web lifecycle. Mention: "No `.spec-driven.yml` found — using standard lifecycle. Add one to enable platform and stack-specific adjustments."
 
 ### Step 1: Determine Scope
 
@@ -41,9 +54,9 @@ Use `AskUserQuestion` to confirm. Options: the four scope levels.
 
 ### Step 2: Build the Step List
 
-Based on scope, determine which steps apply. Create a todo list to track progress.
+Based on scope AND platform, determine which steps apply. Create a todo list to track progress.
 
-**Quick fix:**
+**Quick fix (all platforms):**
 ```
 - [ ] 1. Understand the problem
 - [ ] 2. Implement fix (TDD)
@@ -61,7 +74,7 @@ Based on scope, determine which steps apply. Create a todo list to track progres
 - [ ] 6. Worktree setup
 - [ ] 7. Implement (TDD)
 - [ ] 8. Code review
-- [ ] 9. Verify acceptance criteria
+- [ ] 9. Final verification
 - [ ] 10. Commit and PR
 ```
 
@@ -76,7 +89,7 @@ Based on scope, determine which steps apply. Create a todo list to track progres
 - [ ] 7. Worktree setup
 - [ ] 8. Implement (TDD)
 - [ ] 9. Code review
-- [ ] 10. Verify acceptance criteria
+- [ ] 10. Final verification
 - [ ] 11. Commit and PR
 ```
 
@@ -92,9 +105,20 @@ Based on scope, determine which steps apply. Create a todo list to track progres
 - [ ] 8. Worktree setup
 - [ ] 9. Implement (TDD)
 - [ ] 10. Code review
-- [ ] 11. Verify acceptance criteria
+- [ ] 11. Final verification
 - [ ] 12. Commit and PR
 ```
+
+**Mobile platform adjustments (ios, android, cross-platform):**
+
+When the platform is mobile, modify the step list:
+
+- **Implementation plan:** Add required sections — feature flag strategy, rollback plan, API versioning (if API changes)
+- **After implementation:** Insert **device matrix testing** step (test on min OS version, small/large screens, slow network)
+- **After final verification:** Insert **beta testing** step (TestFlight / Play Console internal testing)
+- **After commit and PR:** Insert **app store review** step (human-driven gate — submission, review, potential rejection)
+
+Announce the platform-specific additions: "Mobile platform detected. Adding: device matrix testing, beta testing, and app store review steps."
 
 Use `TaskCreate` to create a todo item for each step.
 
@@ -125,8 +149,11 @@ For each step, follow this pattern:
 | Worktree setup | `superpowers:using-git-worktrees` | Isolated worktree created |
 | Implement | `superpowers:test-driven-development` | Code written with tests |
 | Code review | `superpowers:requesting-code-review` | Review feedback addressed |
-| Verify acceptance criteria | `spec-driven:verify-acceptance-criteria` | All criteria PASS |
-| Commit and PR | `commit-commands:commit-push-pr` | PR URL |
+| Final verification | `spec-driven:verify-acceptance-criteria` + `superpowers:verification-before-completion` | All criteria PASS + lint/typecheck/build pass |
+| Commit and PR | `superpowers:finishing-a-development-branch` | PR URL |
+| Device matrix testing | No skill — manual step | Tested on min OS, small/large screens, slow network |
+| Beta testing | No skill — manual step | TestFlight / Play Console build tested by internal tester |
+| App store review | No skill — manual step | Submission accepted |
 
 ### Step 4: Handle Interruptions
 
@@ -147,12 +174,14 @@ When all steps are done:
 Lifecycle complete!
 
 Summary:
+- Platform: [web/ios/android/cross-platform]
 - Design doc: docs/plans/YYYY-MM-DD-feature.md
 - Issue: #[number]
 - PR: #[number]
 - All acceptance criteria verified
 
 [List any skipped steps and their risks]
+[List any platform-specific notes (e.g., "App store submission pending")]
 ```
 
 ## Scope Adjustment Rules
@@ -172,6 +201,7 @@ When adjusting, announce: "Adjusting scope from [old] to [new]. Adding/removing 
 - **Output verification.** Each step must produce its expected output before marking complete.
 - **No silent skips.** If a step is skipped, it must be acknowledged with a reason.
 - **Scope can change.** The lifecycle adapts to what is discovered during execution.
+- **Platform context is loaded once.** Read `.spec-driven.yml` at the start; pass context to skills that need it.
 
 ## Additional Resources
 
@@ -179,3 +209,8 @@ When adjusting, announce: "Adjusting scope from [old] to [new]. Adding/removing 
 
 For detailed scope classification guidance and step descriptions:
 - **`references/scope-guide.md`** — Detailed criteria for classifying work scope, with examples and edge cases
+
+For project context and platform-specific lifecycle adjustments:
+- **`../../references/project-context-schema.md`** — Schema for `.spec-driven.yml`
+- **`../../references/platforms/mobile.md`** — Mobile lifecycle adjustments, required sections, beta testing checklist
+- **`../../references/platforms/web.md`** — Web lifecycle adjustments

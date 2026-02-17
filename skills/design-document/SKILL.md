@@ -54,6 +54,19 @@ Select sections based on what the feature requires. Not every feature needs ever
 | UI Adaptations | Existing UI components need modification for the new feature |
 | New Components | New UI components, hooks, or utilities need to be built |
 
+**Include when platform is mobile (ios, android, cross-platform):**
+
+Check for `.spec-driven.yml` in the project root to determine the platform. If `platform` is `ios`, `android`, or `cross-platform`, add these sections:
+
+| Section | Required | Purpose |
+|---------|----------|---------|
+| Feature Flag Strategy | Yes | How the feature can be killed server-side without an app update |
+| Rollback Plan | Yes | Multi-version compatibility strategy since "revert deploy" doesn't work |
+| API Versioning | If API changes | How old app versions interact with the new backend |
+| Device Compatibility | Yes | Minimum OS versions, screen sizes, accessibility |
+
+See `../../references/platforms/mobile.md` for section templates.
+
 ### Step 3: Write the Document
 
 Write each section following these principles (see `references/section-templates.md` for templates):
@@ -140,3 +153,7 @@ Recommended next steps:
 
 For section templates and examples across different feature types:
 - **`references/section-templates.md`** — Templates for each section type with examples from different feature categories (API features, UI features, data migrations, integrations)
+
+For platform-specific section templates:
+- **`../../references/platforms/mobile.md`** — Feature Flag Strategy, Rollback Plan, API Versioning, Device Compatibility templates
+- **`../../references/platforms/web.md`** — Browser Compatibility, SEO Considerations templates
