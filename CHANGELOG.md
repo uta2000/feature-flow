@@ -2,15 +2,23 @@
 
 All notable changes to the spec-driven plugin.
 
-## [1.4.0] - 2026-02-18
+## [1.5.0] - 2026-02-18
 
 ### Added
+- First-time user welcome in SessionStart hook (detects `.spec-driven.yml` to distinguish new vs returning users)
 - Auto-discovery support for PHP (composer.json), Java/Kotlin (build.gradle, pom.xml), C#/.NET (*.csproj), and Elixir (mix.exs)
 - Superpowers pre-flight check in start-feature — fails early with install instructions if superpowers is missing
 - Empty-stack warning when auto-discovery detects no frameworks
 - `.spec-driven.yml` commit guidance in README
 - Standalone skill usage documentation in README
 - CHANGELOG.md
+
+### Fixed
+- Superpowers repo URL corrected to `obra/superpowers`
+- Platform detection no longer misclassifies Kotlin backend projects as Android
+- task-verifier now package-manager-agnostic (supports yarn, pnpm, bun, cargo, make, python, pytest, mix, dotnet)
+- README no longer overstates which skills auto-create `.spec-driven.yml`
+- Pre-flight check no longer accidentally invokes brainstorming to test availability
 
 ## [1.3.0] - 2026-02-18
 
