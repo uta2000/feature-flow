@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'SPEC-DRIVEN DEVELOPMENT ACTIVE: Use start-feature to begin any non-trivial work — it orchestrates the full lifecycle (design → verify → implement → ship). Rules: (1) Every task in an implementation plan MUST include **Acceptance Criteria:** with machine-verifiable - [ ] items. After writing a plan, run verify-plan-criteria. (2) Before claiming any task is complete, run verify-acceptance-criteria to mechanically check all criteria against the codebase.'"
+            "command": "if [ -f .spec-driven.yml ]; then echo 'SPEC-DRIVEN DEVELOPMENT ACTIVE: Use start-feature to begin any non-trivial work — it orchestrates the full lifecycle (design → verify → implement → ship). Rules: (1) Every task in an implementation plan MUST include **Acceptance Criteria:** with machine-verifiable - [ ] items. After writing a plan, run verify-plan-criteria. (2) Before claiming any task is complete, run verify-acceptance-criteria to mechanically check all criteria against the codebase.'; else echo 'SPEC-DRIVEN is installed. It helps you build features without mid-implementation surprises by adding a design and verification layer before you code. To start, just describe what you want to build: \"start feature: add user notifications\" -- spec-driven will auto-detect your tech stack, classify the scope, and walk you through the right steps. For a quick bug fix, just describe the problem — the lifecycle is lightweight: understand, fix, verify, commit.'; fi"
           }
         ]
       }
