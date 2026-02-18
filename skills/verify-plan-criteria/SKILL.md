@@ -78,8 +78,8 @@ For each task missing criteria, generate machine-verifiable criteria from the ta
 - If creating a migration → "Migration file exists in the migrations directory"
 
 **Always include (for non-trivial tasks):**
-- "`npm run typecheck` passes with no new errors"
-- "`npm run lint` passes with no new warnings"
+- Typecheck passes (use the project's actual command — `npm run typecheck`, `yarn typecheck`, `pnpm typecheck`, `bun typecheck`, `tsc --noEmit`, or whatever `package.json` scripts defines)
+- Lint passes (use the project's actual lint command)
 
 **Present drafted criteria to the user:**
 

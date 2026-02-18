@@ -1,7 +1,7 @@
 ---
 name: design-verification
 description: This skill should be used when the user asks to "verify the design", "check the design against the codebase", "validate the design doc", "check for blockers", "will this design work", or after writing a design document to catch schema conflicts, type mismatches, and pipeline assumptions before implementation.
-tools: Read, Glob, Grep, Task, Bash, Edit, WebFetch, WebSearch, AskUserQuestion
+tools: Read, Glob, Grep, Task, Bash, Write, Edit, WebFetch, WebSearch, AskUserQuestion
 ---
 
 # Design Verification

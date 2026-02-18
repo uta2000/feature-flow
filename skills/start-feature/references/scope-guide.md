@@ -36,7 +36,7 @@
 
 **Examples:**
 - Add a loading spinner to an existing page
-- Add a new column to an existing table view
+- Show an additional column in an existing data table UI (no schema change)
 - Add client-side form validation
 - Add a sort option to an existing list
 - Add a tooltip to an existing button

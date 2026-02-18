@@ -43,6 +43,24 @@ claude plugins add https://github.com/uta2000/spec-driven
 
 Copy the `agents/`, `skills/`, `hooks/`, and `references/` directories into your project's `.claude/` directory. You still need the superpowers plugin installed separately.
 
+## Quick Start
+
+After installing, open any project and tell Claude:
+
+```
+start feature: add user notifications
+```
+
+spec-driven will:
+1. Scan your project files and auto-detect your platform and tech stack
+2. Create a `.spec-driven.yml` with your project context (first time only)
+3. Classify the scope (quick fix → major feature)
+4. Walk you through the right steps — brainstorm, design, verify, implement, ship
+
+The lifecycle adds ~20-30 minutes of upfront design but typically saves 2-4 hours of mid-implementation debugging per feature.
+
+For a quick fix, just say what's broken — the lifecycle is 4 steps: understand, fix (TDD), verify, PR.
+
 ## How It Works with Superpowers
 
 spec-driven owns the design and verification phases. superpowers owns implementation and delivery. The `start-feature` orchestrator invokes both:
