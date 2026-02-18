@@ -124,10 +124,10 @@ spec-driven owns the design and verification phases. superpowers owns implementa
 
 ## Project Context
 
-Add a `.spec-driven.yml` file to your project root to enable platform and stack-specific behavior:
+spec-driven uses a `.spec-driven.yml` file in your project root for platform and stack-specific behavior. **You don't need to create this manually** — `start-feature` auto-detects your platform and stack from project files (package.json, Gemfile, go.mod, config files, directory structure, etc.) and creates it for you on first run.
 
 ```yaml
-# .spec-driven.yml
+# .spec-driven.yml (auto-generated, then curated)
 platform: web          # web | ios | android | cross-platform
 stack:
   - supabase
@@ -142,7 +142,9 @@ gotchas:
 - `stack` loads stack-specific verification checks during design verification
 - `gotchas` are injected into every verification — project-specific pitfalls learned from past bugs
 
-**Without `.spec-driven.yml`:** Skills use their standard behavior. No platform or stack adjustments.
+**Auto-discovery:** On first run, `start-feature` scans your project files and presents detected context for confirmation. On subsequent runs, it cross-checks for new dependencies and suggests additions.
+
+**Gotcha write-back:** When `design-verification` finds a reusable pitfall or `spike` discovers a denied assumption that could affect future features, the skill offers to add it to your gotchas list automatically. The file gets smarter over time without manual curation.
 
 ### Pre-Built Stack References
 

@@ -42,7 +42,12 @@ Check for a `.spec-driven.yml` file in the project root:
 3. For the declared `platform`, load the platform reference from `../../references/platforms/{platform}.md` (use `mobile.md` for `ios`, `android`, or `cross-platform`)
 4. If a stack has no matching reference file, note it and use `WebSearch` to research known gotchas for that technology
 
-If `.spec-driven.yml` does not exist, proceed with the base checklist only. Mention to the user that project-specific context can be added via `.spec-driven.yml`.
+If `.spec-driven.yml` does not exist, offer to create it via auto-detection:
+
+1. Detect platform and stack from project files (see `../../references/auto-discovery.md`)
+2. Present detected context to user and ask for confirmation
+3. If confirmed, write `.spec-driven.yml` and continue with the detected context
+4. If declined, proceed with the base checklist only
 
 See `../../references/project-context-schema.md` for the full schema documentation.
 
@@ -126,6 +131,34 @@ If the user approves, update the design document with corrections:
 - Update counts and references to be accurate
 
 Confirm each change with the user before applying.
+
+### Step 7: Write Back Gotchas
+
+Review all FAIL and WARNING findings from the verification. Identify any that represent **reusable project-specific pitfalls** — issues that could bite future features, not just this one.
+
+**What qualifies as a gotcha:**
+- A constraint or limit discovered in the codebase that isn't obvious (e.g., a NOT NULL column that most designs would assume is nullable)
+- An API or service behavior that contradicts common assumptions (e.g., silent truncation, undocumented rate limits)
+- A pattern in the codebase that new features must follow but wouldn't be obvious to discover
+
+**What does NOT qualify:**
+- One-time design mistakes (e.g., "design said 5 columns but table has 6")
+- Findings already covered by a stack reference file (e.g., PostgREST 1000-row limit is already in supabase.md)
+
+If any qualifying gotchas are found, present them:
+
+```
+I found findings that could prevent future bugs if added to your project gotchas:
+
+1. "[specific gotcha phrased as a warning]"
+2. "[specific gotcha]"
+
+Add these to .spec-driven.yml?
+```
+
+Use `AskUserQuestion` with options: "Add all", "Let me pick", "Skip".
+
+If approved, append to the `gotchas` list in `.spec-driven.yml`. If the file doesn't exist, create it first using auto-detection (see `../../references/auto-discovery.md`).
 
 ## Verification Depth
 

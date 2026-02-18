@@ -16,18 +16,39 @@ Ensure the lifecycle is followed from start to finish. Track which steps are com
 
 ## Process
 
-### Step 0: Load Project Context
+### Step 0: Load or Create Project Context
 
 Check for a `.spec-driven.yml` file in the project root.
 
-If found, read it and extract:
-- **`platform`** — determines lifecycle adjustments (web, ios, android, cross-platform)
-- **`stack`** — determines which stack-specific checks are loaded during verification
-- **`gotchas`** — project-specific pitfalls injected into every verification
+**If found:**
+1. Read it and extract `platform`, `stack`, and `gotchas`
+2. Cross-check against auto-detected stack (see `../../references/auto-discovery.md`). If new dependencies are detected that aren't declared, suggest additions:
+   ```
+   Your .spec-driven.yml declares: [supabase, next-js]
+   I also detected: [stripe] (from package.json)
+   Want me to add stripe to your stack list?
+   ```
+3. If user approves additions, update the file with `Edit`
 
-See `../../references/project-context-schema.md` for the full schema.
+**If not found — auto-detect and create:**
+1. Detect platform from project structure (ios/, android/, Podfile, build.gradle, etc.)
+2. Detect stack from dependency files (package.json, requirements.txt, Gemfile, go.mod, Cargo.toml, pubspec.yaml) and config files (vercel.json, supabase/, firebase.json, etc.)
+3. Present detected context to user for confirmation:
+   ```
+   I detected the following project context:
 
-If not found, proceed with the standard web lifecycle. Mention: "No `.spec-driven.yml` found — using standard lifecycle. Add one to enable platform and stack-specific adjustments."
+   Platform: [detected]
+   Stack:
+     - [stack-1] (from [source])
+     - [stack-2] (from [source])
+
+   Does this look right? I'll save this to `.spec-driven.yml`.
+   ```
+4. Use `AskUserQuestion` with options: "Looks correct", "Let me adjust"
+5. Write `.spec-driven.yml` with confirmed values (gotchas starts empty — skills will populate it as they discover issues)
+
+See `../../references/auto-discovery.md` for the full detection rules.
+See `../../references/project-context-schema.md` for the schema.
 
 ### Step 1: Determine Scope
 

@@ -1,6 +1,6 @@
 # Project Context Schema
 
-Skills read project context from `.spec-driven.yml` in the project root. This file is optional — when absent, skills use their base behavior without platform or stack adjustments.
+Skills read project context from `.spec-driven.yml` in the project root. This file is optional — when absent, `start-feature` auto-detects the platform and stack from project files and creates it. See `auto-discovery.md` for detection rules.
 
 ## Schema
 
@@ -50,11 +50,16 @@ Common stack values with pre-built reference files:
 
 Free-text list of project-specific pitfalls learned from past bugs. These are injected into every design verification as mandatory checks.
 
-**How gotchas grow:**
+**How gotchas grow (automatic):**
+1. `design-verification` finds a FAIL or WARNING that represents a reusable pitfall → offers to add it
+2. `spike` discovers a DENIED assumption that future features would likely hit → offers to add it
+3. The user approves → gotcha is appended to `.spec-driven.yml`
+4. Every future design verification automatically checks for it
+
+**How gotchas grow (manual):**
 1. A bug is discovered in production (e.g., PostgREST 1000-row truncation)
-2. The root cause is added to `gotchas` in `.spec-driven.yml`
-3. Every future design verification automatically checks for it
-4. The knowledge is in the repo, not in someone's head
+2. The root cause is manually added to `gotchas` in `.spec-driven.yml`
+3. Same result — every future verification checks for it
 
 **Writing effective gotchas:**
 - Be specific: "PostgREST caps queries at 1000 rows" not "watch out for query limits"
@@ -63,24 +68,23 @@ Free-text list of project-specific pitfalls learned from past bugs. These are in
 
 ## How Skills Use This File
 
-### start-feature
-Reads context once at lifecycle start. Adjusts step list:
-- Mobile → adds beta testing, app store review, promotes feature flags to required
-- Specific stacks → adjusts verification depth
+### start-feature (reads + writes)
+- **Reads** context at lifecycle start. Adjusts step list based on platform and stack.
+- **Creates** `.spec-driven.yml` via auto-detection if it doesn't exist.
+- **Updates** stack list if new dependencies are detected that aren't declared.
 
-### design-verification
-Loads base checklist (13 categories), then appends:
-- Stack-specific checks from `references/stacks/{name}.md`
-- Platform-specific checks from `references/platforms/{platform}.md`
-- All project gotchas as additional mandatory checks
+### design-verification (reads + writes)
+- **Reads** base checklist (13 categories), stack-specific checks, platform-specific checks, and project gotchas.
+- **Writes** new gotchas discovered during verification (FAIL/WARNING findings that represent reusable pitfalls).
 
-### design-document
+### spike (reads + writes)
+- **Reads** stack-specific assumption patterns when evaluating risky unknowns.
+- **Writes** new gotchas from DENIED assumptions that future features would likely hit.
+
+### design-document (reads)
 Adds platform-aware sections:
 - Mobile → Feature Flag Strategy, Rollback Plan, API Versioning sections
 - Web → standard sections
 
-### spike
-Loads stack-specific assumption patterns when evaluating risky unknowns.
-
-### create-issue
+### create-issue (reads)
 Includes platform-relevant sections in the issue template.

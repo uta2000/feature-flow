@@ -108,7 +108,30 @@ Present a clear summary:
 [If any assumptions were denied, describe what needs to change]
 ```
 
-### Step 5: Clean Up
+### Step 5: Write Back Gotchas
+
+Review all DENIED assumptions. Identify any that represent **reusable project-specific pitfalls** — discoveries that future features would likely hit again.
+
+**What qualifies as a gotcha:**
+- An API that behaves differently than documented or commonly assumed (e.g., "WhoisFreaks bulk endpoint uses a separate RPM bucket from single-domain endpoint")
+- A library limitation that isn't obvious (e.g., "cmdk v0.2 does not support freeform input — upgrade to v1.0+ required")
+- A performance constraint discovered through testing (e.g., "Gemini structured output caps at ~50 items reliably, not 100")
+
+If any qualifying gotchas are found, present them:
+
+```
+These spike findings could prevent future bugs if added to your project gotchas:
+
+1. "[specific gotcha phrased as a warning]"
+
+Add to .spec-driven.yml?
+```
+
+Use `AskUserQuestion` with options: "Add", "Skip".
+
+If approved, append to the `gotchas` list in `.spec-driven.yml`. If the file doesn't exist, create it first using auto-detection (see `../../references/auto-discovery.md`).
+
+### Step 6: Clean Up
 
 Delete any spike scripts created during the experiment. These are throwaway artifacts, not production code.
 
