@@ -122,7 +122,7 @@ run design-verification on docs/plans/2024-03-15-notifications-design.md
 run verify-acceptance-criteria against the plan in docs/plans/
 ```
 
-Standalone skills will auto-create `.spec-driven.yml` if it doesn't exist (same auto-discovery flow as `start-feature`). This is useful when you want to verify an existing design or check acceptance criteria without running the full lifecycle.
+Skills that need project context (`design-verification`, `spike`) will auto-create `.spec-driven.yml` if it doesn't exist (same auto-discovery flow as `start-feature`). Other skills like `verify-plan-criteria` and `verify-acceptance-criteria` work without it.
 
 ## Where These Fit in the Lifecycle
 

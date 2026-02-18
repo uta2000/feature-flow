@@ -21,7 +21,6 @@ Scan the project root and immediate subdirectories for platform indicators:
 | `react-native` in package.json | `cross-platform` (check for ios/android dirs) |
 | `pubspec.yaml` with `flutter` dependency | `cross-platform` |
 | `*.xcodeproj` or `Package.swift` (no android/) | `ios` |
-| `build.gradle.kts` only (no ios/) | `android` |
 | None of the above | `web` |
 
 ## Stack Detection

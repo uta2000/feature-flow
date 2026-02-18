@@ -12,7 +12,7 @@ Guide development work through the correct lifecycle steps, invoking the right s
 
 ## Pre-Flight Check
 
-Before starting, verify that the superpowers plugin is available. Attempt to invoke the `superpowers:brainstorming` skill — if it fails or is not found, stop and tell the user:
+Before starting, verify that the superpowers plugin is available. Check for its presence by looking for superpowers skills in the loaded skill list — do NOT invoke a superpowers skill just to test availability. If superpowers is not found, stop and tell the user:
 
 ```
 The superpowers plugin is required but doesn't appear to be installed.

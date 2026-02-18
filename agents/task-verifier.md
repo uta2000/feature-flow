@@ -7,7 +7,7 @@ description: |
   <example>run verification on the implementation plan</example>
 color: green
 model: sonnet
-tools: Read, Glob, Grep, Bash(npm:*), Bash(npx:*), Bash(git:*), Bash(ls:*)
+tools: Read, Glob, Grep, Bash(npm:*), Bash(npx:*), Bash(yarn:*), Bash(pnpm:*), Bash(bun:*), Bash(cargo:*), Bash(make:*), Bash(python:*), Bash(pytest:*), Bash(mix:*), Bash(dotnet:*), Bash(git:*), Bash(ls:*)
 ---
 
 # Task Verifier
@@ -30,8 +30,8 @@ For each criterion, determine the verification method:
 | Criterion Pattern | Verification Method |
 |---|---|
 | "File exists at X" or "X exists at path" | Glob or `ls` for the file |
-| "typecheck passes" or "no type errors" | Run `npm run typecheck` |
-| "lint passes" or "no lint errors" | Run `npm run lint` |
+| "typecheck passes" or "no type errors" | Run the project's typecheck command (check `package.json` scripts, `Makefile`, or framework CLI) |
+| "lint passes" or "no lint errors" | Run the project's lint command (check `package.json` scripts, `Makefile`, or framework CLI) |
 | "Function/component X exists" | Grep for the definition |
 | "Accepts props X" or "interface matches" | Read file, check type/interface definition |
 | "Returns X" or "responds with X" | Check route handler implementation |
@@ -47,7 +47,7 @@ For each criterion:
 3. Evaluate: does the result satisfy the criterion?
 4. Record: PASS, FAIL, or CANNOT_VERIFY
 
-**Run `npm run typecheck` and `npm run lint` at most once each**, even if multiple criteria reference them. Cache the result.
+**Run typecheck and lint commands at most once each**, even if multiple criteria reference them. Determine the correct commands from `package.json` scripts, `Makefile`, or framework conventions (e.g., `npm run typecheck`, `yarn lint`, `cargo check`, `mix compile --warnings-as-errors`). Cache the result.
 
 ### Step 3: Produce Report
 
