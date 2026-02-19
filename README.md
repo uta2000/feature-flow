@@ -160,9 +160,10 @@ Skills that need project context (`design-verification`, `spike`) will auto-crea
 
 | Hook | Trigger | Action |
 |------|---------|--------|
-| PreToolUse (Write) | New source file being created | Reminds to check Context7 docs before writing code (only when `context7` is configured) |
+| PreToolUse (Write) | New source file being created | Reminds to check Context7 docs; **BLOCKS** if code contains `any` types, `as any`, or empty catch blocks |
+| PreToolUse (Edit) | Source file being edited | **BLOCKS** if new code contains `any` types, `as any`, or empty catch blocks |
 | PostToolUse (Write) | Plan file written to `plans/*.md` | Reminds to run `verify-plan-criteria` |
-| PostToolUse (Write/Edit) | Source file written or edited | Anti-pattern detection: flags `any` types, `as any` assertions, `console.log/debug`, empty catch blocks |
+| PostToolUse (Write/Edit) | Source file written or edited | Warns about `console.log`/`console.debug` (non-blocking — useful during TDD, cleaned up in self-review) |
 | SessionStart | Every session | Injects spec-driven conventions into context |
 | Stop | Session ending | Blocks if code was implemented without running `verify-acceptance-criteria` |
 
@@ -219,7 +220,7 @@ spec-driven enforces senior-engineer code quality through three layers:
 
 1. **Study Existing Patterns** (before implementation) — Reads 2-3 existing files per area being modified, extracts conventions, and generates per-task "How to Code This" notes that map implementation tasks to specific codebase patterns
 2. **Self-Review** (after implementation) — Reviews all changed code against a 10-point checklist: function size (≤30 lines), naming conventions, error handling, type safety (no `any`), DRY, pattern adherence, separation of concerns, guard clauses (≤3 nesting levels), debug artifacts, import organization
-3. **Anti-pattern hooks** (real-time) — PostToolUse hooks on Write and Edit that flag `any` types, `as any` assertions, `console.log/debug`, and empty catch blocks in source files as they're written
+3. **Anti-pattern hooks** (real-time) — PreToolUse hooks on Write and Edit that **block** `any` types, `as any` assertions, and empty catch blocks from being written. `console.log/debug` is warned but not blocked (useful during TDD, cleaned up in self-review)
 
 All three reference `references/coding-standards.md` — a comprehensive guide covering functions, error handling, DRY, TypeScript types, separation of concerns, naming, comments, performance, and testing. Stack-specific standards (Next.js, Supabase, React) are included.
 

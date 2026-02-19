@@ -13,7 +13,7 @@ All notable changes to the spec-driven plugin.
 - "Documentation lookup" step in start-feature lifecycle (between brainstorming and design document)
 - "Documentation Compliance" verification category (#17) in design-verification — checks design uses current patterns from official docs
 - PreToolUse hook on Write — reminds to check Context7 docs before creating new source files (only fires when `context7` is configured in `.spec-driven.yml`)
-- **PostToolUse anti-pattern detection** on Write and Edit — checks source files for `any` types, `as any` assertions, `console.log`/`console.debug`, and empty catch blocks. References coding-standards.md for guidelines.
+- **PreToolUse anti-pattern BLOCKING** on Write and Edit — blocks source files containing `any` types, `as any` assertions, or empty catch blocks from being written. Forces fix before proceeding. `console.log`/`console.debug` are warned (PostToolUse) but not blocked, since they're useful during TDD and cleaned up in self-review.
 - Context7 Documentation sections in all stack reference files (next-js, supabase, vercel, react-native) with library IDs and key patterns
 - **`references/coding-standards.md`** — senior-engineer coding principles covering functions, error handling, DRY, types, separation of concerns, naming, comments, performance, and testing
 - **"Study Existing Patterns" step** — mandatory inline step before implementation that reads 2-3 existing files per area being modified, extracts patterns, and generates "How to Code This" notes per implementation task
