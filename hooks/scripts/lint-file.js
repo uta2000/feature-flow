@@ -20,8 +20,8 @@ process.stdin.on('end', () => {
         `[spec-driven] LINT ERRORS in ${name} — fix these before continuing:\n${errors}`
       );
     }
-  } catch {
-    // Silent — never crash the hook system
+  } catch (e) {
+    console.error(`[spec-driven] lint-file hook error: ${e?.message || 'unknown'}`);
   }
   process.exit(0);
 });
@@ -34,21 +34,19 @@ function isSourceFile(f) {
 }
 
 function runLinter(filePath) {
-  if (existsSync('node_modules/.bin/eslint') && hasEslintConfig()) {
-    const result = spawnSync('npx', ['eslint', filePath], {
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-    if (result.status === 0) return null;
-    return (result.stdout || result.stderr || 'Lint errors found').trim();
-  }
+  const linters = [
+    { bin: 'eslint', args: ['eslint', filePath], detect: hasEslintConfig },
+    { bin: 'biome', args: ['biome', 'check', filePath], detect: hasBiomeConfig },
+  ];
 
-  if (existsSync('node_modules/.bin/biome') && hasBiomeConfig()) {
-    const result = spawnSync('npx', ['biome', 'check', filePath], {
+  for (const { bin, args, detect } of linters) {
+    if (!existsSync(`node_modules/.bin/${bin}`) || !detect()) continue;
+    const result = spawnSync('npx', args, {
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     if (result.status === 0) return null;
+    if (result.error || result.signal) return null;
     return (result.stdout || result.stderr || 'Lint errors found').trim();
   }
 

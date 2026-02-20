@@ -8,9 +8,9 @@ const path = require('path');
 const failures = [];
 const warnings = [];
 
-checkTypeScript();
-checkLint();
-checkTypeSync();
+try { checkTypeScript(); } catch (e) { warnings.push(`[spec-driven] TypeScript check failed unexpectedly: ${e.message?.slice(0, 100)}`); }
+try { checkLint(); } catch (e) { warnings.push(`[spec-driven] Lint check failed unexpectedly: ${e.message?.slice(0, 100)}`); }
+try { checkTypeSync(); } catch (e) { warnings.push(`[spec-driven] Type-sync check failed unexpectedly: ${e.message?.slice(0, 100)}`); }
 
 if (failures.length > 0) {
   const report = failures.join('\n\n');
@@ -34,13 +34,15 @@ function checkTypeScript() {
   try {
     execSync(`npx tsc --noEmit --project "${tsconfig}"`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
   } catch (e) {
-    const output = ((e.stdout || '') + (e.stderr || '')).trim();
+    const output = execOutput(e);
     const errorLines = output.split('\n').filter(l => l.includes('error TS'));
     const count = errorLines.length;
     if (count > 0) {
       const shown = errorLines.slice(0, 20).join('\n  ');
       const more = count > 20 ? `\n  ... and ${count - 20} more` : '';
       failures.push(`[TSC] ${count} type error${count !== 1 ? 's' : ''}\n  ${shown}${more}`);
+    } else if (output) {
+      failures.push(`[TSC] TypeScript check failed\n  ${output.slice(0, 500)}`);
     }
   }
 }
@@ -53,37 +55,31 @@ function checkLint() {
     try {
       const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
       if (pkg.scripts?.lint) {
-        try {
-          execSync('npm run lint', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
-          return;
-        } catch (e) {
-          const output = ((e.stdout || '') + (e.stderr || '')).trim();
-          failures.push(`[LINT] Lint errors found\n  ${output.split('\n').slice(0, 20).join('\n  ')}`);
-          return;
-        }
+        runLintCommand('npm run lint', 'Lint errors found');
+        return;
       }
-    } catch {}
+    } catch (e) {
+      warnings.push(`[spec-driven] Failed to parse package.json: ${e.message?.slice(0, 100) || 'unknown'}. Falling back to direct linter detection.`);
+    }
   }
 
   // Fallback: direct linter detection
   if (existsSync('node_modules/.bin/eslint') && hasEslintConfig()) {
-    try {
-      execSync('npx eslint .', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
-      return;
-    } catch (e) {
-      const output = ((e.stdout || '') + (e.stderr || '')).trim();
-      failures.push(`[LINT] ESLint errors\n  ${output.split('\n').slice(0, 20).join('\n  ')}`);
-      return;
-    }
+    runLintCommand('npx eslint .', 'ESLint errors');
+    return;
   }
 
   if (existsSync('node_modules/.bin/biome') && hasBiomeConfig()) {
-    try {
-      execSync('npx biome check .', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
-    } catch (e) {
-      const output = ((e.stdout || '') + (e.stderr || '')).trim();
-      failures.push(`[LINT] Biome errors\n  ${output.split('\n').slice(0, 20).join('\n  ')}`);
-    }
+    runLintCommand('npx biome check .', 'Biome errors');
+  }
+}
+
+function runLintCommand(command, label) {
+  try {
+    execSync(command, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+  } catch (e) {
+    const lines = execOutput(e).split('\n').slice(0, 20).join('\n  ');
+    failures.push(`[LINT] ${label}\n  ${lines}`);
   }
 }
 
@@ -158,24 +154,24 @@ function checkPrismaTypes() {
 function checkDuplicateTypes(typesPathOverride) {
   const canonical = typesPathOverride || findTypesFile();
   if (!canonical || !existsSync(canonical)) return;
+  if (!existsSync('supabase/functions')) return;
 
   const canonicalContent = readFileSync(canonical, 'utf8');
-  const edgeDirs = [];
-  if (existsSync('supabase/functions')) edgeDirs.push('supabase/functions');
-
-  for (const dir of edgeDirs) {
-    for (const tf of findTypeFiles(dir)) {
-      if (path.resolve(tf) === path.resolve(canonical)) continue;
-      try {
-        if (readFileSync(tf, 'utf8') !== canonicalContent) {
-          failures.push(`[TYPE-SYNC] Type file ${tf} has drifted from canonical source ${canonical}`);
-        }
-      } catch {}
-    }
+  for (const tf of findTypeFiles('supabase/functions')) {
+    if (path.resolve(tf) === path.resolve(canonical)) continue;
+    try {
+      if (readFileSync(tf, 'utf8') !== canonicalContent) {
+        failures.push(`[TYPE-SYNC] Type file ${tf} has drifted from canonical source ${canonical}`);
+      }
+    } catch {}
   }
 }
 
 // --- Helpers ---
+
+function execOutput(e) {
+  return ((e.stdout || '') + (e.stderr || '')).trim();
+}
 
 function findTypesFile() {
   return [
@@ -203,10 +199,9 @@ function parseStack(yml) {
   let inStack = false;
   for (const line of yml.split('\n')) {
     if (/^stack:/.test(line)) { inStack = true; continue; }
-    if (inStack && /^\s+-\s+(.+)/.test(line)) {
-      let val = line.match(/^\s+-\s+(.+)/)[1].trim().replace(/["']/g, '');
-      val = val.replace(/\s+#.*$/, '');
-      stack.push(val);
+    const m = inStack && line.match(/^\s+-\s+(.+)/);
+    if (m) {
+      stack.push(stripYamlValue(m[1]));
     } else if (inStack && /^\S/.test(line)) {
       inStack = false;
     }
@@ -216,10 +211,11 @@ function parseStack(yml) {
 
 function parseTypesPath(yml) {
   const m = yml.match(/^types_path:\s*(.+)$/m);
-  if (!m) return null;
-  let val = m[1].trim().replace(/["']/g, '');
-  val = val.replace(/\s+#.*$/, '');
-  return val;
+  return m ? stripYamlValue(m[1]) : null;
+}
+
+function stripYamlValue(raw) {
+  return raw.trim().replace(/["']/g, '').replace(/\s+#.*$/, '');
 }
 
 function hasEslintConfig() {
