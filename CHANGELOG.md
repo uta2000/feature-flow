@@ -2,6 +2,14 @@
 
 All notable changes to the spec-driven plugin.
 
+## [Unreleased]
+
+### Added
+- **YOLO mode** — auto-selects recommended options at all `AskUserQuestion` call sites across 6 skills, reducing friction for experienced users. Activated via `--yolo`, `yolo mode`, or `run unattended` in the start command, or via startup question. Three-layer architecture: detection (parse trigger from user input), propagation (pass `yolo: true` via Skill args), behavior (each skill checks flag and skips prompts). Logs each decision inline and prints a full decision log table at lifecycle completion. Quality gates, hooks, and verification steps are never bypassed.
+
+### Changed
+- Plugin version bumped to 1.11.0
+
 ## [1.10.0] - 2026-02-20
 
 ### Changed
