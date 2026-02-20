@@ -214,3 +214,30 @@ For features adding new pages:
 - Layout files (`layout.tsx`)
 - Middleware files
 - Sidebar/navigation components
+
+## 14. Structural Anti-Patterns
+
+For every new file, component, module, or class proposed in the design:
+
+- [ ] **God objects/files:** No single file or component takes on more than 2-3 responsibilities. If the design concentrates logic in one place, flag it.
+- [ ] **Tight coupling:** New modules don't depend on implementation details of other modules. Check for designs that wire directly to database columns, internal state, or private methods of other components.
+- [ ] **Circular dependencies:** The proposed import/dependency graph has no cycles. If module A will import from B and B will import from A (directly or transitively), flag it.
+- [ ] **Dependency direction:** Dependencies flow from high-level (UI, orchestration) to low-level (utilities, data access), not the reverse. Shared types/interfaces live in a common layer, not in a consumer.
+- [ ] **Responsibility distribution:** Logic is distributed across appropriate layers (data access, business logic, presentation) rather than concentrated in a single file or function.
+
+**Severity mapping:**
+- God objects with 4+ responsibilities → **FAIL** (must restructure before implementation)
+- Circular dependencies → **FAIL** (must redesign module boundaries)
+- Tight coupling to implementation details → **WARNING** (recommend abstraction, not blocking)
+- Minor responsibility distribution concerns → **WARNING**
+
+**Where to look:**
+- The design's "New Components" and "Pipeline / Architecture" sections
+- Proposed file paths and their import relationships
+- Any single file the design touches for more than 2 distinct concerns
+
+**Common findings:**
+- Design creates a single "manager" or "handler" file that fetches, transforms, validates, caches, and renders — a god object
+- New utility imports from a UI component instead of a shared layer — inverted dependency
+- Feature A imports a helper from Feature B, and Feature B imports a type from Feature A — circular dependency
+- All business logic lives in an API route handler instead of an extracted service layer — mixed responsibilities
