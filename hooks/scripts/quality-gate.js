@@ -175,14 +175,28 @@ function checkTests() {
   if (!cmd) return;
 
   try {
-    execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], timeout: 60000 });
+    execSync(cmd, {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: 60000,
+      env: { ...process.env, CI: '1' },
+    });
   } catch (e) {
-    if (e.killed) {
+    if (e.killed && e.signal === 'SIGTERM') {
       warnings.push('[spec-driven] Test suite timed out (60s) — skipping. Run tests manually.');
       return;
     }
-    const lines = execOutput(e).split('\n').slice(0, 20).join('\n  ');
-    failures.push(`[TEST] Test suite failed\n  ${lines}`);
+    if (e.code === 'ENOENT' || e.status === 127) {
+      warnings.push(`[spec-driven] Test command not found: "${cmd}". Ensure the tool is installed.`);
+      return;
+    }
+    const output = execOutput(e);
+    if (!output) {
+      failures.push(`[TEST] Test suite failed: ${e.message?.slice(0, 200) || 'exit code ' + e.status}`);
+    } else {
+      const lines = output.split('\n').slice(0, 20).join('\n  ');
+      failures.push(`[TEST] Test suite failed\n  ${lines}`);
+    }
   }
 }
 
@@ -192,6 +206,10 @@ function detectTestCommand() {
       const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
       const testScript = pkg.scripts?.test;
       if (testScript && !testScript.includes('no test specified')) {
+        if (!existsSync('node_modules')) {
+          warnings.push('[spec-driven] node_modules not found — skipping test check. Run "npm install" first.');
+          return null;
+        }
         return 'npm test';
       }
     } catch (e) {
