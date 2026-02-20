@@ -1,20 +1,21 @@
 ---
 name: create-issue
-description: This skill should be used when the user asks to "create an issue", "create a GitHub issue", "open an issue", "write up an issue", "file an issue", or after a design has been verified and needs to be captured as a trackable GitHub issue for implementation.
+description: This skill should be used when the user asks to "create an issue", "create a GitHub issue", "open an issue", "write up an issue", "file an issue", or after a design has been verified and needs to be captured as a trackable GitHub issue for implementation. Also handles updating an existing issue when an issue number is provided as context.
 tools: Read, Glob, Grep, Bash, Edit, AskUserQuestion
 ---
 
 # Create Issue
 
-Create a well-structured GitHub issue from a verified design document. The issue serves as the implementation brief — everything a developer (or Claude) needs to build the feature without ambiguity.
+Create or update a well-structured GitHub issue from a verified design document. The issue serves as the implementation brief — everything a developer (or Claude) needs to build the feature without ambiguity.
 
-**Announce at start:** "Creating GitHub issue from the design document."
+**Announce at start:** If updating an existing issue: "Updating issue #N from the design document." Otherwise: "Creating GitHub issue from the design document."
 
 ## When to Use
 
 - After a design document has been written and verified
 - When the user wants to track a feature as a GitHub issue
 - When transitioning from design to implementation planning
+- When an existing issue number is passed as context (update mode — syncs the issue with the design document)
 
 ## Process
 
@@ -103,7 +104,7 @@ See `docs/plans/YYYY-MM-DD-feature.md`
 
 ### Step 5: Add Metadata
 
-Before creating the issue, determine appropriate metadata:
+Before creating or updating the issue, determine appropriate metadata:
 
 - **Title:** Under 70 characters. Format: `[Feature Name] — [Brief description]`
 - **Labels:** Match existing repo labels (e.g., `enhancement`, `bug`, `feature`)
@@ -112,6 +113,22 @@ Before creating the issue, determine appropriate metadata:
 
 Present the draft to the user:
 
+**If updating an existing issue:**
+```
+Update issue #N:
+
+Title: [title]
+Labels: [labels]
+Milestone: [if applicable]
+
+[full body]
+
+Update this issue?
+```
+
+Use `AskUserQuestion` to confirm. Options: "Update as-is", "Let me edit first", "Cancel".
+
+**If creating a new issue:**
 ```
 Issue draft:
 
@@ -126,7 +143,24 @@ Create this issue?
 
 Use `AskUserQuestion` to confirm. Options: "Create as-is", "Let me edit first", "Cancel".
 
-### Step 6: Create the Issue
+### Step 6: Create or Update the Issue
+
+**If updating an existing issue (issue number provided as context):**
+
+```bash
+gh issue edit N --title "[title]" --body "$(cat <<'EOF'
+[issue body]
+EOF
+)"
+```
+
+Then add a comment summarizing what changed:
+
+```bash
+gh issue comment N --body "Updated from design document: [1-line summary of what changed]. See \`docs/plans/YYYY-MM-DD-feature.md\`"
+```
+
+**If creating a new issue:**
 
 ```bash
 gh issue create --title "[title]" --label "[label]" --body "$(cat <<'EOF'
@@ -139,6 +173,17 @@ Report the issue URL to the user.
 
 ### Step 7: Suggest Next Steps
 
+**If updated:**
+```
+Issue #N updated: [URL]
+
+Recommended next steps:
+1. Run `writing-plans` to create an implementation plan with acceptance criteria
+2. Run `verify-plan-criteria` to ensure all tasks have verifiable criteria
+3. Set up a worktree with `using-git-worktrees` to start implementation
+```
+
+**If created:**
 ```
 Issue created: [URL]
 

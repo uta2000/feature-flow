@@ -80,7 +80,18 @@ See `../../references/project-context-schema.md` for the schema.
 
 ### Step 1: Determine Scope
 
-Ask the user what they want to build. Then classify the work:
+Ask the user what they want to build. Then classify the work.
+
+**Issue reference detection:** Before classifying scope, check if the user's request references an existing GitHub issue. Look for patterns: `#N`, `issue #N`, `implement issue #N`, `issue/N`, or a full GitHub issue URL (e.g., `https://github.com/.../issues/N`).
+
+If an issue reference is found:
+1. Extract the issue number
+2. Fetch the issue body and title: `gh issue view N --json title,body,comments --jq '{title, body, comments: [.comments[].body]}'`
+3. Store the issue number as lifecycle context (pass to subsequent steps)
+4. Announce: "Found issue #N: [title]. I'll use this as context for brainstorming and update it after design."
+5. Pass the issue body + comments as initial context to the brainstorming step
+
+If no issue reference is found, proceed as before.
 
 | Scope | Description | Example |
 |-------|------------|---------|
@@ -205,11 +216,11 @@ For each step, follow this pattern:
 | Design document | `spec-driven:design-document` | File at `docs/plans/YYYY-MM-DD-*.md` |
 | Study existing patterns | No skill — inline step (see below) | Understanding of codebase conventions for the areas being modified |
 | Design verification | `spec-driven:design-verification` | Blockers/gaps identified and fixed |
-| Create issue | `spec-driven:create-issue` | GitHub issue URL |
-| Implementation plan | `superpowers:writing-plans` | Numbered tasks with acceptance criteria |
+| Create issue | `spec-driven:create-issue` | GitHub issue URL. **If an issue number was detected in Step 1**, pass it to create-issue as the `existing_issue` context — the skill will update the existing issue instead of creating a new one. |
+| Implementation plan | `superpowers:writing-plans` | Numbered tasks with acceptance criteria. **Override:** After the plan is saved, always proceed with subagent-driven execution — do not present the execution choice to the user. Immediately invoke `superpowers:subagent-driven-development`. |
 | Verify plan criteria | `spec-driven:verify-plan-criteria` | All tasks have verifiable criteria |
 | Worktree setup | `superpowers:using-git-worktrees` | Isolated worktree created |
-| Implement | `superpowers:test-driven-development` | Code written with tests |
+| Implement | `superpowers:subagent-driven-development` | Code written with tests, spec-reviewed, and quality-reviewed per task |
 | Self-review | No skill — inline step (see below) | Code verified against coding standards before formal review |
 | Code review | `superpowers:requesting-code-review` | Review feedback addressed |
 | Final verification | `spec-driven:verify-acceptance-criteria` + `superpowers:verification-before-completion` | All criteria PASS + lint/typecheck/build pass |
@@ -217,6 +228,27 @@ For each step, follow this pattern:
 | Device matrix testing | No skill — manual step | Tested on min OS, small/large screens, slow network |
 | Beta testing | No skill — manual step | TestFlight / Play Console build tested by internal tester |
 | App store review | No skill — manual step | Submission accepted |
+
+### Brainstorming Interview Format Override
+
+When invoking `superpowers:brainstorming` from this lifecycle, pass these formatting instructions as context. Every interview question presented to the user must follow this format:
+
+**Required format for each question:**
+
+```
+**[Question in plain English]**
+*Why this matters:* [1 sentence explaining impact on the design]
+- **Option A** — e.g., [concrete example]. *Recommended: [1 sentence reasoning]*
+- **Option B** — e.g., [concrete example]
+- **Option C** — e.g., [concrete example] (if applicable)
+```
+
+**Rules:**
+- Always lead with the recommended option and mark it with `*Recommended*`
+- Each option must include a concrete example showing what it means in practice (e.g., "like ESLint running on every save" not just "run on save")
+- The "Why this matters" line should explain what downstream impact the choice has (e.g., "this determines whether validation errors surface during editing or only at commit time")
+- Keep it concise — one line for the explanation, one line per option
+- If there is no clear recommendation, say "*No strong preference — depends on [factor]*" instead of forcing a pick
 
 ### Study Existing Patterns Step (inline — no separate skill)
 
