@@ -38,6 +38,36 @@ Without it, spec-driven cannot query up-to-date library documentation during des
 
 Do not proceed with the lifecycle if Context7 is missing — documentation lookups are a core part of the design phase. The `context7` field in `.spec-driven.yml` will not be populated, and the documentation lookup step, documentation compliance verification, and PreToolUse hook will all be non-functional.
 
+### pr-review-toolkit (recommended)
+
+Check for its presence by looking for `pr-review-toolkit:code-simplifier` in the loaded skill list. If not found, warn but continue:
+
+```
+The pr-review-toolkit plugin is recommended for full code review coverage.
+Install it: claude plugins add pr-review-toolkit
+Without it, the code review pipeline will skip: code-simplifier, silent-failure-hunter, pr-test-analyzer, and type-design-analyzer.
+```
+
+### feature-dev (recommended)
+
+Check for its presence by looking for `feature-dev:code-reviewer` in the loaded skill list. If not found, warn but continue:
+
+```
+The feature-dev plugin is recommended for code review.
+Install it: claude plugins add feature-dev
+Without it, the code review pipeline will skip: feature-dev:code-reviewer.
+```
+
+### backend-api-security (recommended)
+
+Check for its presence by looking for `backend-api-security:backend-security-coder` in the loaded skill list. If not found, warn but continue:
+
+```
+The backend-api-security plugin is recommended for security review.
+Install it: claude plugins add backend-api-security
+Without it, the code review pipeline will skip: backend-security-coder.
+```
+
 ## Purpose
 
 Ensure the lifecycle is followed from start to finish. Track which steps are complete, invoke the right skill at each stage, and do not advance until the current step is done.
@@ -222,7 +252,7 @@ For each step, follow this pattern:
 | Worktree setup | `superpowers:using-git-worktrees` | Isolated worktree created |
 | Implement | `superpowers:subagent-driven-development` | Code written with tests, spec-reviewed, and quality-reviewed per task |
 | Self-review | No skill — inline step (see below) | Code verified against coding standards before formal review |
-| Code review | `superpowers:requesting-code-review` | Review feedback addressed |
+| Code review | No skill — inline step (see below) | All Critical/Important findings fixed, tests pass |
 | Final verification | `spec-driven:verify-acceptance-criteria` + `superpowers:verification-before-completion` | All criteria PASS + lint/typecheck/build pass |
 | Commit and PR | `superpowers:finishing-a-development-branch` | PR URL |
 | Device matrix testing | No skill — manual step | Tested on min OS, small/large screens, slow network |
@@ -343,6 +373,100 @@ This step runs after implementation and before formal code review. It catches "i
 
 ### No Issues Found
 - [area] follows existing patterns
+```
+
+### Code Review Pipeline Step (inline — no separate skill)
+
+This step runs after self-review and before final verification. It dispatches multiple specialized review agents in parallel, auto-fixes findings, and re-verifies until clean. The goal is shipping clean code, not a list of TODOs.
+
+**Prerequisites:**
+- At least `superpowers:code-reviewer` must be available (always true — superpowers is required)
+- Additional agents from `pr-review-toolkit`, `feature-dev`, and `backend-api-security` are used when available
+
+**Process:**
+
+#### Phase 1: Dispatch review agents
+
+Dispatch all available review agents in parallel. For each agent, use the Task tool with the agent's `subagent_type` (e.g., `subagent_type=pr-review-toolkit:code-simplifier`). Each agent's prompt should include the full branch diff (`git diff main...HEAD`) and a description of what to review. Launch all agents in a single message to run them concurrently.
+
+| Agent | Plugin | Role | Fix Mode |
+|-------|--------|------|----------|
+| `pr-review-toolkit:code-simplifier` | pr-review-toolkit | DRY, clarity, maintainability | **Direct** — writes fixes to files |
+| `pr-review-toolkit:silent-failure-hunter` | pr-review-toolkit | Silent failures, empty catches, bad fallbacks | **Direct** — auto-fixes common patterns |
+| `feature-dev:code-reviewer` | feature-dev | Bugs, logic errors, security, conventions | **Report** → Claude fixes |
+| `superpowers:code-reviewer` | superpowers | General quality, plan adherence | **Report** → Claude fixes |
+| `pr-review-toolkit:pr-test-analyzer` | pr-review-toolkit | Test coverage quality, missing tests | **Report** → Claude fixes |
+| `backend-api-security:backend-security-coder` | backend-api-security | Input validation, auth, OWASP top 10 | **Report** → Claude fixes |
+| `pr-review-toolkit:type-design-analyzer` | pr-review-toolkit | Type encapsulation, invariants, type safety | **Report** → Claude fixes |
+
+**Availability check:** Before dispatching, check which plugins are installed by looking for their skills in the loaded skill list. Skip agents whose plugins are missing. Announce: "Running N code review agents in parallel..." (where N is the count of available agents).
+
+**Agent failure handling:** If an agent fails, crashes, or doesn't return, skip it and continue with available results. Do not stall the pipeline for a single agent failure. Log: "Agent [name] failed — skipping. Continuing with N remaining agents."
+
+#### Phase 2: Review direct fixes
+
+After all agents complete, the two direct-fix agents have already applied their changes to files. Review and summarize what they changed:
+
+1. **`code-simplifier`** — Applied structural improvements directly (DRY extraction, clarity rewrites). Summarize what changed.
+2. **`silent-failure-hunter`** — Auto-fixed common patterns (`catch {}` → `catch (e) { console.error(...) }`). Summarize what changed. Flag anything complex it couldn't auto-fix.
+
+#### Phase 3: Consolidate and fix reported findings
+
+Collect findings from the 5 reporting agents. Consolidate them:
+
+1. **Deduplicate by file path + line number** — if two agents flag the same location, keep the higher-severity finding
+2. **If same severity**, prefer the more specific agent: security > type-design > test-analyzer > feature-dev > superpowers
+3. **Classify by severity:** Critical, Important, Minor
+4. **Fix in order:** Critical → Important. Minor issues are logged as informational but not blocking.
+
+For each Critical and Important finding, read the agent's recommendation and apply the fix. Specific agent fix patterns:
+- **`pr-test-analyzer`:** Add missing test cases, strengthen weak assertions, add edge case coverage
+- **`backend-security-coder`:** Fix injection, validation, and auth issues. Critical security issues are always fixed.
+- **`type-design-analyzer`:** Improve type definitions based on encapsulation and invariant feedback
+- **`feature-dev:code-reviewer` + `superpowers:code-reviewer`:** Fix bugs, logic errors, and convention violations
+
+#### Phase 4: Re-verify (fix-verify loop)
+
+After all fixes are applied, re-verify:
+
+1. **Run tests:** Detect the test runner from the project:
+   - `package.json` with `test` script → `npm test` / `yarn test` / `pnpm test` (based on lockfile)
+   - `Makefile` with `test` target → `make test`
+   - `pytest.ini` / `pyproject.toml` / `setup.cfg` with pytest config → `pytest`
+   - `go.mod` → `go test ./...`
+   - `Cargo.toml` → `cargo test`
+   If no test runner detected, skip and log: "No test runner detected — skipping test verification."
+2. **Run `verify-acceptance-criteria`:** Check all acceptance criteria from the implementation plan still pass.
+
+If both pass → pipeline is clean. Proceed to the next lifecycle step.
+
+If either fails → collect the failures as new findings and loop. **Maximum 3 iterations.** Announce: "Iteration N/3: M issues remaining, fixing..."
+
+If still failing after 3 iterations → report remaining issues to the developer with context for manual resolution. Proceed to the next lifecycle step — the developer decides whether to fix manually.
+
+#### Phase 5: Report
+
+Output a summary:
+
+```
+## Code Review Pipeline Results
+
+**Agents dispatched:** N/7
+**Iterations:** M/3
+
+### Fixed (auto)
+- [agent] [file:line] [what was fixed]
+
+### Fixed (Claude)
+- [severity] [file:line] [what was fixed]
+
+### Remaining (Minor — not blocking)
+- [file:line] [description]
+
+### Remaining (unfixed after 3 iterations)
+- [file:line] [description + context for manual resolution]
+
+**Status:** Clean / N issues remaining
 ```
 
 ### Documentation Lookup Step (inline — no separate skill)
