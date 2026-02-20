@@ -76,6 +76,24 @@ Ensure the lifecycle is followed from start to finish. Track which steps are com
 
 ### Step 0: Load or Create Project Context
 
+**YOLO Mode Detection:**
+
+Before any other processing, check if the user requested YOLO mode. Parse the `ARGUMENTS` string for trigger phrases using **word-boundary matching** (not substring matching, to avoid false positives like "build a yolo-themed game"):
+
+1. Check for trigger phrases:
+   - `--yolo` (flag style — match as a standalone token)
+   - `yolo mode` (natural language phrase)
+   - `run unattended` (natural language phrase)
+2. If a trigger is found:
+   - Set YOLO mode active for the remainder of the lifecycle
+   - Announce: "YOLO mode active. Auto-selecting recommended options. Decision log will be printed at completion."
+   - Strip the trigger phrase from the arguments before further processing (so `start feature: add CSV export --yolo` becomes `start feature: add CSV export` for scope classification)
+3. If no trigger is found:
+   - Ask a one-time startup question via `AskUserQuestion`: "Run in **interactive** or **YOLO** mode?" with options:
+     - "Interactive (default)" — all questions asked normally
+     - "YOLO — auto-select recommended options" — auto-pilot with decision logging
+   - If the user selects YOLO, set YOLO mode active and announce as above
+
 Check for a `.spec-driven.yml` file in the project root.
 
 **If found:**
