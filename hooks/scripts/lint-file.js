@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-const { execSync } = require('child_process');
+const { spawnSync } = require('child_process');
 const { existsSync } = require('fs');
 const path = require('path');
 
@@ -29,33 +29,27 @@ process.stdin.on('end', () => {
 function isSourceFile(f) {
   if (!/\.(ts|tsx|js|jsx)$/.test(f)) return false;
   if (/\.(test|spec|d)\.(ts|tsx|js|jsx)$/.test(f)) return false;
-  if (/\/(node_modules|\.next|dist|build|\.git)\//.test(f)) return false;
+  if (/(^|\/)(node_modules|\.next|dist|build|\.git)(\/|$)/.test(f)) return false;
   return true;
 }
 
 function runLinter(filePath) {
   if (existsSync('node_modules/.bin/eslint') && hasEslintConfig()) {
-    try {
-      execSync(`npx eslint "${filePath}"`, {
-        encoding: 'utf8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
-      return null;
-    } catch (e) {
-      return (e.stdout || e.stderr || 'Lint errors found').trim();
-    }
+    const result = spawnSync('npx', ['eslint', filePath], {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    if (result.status === 0) return null;
+    return (result.stdout || result.stderr || 'Lint errors found').trim();
   }
 
   if (existsSync('node_modules/.bin/biome') && hasBiomeConfig()) {
-    try {
-      execSync(`npx biome check "${filePath}"`, {
-        encoding: 'utf8',
-        stdio: ['pipe', 'pipe', 'pipe'],
-      });
-      return null;
-    } catch (e) {
-      return (e.stdout || e.stderr || 'Lint errors found').trim();
-    }
+    const result = spawnSync('npx', ['biome', 'check', filePath], {
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    if (result.status === 0) return null;
+    return (result.stdout || result.stderr || 'Lint errors found').trim();
   }
 
   return null;

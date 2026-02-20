@@ -18,8 +18,6 @@ if (failures.length > 0) {
   console.log(`BLOCK: Code quality checks failed. Fix before ending session:\n\n${report}${warn}`);
 } else if (warnings.length > 0) {
   console.error(warnings.join('\n'));
-} else {
-  console.log('pass');
 }
 
 process.exit(0);
@@ -34,7 +32,7 @@ function checkTypeScript() {
   if (!existsSync('node_modules/.bin/tsc')) return;
 
   try {
-    execSync(`npx tsc --noEmit --project ${tsconfig}`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+    execSync(`npx tsc --noEmit --project "${tsconfig}"`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
   } catch (e) {
     const output = ((e.stdout || '') + (e.stderr || '')).trim();
     const errorLines = output.split('\n').filter(l => l.includes('error TS'));
@@ -206,7 +204,9 @@ function parseStack(yml) {
   for (const line of yml.split('\n')) {
     if (/^stack:/.test(line)) { inStack = true; continue; }
     if (inStack && /^\s+-\s+(.+)/.test(line)) {
-      stack.push(line.match(/^\s+-\s+(.+)/)[1].trim().replace(/["']/g, ''));
+      let val = line.match(/^\s+-\s+(.+)/)[1].trim().replace(/["']/g, '');
+      val = val.replace(/\s+#.*$/, '');
+      stack.push(val);
     } else if (inStack && /^\S/.test(line)) {
       inStack = false;
     }
@@ -216,7 +216,10 @@ function parseStack(yml) {
 
 function parseTypesPath(yml) {
   const m = yml.match(/^types_path:\s*(.+)$/m);
-  return m ? m[1].trim().replace(/["']/g, '') : null;
+  if (!m) return null;
+  let val = m[1].trim().replace(/["']/g, '');
+  val = val.replace(/\s+#.*$/, '');
+  return val;
 }
 
 function hasEslintConfig() {
