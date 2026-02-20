@@ -169,8 +169,9 @@ Based on scope AND platform, determine which steps apply. Create a todo list to 
 - [ ] 9. Implement (TDD)
 - [ ] 10. Self-review
 - [ ] 11. Code review
-- [ ] 12. Final verification
-- [ ] 13. Commit and PR
+- [ ] 12. Generate CHANGELOG entry
+- [ ] 13. Final verification
+- [ ] 14. Commit and PR
 ```
 
 **Feature:**
@@ -187,8 +188,9 @@ Based on scope AND platform, determine which steps apply. Create a todo list to 
 - [ ] 10. Implement (TDD)
 - [ ] 11. Self-review
 - [ ] 12. Code review
-- [ ] 13. Final verification
-- [ ] 14. Commit and PR
+- [ ] 13. Generate CHANGELOG entry
+- [ ] 14. Final verification
+- [ ] 15. Commit and PR
 ```
 
 **Major feature:**
@@ -206,8 +208,9 @@ Based on scope AND platform, determine which steps apply. Create a todo list to 
 - [ ] 11. Implement (TDD)
 - [ ] 12. Self-review
 - [ ] 13. Code review
-- [ ] 14. Final verification
-- [ ] 15. Commit and PR
+- [ ] 14. Generate CHANGELOG entry
+- [ ] 15. Final verification
+- [ ] 16. Commit and PR
 ```
 
 **Mobile platform adjustments (ios, android, cross-platform):**
@@ -253,6 +256,7 @@ For each step, follow this pattern:
 | Implement | `superpowers:subagent-driven-development` | Code written with tests, spec-reviewed, and quality-reviewed per task |
 | Self-review | No skill — inline step (see below) | Code verified against coding standards before formal review |
 | Code review | No skill — inline step (see below) | All Critical/Important findings fixed, tests pass |
+| Generate CHANGELOG entry | No skill — inline step (see below) | CHANGELOG.md updated with categorized entry |
 | Final verification | `spec-driven:verify-acceptance-criteria` + `superpowers:verification-before-completion` | All criteria PASS + lint/typecheck/build pass |
 | Commit and PR | `superpowers:finishing-a-development-branch` | PR URL |
 | Device matrix testing | No skill — manual step | Tested on min OS, small/large screens, slow network |
@@ -467,6 +471,127 @@ Output a summary:
 - [file:line] [description + context for manual resolution]
 
 **Status:** Clean / N issues remaining
+```
+
+### Generate CHANGELOG Entry Step (inline — no separate skill)
+
+This step runs after code review and before final verification. It auto-generates a CHANGELOG entry from the feature branch's git commits and presents it for user approval before writing. It runs for all scopes except Quick fix.
+
+**Process:**
+
+#### Phase 1: Collect commits
+
+1. Get all commit messages on the feature branch: `git log --format="%s" main...HEAD`
+2. Filter out merge commits matching `^Merge (branch|pull request)`
+3. Filter out fixup/squash commits matching `^(fixup|squash)!`
+4. If no commits remain after filtering, skip the step: "No commits found on feature branch — skipping CHANGELOG generation."
+
+#### Phase 2: Categorize by conventional commit prefix
+
+For each commit message, match against these prefixes:
+
+| Prefix | Keep a Changelog Category |
+|--------|--------------------------|
+| `feat:` | Added |
+| `fix:` | Fixed |
+| `refactor:` | Changed |
+| `docs:` | Documentation |
+| `test:` | Testing |
+| `chore:` | Maintenance |
+
+**Processing rules:**
+1. Match prefix case-insensitively: `feat:`, `Feat:`, `FEAT:` all match
+2. Strip the prefix and optional scope: `feat(csv): add export` → `Add export`
+3. Capitalize the first letter of the remaining message
+4. Deduplicate entries with identical messages (case-insensitive, keep first occurrence)
+5. If no commits match any prefix, put all entries under a single `### Changes` category
+6. Omit empty categories from the output
+
+#### Phase 3: Detect version (optional)
+
+Check these sources in order, use the first one found:
+
+1. `package.json` → `version` field
+2. `Cargo.toml` → `[package]` section `version` field
+3. `pyproject.toml` → `[project]` section `version` field
+4. `mix.exs` → `@version` attribute
+5. Latest git tag matching semver pattern: `git tag --sort=-v:refname | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+' | head -1`
+
+If a version is detected, present it alongside `[Unreleased]` via `AskUserQuestion`:
+- **Option 1:** `[Unreleased]` (Recommended) — assign version at release time
+- **Option 2:** `[X.Y.Z] - YYYY-MM-DD` — use detected version now
+
+If no version detected, use `[Unreleased]` without asking.
+
+#### Phase 4: Generate entry
+
+Format the entry in Keep a Changelog format:
+
+```
+## [Unreleased]
+
+### Added
+- Entry from feat: commit
+- Entry from feat: commit
+
+### Fixed
+- Entry from fix: commit
+
+### Changed
+- Entry from refactor: commit
+```
+
+Category order: Added, Fixed, Changed, Documentation, Testing, Maintenance, Changes (fallback last).
+
+#### Phase 5: Present for approval
+
+Present the generated entry to the user via `AskUserQuestion`:
+
+- **Option 1:** "Looks good — write it" — proceed to write
+- **Option 2:** "Let me edit" — user provides corrections in freeform text, entry is revised
+- **Option 3:** "Skip CHANGELOG" — announce risk: "No CHANGELOG entry will be included in this PR. You may want to add one manually." Proceed to next lifecycle step.
+
+#### Phase 6: Write to CHANGELOG.md
+
+**If CHANGELOG.md exists with an `[Unreleased]` section:**
+1. Parse existing categories under `[Unreleased]`
+2. For each generated category:
+   - If the category exists in the file, append new entries at the end of that category's list
+   - If the category doesn't exist, add it after the last existing category under `[Unreleased]`
+3. Deduplicate: skip any generated entry that matches an existing entry (case-insensitive)
+4. Preserve all existing entries — never remove or reorder them
+
+**If CHANGELOG.md exists without `[Unreleased]`:**
+1. Find the first `## [` heading (the latest version section)
+2. Insert the new `## [Unreleased]` section before it
+
+**If no CHANGELOG.md exists:**
+1. Create the file with the Keep a Changelog header:
+
+```markdown
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/),
+and this project adheres to [Semantic Versioning](https://semver.org/).
+
+## [Unreleased]
+
+[generated categories and entries]
+```
+
+After writing, announce: "CHANGELOG.md updated with N entries across M categories."
+
+**Output format:**
+```
+## CHANGELOG Generation Results
+
+**Version heading:** [Unreleased] (or [X.Y.Z] - YYYY-MM-DD)
+**Commits parsed:** N
+**Entries generated:** M (after dedup)
+**Categories:** [list]
+**Action:** Written to CHANGELOG.md / Skipped by user
 ```
 
 ### Documentation Lookup Step (inline — no separate skill)

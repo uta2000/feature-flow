@@ -99,6 +99,7 @@ spec-driven owns the design and verification phases. superpowers owns implementa
 | Implement (TDD) | superpowers | `test-driven-development` |
 | Self-review | **spec-driven** (inline) | Reviews code against `coding-standards.md` checklist |
 | Code review | **spec-driven** (inline) | Multi-agent review pipeline (7 agents, auto-fix, re-verify loop) |
+| Generate CHANGELOG entry | **spec-driven** (inline) | Parses branch commits, generates Keep a Changelog entry |
 | Final verification | **spec-driven** + superpowers | `verify-acceptance-criteria` + `verification-before-completion` |
 | Commit and PR | superpowers | `finishing-a-development-branch` |
 
@@ -164,11 +165,12 @@ Skills that need project context (`design-verification`, `spike`) will auto-crea
 12b. Device Matrix Testing         ← mobile only
 13. Self-Review                    ← inline (coding-standards.md checklist)
 14. Code Review                    ← inline (multi-agent pipeline: find → fix → re-verify)
-15. Final Verification             ← verify-acceptance-criteria + superpowers:verification-before-completion
-15b. Beta Testing                  ← mobile only (TestFlight / Play Console)
-16. PR / Merge                     ← superpowers:finishing-a-development-branch
-16b. App Store Review              ← mobile only
-17. Deploy
+15. Generate CHANGELOG Entry       ← inline (conventional commits → Keep a Changelog)
+16. Final Verification             ← verify-acceptance-criteria + superpowers:verification-before-completion
+16b. Beta Testing                  ← mobile only (TestFlight / Play Console)
+17. PR / Merge                     ← superpowers:finishing-a-development-branch
+17b. App Store Review              ← mobile only
+18. Deploy
 ```
 
 ## Hooks
