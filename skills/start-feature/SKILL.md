@@ -734,6 +734,26 @@ Summary:
 [List any platform-specific notes (e.g., "App store submission pending")]
 ```
 
+**YOLO Decision Log (if YOLO mode was active):**
+
+If the lifecycle ran in YOLO mode, append the full decision log after the standard completion summary:
+
+```
+## YOLO Decision Log
+
+| # | Skill | Decision | Auto-Selected |
+|---|-------|----------|---------------|
+| 1 | start-feature | Platform/stack detection | Accepted: [platform], [stack] |
+| 2 | start-feature | Scope classification | [scope] |
+| 3 | brainstorming | [question] | [answer] |
+| ... | ... | ... | ... |
+
+**Total decisions auto-selected:** N
+**Quality gates preserved:** hooks, tests, verification, code review
+```
+
+**Cancellation:** There is no formal YOLO cancellation mechanism. Inline announcements (`YOLO: [skill] — [decision] → [option]`) serve as an "emergency brake" — the user sees each decision as it's made and can interrupt the lifecycle at any point by sending a message. The lifecycle will pause at the current step, and the user can redirect from there.
+
 ## Scope Adjustment Rules
 
 During the lifecycle, the scope may need to change:
