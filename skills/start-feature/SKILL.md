@@ -258,6 +258,15 @@ For each step, follow this pattern:
 5. **Mark complete:** Update the todo item to `completed`
 6. **Announce next step:** "Step N complete. Next: Step N+1 — [name]."
 
+**YOLO Propagation:** When YOLO mode is active, prepend `yolo: true.` to the `args` parameter of every `Skill` invocation. For example:
+
+```
+Skill(skill: "superpowers:brainstorming", args: "yolo: true. [original args]")
+Skill(skill: "spec-driven:design-document", args: "yolo: true. [original args]")
+```
+
+For inline steps (CHANGELOG generation, self-review, code review, study existing patterns), the YOLO flag is already in the conversation context — no explicit propagation is needed.
+
 **Do not skip steps.** If the user asks to skip a step, explain why it matters and confirm they want to skip. If they insist, mark it as skipped and note the risk.
 
 ### Skill Mapping
