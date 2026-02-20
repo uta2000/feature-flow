@@ -78,8 +78,8 @@
           {
             "type": "command",
             "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/quality-gate.js",
-            "timeout": 120,
-            "statusMessage": "Running code quality checks (tsc, lint, type-sync)..."
+            "timeout": 180,
+            "statusMessage": "Running code quality checks (tsc, lint, type-sync, tests)..."
           }
         ]
       },
