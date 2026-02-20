@@ -433,13 +433,15 @@ For each Critical and Important finding, read the agent's recommendation and app
 
 After all fixes are applied, re-verify:
 
-1. **Run tests:** Detect the test runner from the project:
-   - `package.json` with `test` script → `npm test` / `yarn test` / `pnpm test` (based on lockfile)
-   - `Makefile` with `test` target → `make test`
-   - `pytest.ini` / `pyproject.toml` / `setup.cfg` with pytest config → `pytest`
-   - `go.mod` → `go test ./...`
+1. **Run tests:** Detect the test runner from the project (matching the quality gate's `detectTestCommand()` in `hooks/scripts/quality-gate.js`):
+   - `package.json` with `scripts.test` (not the npm default placeholder) → `npm test`. If `node_modules` doesn't exist, skip with warning.
    - `Cargo.toml` → `cargo test`
-   If no test runner detected, skip and log: "No test runner detected — skipping test verification."
+   - `go.mod` → `go test ./...`
+   - `mix.exs` → `mix test`
+   - `pyproject.toml` / `pytest.ini` / `setup.cfg` / `tox.ini` → `python -m pytest`
+   - If no test runner detected, skip and log: "No test runner detected — skipping test verification."
+   - **Timeout:** 60 seconds. If the test suite times out, log a warning and skip (do not count as a failure).
+   - **Error handling:** If the test command is not found (ENOENT / exit code 127), log a warning and skip. Do not fail the pipeline for a missing tool.
 2. **Run `verify-acceptance-criteria`:** Check all acceptance criteria from the implementation plan still pass.
 
 If both pass → pipeline is clean. Proceed to the next lifecycle step.

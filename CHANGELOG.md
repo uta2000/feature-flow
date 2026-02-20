@@ -2,6 +2,11 @@
 
 All notable changes to the spec-driven plugin.
 
+## [1.10.0] - 2026-02-20
+
+### Changed
+- **Code review test detection aligned with quality gate** — Phase 4 test runner detection now matches `detectTestCommand()` from `hooks/scripts/quality-gate.js` exactly: uses `npm test` only (not yarn/pnpm), checks `node_modules` existence, skips npm default placeholder, adds `mix test` (Elixir) and `tox.ini` (Python), documents 60-second timeout and command-not-found error handling. Closes #7.
+
 ## [1.9.0] - 2026-02-20
 
 ### Added
