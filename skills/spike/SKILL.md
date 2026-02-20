@@ -55,6 +55,8 @@ Which ones should I validate? (Recommend: [highest risk items])
 
 Use `AskUserQuestion` to confirm which assumptions to test.
 
+**YOLO behavior:** If `yolo: true` is in the skill's `ARGUMENTS`, skip this question. Test all identified assumptions and announce: `YOLO: spike — Assumptions to test → All ([N] assumptions)`
+
 ### Step 1b: Check Documentation First
 
 Before designing experiments, check if existing documentation already answers the question:
@@ -141,6 +143,8 @@ Add to .spec-driven.yml?
 ```
 
 Use `AskUserQuestion` with options: "Add", "Skip".
+
+**YOLO behavior:** If `yolo: true` is in the skill's `ARGUMENTS`, skip this question. Auto-select "Add" and announce: `YOLO: spike — Add gotcha → Added`
 
 If approved, append to the `gotchas` list in `.spec-driven.yml`. If the file doesn't exist, create it first using auto-detection (see `../../references/auto-discovery.md`).
 

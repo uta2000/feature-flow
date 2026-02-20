@@ -128,6 +128,8 @@ Update this issue?
 
 Use `AskUserQuestion` to confirm. Options: "Update as-is", "Let me edit first", "Cancel".
 
+**YOLO behavior:** If `yolo: true` is in the skill's `ARGUMENTS`, skip this question. Auto-select "Update as-is" and announce: `YOLO: create-issue — Confirm update → Update as-is`
+
 **If creating a new issue:**
 ```
 Issue draft:
@@ -142,6 +144,8 @@ Create this issue?
 ```
 
 Use `AskUserQuestion` to confirm. Options: "Create as-is", "Let me edit first", "Cancel".
+
+**YOLO behavior:** If `yolo: true` is in the skill's `ARGUMENTS`, skip this question. Auto-select "Create as-is" and announce: `YOLO: create-issue — Confirm create → Create as-is`
 
 ### Step 6: Create or Update the Issue
 

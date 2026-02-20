@@ -140,6 +140,8 @@ If the user approves, update the design document with corrections:
 
 Confirm each change with the user before applying.
 
+**YOLO behavior:** If `yolo: true` is in the skill's `ARGUMENTS`, skip per-change confirmation. Auto-apply all recommended corrections and announce: `YOLO: design-verification — Apply corrections → All corrections applied`
+
 ### Step 7: Write Back Gotchas
 
 Review all FAIL and WARNING findings from the verification. Identify any that represent **reusable project-specific pitfalls** — issues that could bite future features, not just this one.
@@ -165,6 +167,8 @@ Add these to .spec-driven.yml?
 ```
 
 Use `AskUserQuestion` with options: "Add all", "Let me pick", "Skip".
+
+**YOLO behavior:** If `yolo: true` is in the skill's `ARGUMENTS`, skip this question. Auto-select "Add all" and announce: `YOLO: design-verification — Add gotchas → Add all ([N] gotchas added)`
 
 If approved, append to the `gotchas` list in `.spec-driven.yml`. If the file doesn't exist, create it first using auto-detection (see `../../references/auto-discovery.md`).
 

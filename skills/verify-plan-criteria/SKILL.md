@@ -97,6 +97,8 @@ Accept these criteria, or would you like to edit them?
 
 Use `AskUserQuestion` to get approval. Options: "Accept as-is", "Let me edit them", "Skip this task".
 
+**YOLO behavior:** If `yolo: true` is in the skill's `ARGUMENTS`, skip this question. Auto-select "Accept as-is" for all tasks with drafted criteria and announce: `YOLO: verify-plan-criteria — Approve criteria → Accept as-is ([N] tasks)`
+
 ### Step 5: Apply Approved Criteria
 
 For each task where criteria were approved:

@@ -33,6 +33,8 @@ Collect the inputs needed to write the document:
 
 If the conversation does not contain enough decisions, ask the user to clarify. Use `AskUserQuestion` — one question at a time, with options when possible.
 
+**YOLO behavior:** If `yolo: true` is in the skill's `ARGUMENTS`, do not call `AskUserQuestion` for clarification. Instead, answer the questions from available context (brainstorming output, issue body, codebase analysis) and announce each: `YOLO: design-document — [question] → [answer]`. If critical information is genuinely missing (not inferable from any source), note it as `[TBD]` in the design document rather than guessing.
+
 ### Step 2: Determine Sections
 
 Select sections based on what the feature requires. Not every feature needs every section.
@@ -127,6 +129,8 @@ Does this section look right, or should I adjust anything?
 ```
 
 If the document is short enough (under 1,000 words total), present it all at once.
+
+**YOLO behavior:** If `yolo: true` is in the skill's `ARGUMENTS`, skip section-by-section confirmation. Present the full document at once without asking "Does this section look right?" after each section. Announce: `YOLO: design-document — Section approval → Accepted (all sections)`
 
 ### Step 6: Suggest Next Steps
 

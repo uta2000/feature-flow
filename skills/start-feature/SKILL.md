@@ -76,6 +76,24 @@ Ensure the lifecycle is followed from start to finish. Track which steps are com
 
 ### Step 0: Load or Create Project Context
 
+**YOLO Mode Detection:**
+
+Before any other processing, check if the user requested YOLO mode. Parse the `ARGUMENTS` string for trigger phrases using **word-boundary matching** (not substring matching, to avoid false positives like "build a yolo-themed game"):
+
+1. Check for trigger phrases:
+   - `--yolo` (flag style — match as a standalone token)
+   - `yolo mode` (natural language phrase)
+   - `run unattended` (natural language phrase)
+2. If a trigger is found:
+   - Set YOLO mode active for the remainder of the lifecycle
+   - Announce: "YOLO mode active. Auto-selecting recommended options. Decision log will be printed at completion."
+   - Strip the trigger phrase from the arguments before further processing (so `start feature: add CSV export --yolo` becomes `start feature: add CSV export` for scope classification)
+3. If no trigger is found:
+   - Ask a one-time startup question via `AskUserQuestion`: "Run in **interactive** or **YOLO** mode?" with options:
+     - "Interactive (default)" — all questions asked normally
+     - "YOLO — auto-select recommended options" — auto-pilot with decision logging
+   - If the user selects YOLO, set YOLO mode active and announce as above
+
 Check for a `.spec-driven.yml` file in the project root.
 
 **If found:**
@@ -87,6 +105,8 @@ Check for a `.spec-driven.yml` file in the project root.
    Want me to add stripe to your stack list?
    ```
 3. If user approves additions, update the file with `Edit`
+
+**YOLO behavior:** If YOLO mode is active, skip this question. Auto-accept all detected dependency additions and announce: `YOLO: start-feature — Stack cross-check → Auto-added: [list of new dependencies]`
 
 **If not found — auto-detect and create:**
 1. Detect platform from project structure (ios/, android/, Podfile, build.gradle, etc.)
@@ -103,6 +123,9 @@ Check for a `.spec-driven.yml` file in the project root.
    Does this look right? I'll save this to `.spec-driven.yml`.
    ```
 4. Use `AskUserQuestion` with options: "Looks correct", "Let me adjust"
+
+**YOLO behavior:** If YOLO mode is active, skip this question. Accept the detected context as-is and announce: `YOLO: start-feature — Platform/stack detection → Accepted: [platform], [stack list]`
+
 5. Write `.spec-driven.yml` with confirmed values (gotchas starts empty — skills will populate it as they discover issues)
 
 See `../../references/auto-discovery.md` for the full detection rules.
@@ -141,6 +164,8 @@ Does this look right, or should I adjust the scope?
 ```
 
 Use `AskUserQuestion` to confirm. Options: the four scope levels.
+
+**YOLO behavior:** If YOLO mode is active, skip this question. Use the LLM's classification based on the scope criteria table above and announce: `YOLO: start-feature — Scope classification → [selected scope]`
 
 ### Step 2: Build the Step List
 
@@ -240,6 +265,15 @@ For each step, follow this pattern:
 5. **Mark complete:** Update the todo item to `completed`
 6. **Announce next step:** "Step N complete. Next: Step N+1 — [name]."
 
+**YOLO Propagation:** When YOLO mode is active, prepend `yolo: true.` to the `args` parameter of every `Skill` invocation. For example:
+
+```
+Skill(skill: "superpowers:brainstorming", args: "yolo: true. [original args]")
+Skill(skill: "spec-driven:design-document", args: "yolo: true. [original args]")
+```
+
+For inline steps (CHANGELOG generation, self-review, code review, study existing patterns), the YOLO flag is already in the conversation context — no explicit propagation is needed.
+
 **Do not skip steps.** If the user asks to skip a step, explain why it matters and confirm they want to skip. If they insist, mark it as skipped and note the risk.
 
 ### Skill Mapping
@@ -287,6 +321,15 @@ When invoking `superpowers:brainstorming` from this lifecycle, pass these format
 - The "Why this matters" line should explain what downstream impact the choice has (e.g., "this determines whether validation errors surface during editing or only at commit time")
 - Keep it concise — one line for the explanation, one line per option
 - If there is no clear recommendation, say "*No strong preference — depends on [factor]*" instead of forcing a pick
+
+**YOLO behavior:** When YOLO mode is active (i.e., `yolo: true` is in the brainstorming args), do NOT present questions to the user. Instead:
+
+1. The LLM answers its own interview questions using all available context: issue body, issue comments, codebase analysis, and existing patterns
+2. For each question, announce: `YOLO: brainstorming — [question summary] → [selected option with reasoning]`
+3. Proceed through all brainstorming questions autonomously
+4. Ensure all self-answered decisions are captured when passing context to the design document step
+
+This is the most complex YOLO interaction — the LLM makes design-level decisions. The user reviews these via the design document output rather than each micro-decision.
 
 ### Commit Planning Artifacts Step (inline — no separate skill)
 
@@ -575,6 +618,8 @@ If a version is detected, present it alongside `[Unreleased]` via `AskUserQuesti
 
 If no version detected, use `[Unreleased]` without asking.
 
+**YOLO behavior:** If YOLO mode is active, skip this question. Auto-select `[Unreleased]` and announce: `YOLO: start-feature — CHANGELOG version heading → [Unreleased]`
+
 #### Phase 4: Generate entry
 
 Format the entry in Keep a Changelog format:
@@ -602,6 +647,8 @@ Present the generated entry to the user via `AskUserQuestion`:
 - **Option 1:** "Looks good — write it" — proceed to write
 - **Option 2:** "Let me edit" — user provides corrections in freeform text, entry is revised
 - **Option 3:** "Skip CHANGELOG" — announce risk: "No CHANGELOG entry will be included in this PR. You may want to add one manually." Proceed to next lifecycle step.
+
+**YOLO behavior:** If YOLO mode is active, skip this question. Auto-select "Looks good — write it" and announce: `YOLO: start-feature — CHANGELOG entry → Accepted`
 
 #### Phase 6: Write to CHANGELOG.md
 
@@ -710,6 +757,26 @@ Summary:
 [List any skipped steps and their risks]
 [List any platform-specific notes (e.g., "App store submission pending")]
 ```
+
+**YOLO Decision Log (if YOLO mode was active):**
+
+If the lifecycle ran in YOLO mode, append the full decision log after the standard completion summary:
+
+```
+## YOLO Decision Log
+
+| # | Skill | Decision | Auto-Selected |
+|---|-------|----------|---------------|
+| 1 | start-feature | Platform/stack detection | Accepted: [platform], [stack] |
+| 2 | start-feature | Scope classification | [scope] |
+| 3 | brainstorming | [question] | [answer] |
+| ... | ... | ... | ... |
+
+**Total decisions auto-selected:** N
+**Quality gates preserved:** hooks, tests, verification, code review
+```
+
+**Cancellation:** There is no formal YOLO cancellation mechanism. Inline announcements (`YOLO: [skill] — [decision] → [option]`) serve as an "emergency brake" — the user sees each decision as it's made and can interrupt the lifecycle at any point by sending a message. The lifecycle will pause at the current step, and the user can redirect from there.
 
 ## Scope Adjustment Rules
 

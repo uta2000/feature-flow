@@ -72,6 +72,34 @@ The lifecycle adds ~20-30 minutes of upfront design but typically saves 2-4 hour
 
 For a quick fix, just say what's broken — the lifecycle is 4 steps: understand, fix (TDD), verify, PR.
 
+Add `--yolo` to auto-select recommended options and skip confirmation prompts:
+
+```
+start feature: add user notifications --yolo
+```
+
+### YOLO Mode
+
+For experienced users who trust the lifecycle's recommended defaults:
+
+```
+start feature: add user notifications --yolo
+```
+
+YOLO mode auto-selects recommended options at every decision point (scope classification, brainstorming questions, issue confirmation, etc.) and logs each decision inline:
+
+```
+YOLO: Platform/stack → Accepted: web, [next-js, supabase]
+YOLO: Scope → Feature
+YOLO: brainstorming — Export trigger → Option A: button in toolbar
+```
+
+At completion, a full decision log table is printed so you can review what was decided.
+
+**What YOLO does NOT bypass:** Quality gates (tsc, lint, tests), anti-pattern hooks, acceptance criteria verification, code review pipeline, and Context7 documentation lookups all run identically. YOLO only skips confirmation prompts — it doesn't skip work.
+
+**Activation:** Include `--yolo`, `yolo mode`, or `run unattended` in your start command, or select "YOLO" when asked at startup.
+
 ## How It Works with Superpowers and Context7
 
 spec-driven owns the design and verification phases. superpowers owns implementation and delivery. Context7 provides live documentation lookups. The `start-feature` orchestrator coordinates all three:
