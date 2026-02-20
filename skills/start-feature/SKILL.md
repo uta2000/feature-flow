@@ -320,6 +320,15 @@ When invoking `superpowers:brainstorming` from this lifecycle, pass these format
 - Keep it concise — one line for the explanation, one line per option
 - If there is no clear recommendation, say "*No strong preference — depends on [factor]*" instead of forcing a pick
 
+**YOLO behavior:** When YOLO mode is active (i.e., `yolo: true` is in the brainstorming args), do NOT present questions to the user. Instead:
+
+1. The LLM answers its own interview questions using all available context: issue body, issue comments, codebase analysis, and existing patterns
+2. For each question, announce: `YOLO: brainstorming — [question summary] → [selected option with reasoning]`
+3. Proceed through all brainstorming questions autonomously
+4. Ensure all self-answered decisions are captured when passing context to the design document step
+
+This is the most complex YOLO interaction — the LLM makes design-level decisions. The user reviews these via the design document output rather than each micro-decision.
+
 ### Commit Planning Artifacts Step (inline — no separate skill)
 
 This step runs after verify-plan-criteria and before worktree setup. It commits design documents and project config to the base branch so the worktree inherits them via git history, preventing untracked file clutter.
