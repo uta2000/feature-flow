@@ -10,13 +10,18 @@ Features get brainstormed, then jump straight to code. Halfway through, you disc
 
 Six skills and an orchestrator that cover the full feature development lifecycle. Catch conflicts when they're cheap to fix — a line edit in a design doc instead of a code rewrite.
 
-spec-driven handles the **design and verification** phases. For **implementation and delivery**, it delegates to the [superpowers](https://github.com/obra/superpowers) plugin — brainstorming, TDD, code review, worktrees, and PRs. For **documentation lookups**, it uses [Context7](https://context7.com/) to query current patterns from official docs before writing code.
+spec-driven handles the **design, verification, and code review** phases. For **implementation and delivery**, it delegates to the [superpowers](https://github.com/obra/superpowers) plugin — brainstorming, TDD, worktrees, and PRs. For **documentation lookups**, it uses [Context7](https://context7.com/) to query current patterns from official docs before writing code. Code review uses a **multi-agent pipeline** that dispatches up to 7 specialized review agents, auto-fixes findings, and re-verifies until clean.
 
 ## Requirements
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI
-- [superpowers](https://github.com/obra/superpowers) plugin (required — handles brainstorming, implementation planning, TDD, code review, worktrees, and PR workflow)
+- [superpowers](https://github.com/obra/superpowers) plugin (required — handles brainstorming, implementation planning, TDD, worktrees, and PR workflow)
 - [Context7](https://marketplace.claude.ai/plugin/context7) MCP plugin (required — provides live documentation lookups for any tech stack during design and implementation)
+
+**Recommended** (for full code review coverage):
+- [pr-review-toolkit](https://github.com/anthropics/claude-code-pr-review-toolkit) plugin (adds: code-simplifier, silent-failure-hunter, test-analyzer, type-design-analyzer)
+- [feature-dev](https://github.com/anthropics/claude-code-feature-dev) plugin (adds: feature-dev:code-reviewer)
+- [backend-api-security](https://github.com/anthropics/claude-code-backend-api-security) plugin (adds: backend-security-coder)
 
 ## Installation
 
@@ -29,6 +34,11 @@ claude plugins add context7
 
 # Install spec-driven
 claude plugins add spec-driven
+
+# Recommended plugins (for full code review coverage)
+claude plugins add pr-review-toolkit
+claude plugins add feature-dev
+claude plugins add backend-api-security
 ```
 
 ### From GitHub
@@ -40,6 +50,11 @@ claude plugins add context7
 
 # Install spec-driven
 claude plugins add https://github.com/uta2000/spec-driven
+
+# Recommended plugins (for full code review coverage)
+claude plugins add pr-review-toolkit
+claude plugins add feature-dev
+claude plugins add backend-api-security
 ```
 
 ### Per-project (manual)
@@ -83,7 +98,7 @@ spec-driven owns the design and verification phases. superpowers owns implementa
 | Study existing patterns | **spec-driven** (inline) | Reads codebase conventions, generates "How to Code This" notes |
 | Implement (TDD) | superpowers | `test-driven-development` |
 | Self-review | **spec-driven** (inline) | Reviews code against `coding-standards.md` checklist |
-| Code review | superpowers | `requesting-code-review` |
+| Code review | **spec-driven** (inline) | Multi-agent review pipeline (7 agents, auto-fix, re-verify loop) |
 | Final verification | **spec-driven** + superpowers | `verify-acceptance-criteria` + `verification-before-completion` |
 | Commit and PR | superpowers | `finishing-a-development-branch` |
 
@@ -148,7 +163,7 @@ Skills that need project context (`design-verification`, `spike`) will auto-crea
 12. Implementation (TDD)           ← superpowers:test-driven-development
 12b. Device Matrix Testing         ← mobile only
 13. Self-Review                    ← inline (coding-standards.md checklist)
-14. Code Review                    ← superpowers:requesting-code-review
+14. Code Review                    ← inline (multi-agent pipeline: find → fix → re-verify)
 15. Final Verification             ← verify-acceptance-criteria + superpowers:verification-before-completion
 15b. Beta Testing                  ← mobile only (TestFlight / Play Console)
 16. PR / Merge                     ← superpowers:finishing-a-development-branch
