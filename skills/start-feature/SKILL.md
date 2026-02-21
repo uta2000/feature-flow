@@ -233,13 +233,14 @@ Based on scope AND platform, determine which steps apply. Create a todo list to 
 - [ ] 6. Verify plan criteria
 - [ ] 7. Commit planning artifacts
 - [ ] 8. Worktree setup
-- [ ] 9. Study existing patterns
-- [ ] 10. Implement (TDD)
-- [ ] 11. Self-review
-- [ ] 12. Code review
-- [ ] 13. Generate CHANGELOG entry
-- [ ] 14. Final verification
-- [ ] 15. Commit and PR
+- [ ] 9. Copy env files
+- [ ] 10. Study existing patterns
+- [ ] 11. Implement (TDD)
+- [ ] 12. Self-review
+- [ ] 13. Code review
+- [ ] 14. Generate CHANGELOG entry
+- [ ] 15. Final verification
+- [ ] 16. Commit and PR
 ```
 
 **Feature:**
@@ -253,13 +254,14 @@ Based on scope AND platform, determine which steps apply. Create a todo list to 
 - [ ] 7. Verify plan criteria
 - [ ] 8. Commit planning artifacts
 - [ ] 9. Worktree setup
-- [ ] 10. Study existing patterns
-- [ ] 11. Implement (TDD)
-- [ ] 12. Self-review
-- [ ] 13. Code review
-- [ ] 14. Generate CHANGELOG entry
-- [ ] 15. Final verification
-- [ ] 16. Commit and PR
+- [ ] 10. Copy env files
+- [ ] 11. Study existing patterns
+- [ ] 12. Implement (TDD)
+- [ ] 13. Self-review
+- [ ] 14. Code review
+- [ ] 15. Generate CHANGELOG entry
+- [ ] 16. Final verification
+- [ ] 17. Commit and PR
 ```
 
 **Major feature:**
@@ -274,13 +276,14 @@ Based on scope AND platform, determine which steps apply. Create a todo list to 
 - [ ] 8. Verify plan criteria
 - [ ] 9. Commit planning artifacts
 - [ ] 10. Worktree setup
-- [ ] 11. Study existing patterns
-- [ ] 12. Implement (TDD)
-- [ ] 13. Self-review
-- [ ] 14. Code review
-- [ ] 15. Generate CHANGELOG entry
-- [ ] 16. Final verification
-- [ ] 17. Commit and PR
+- [ ] 11. Copy env files
+- [ ] 12. Study existing patterns
+- [ ] 13. Implement (TDD)
+- [ ] 14. Self-review
+- [ ] 15. Code review
+- [ ] 16. Generate CHANGELOG entry
+- [ ] 17. Final verification
+- [ ] 18. Commit and PR
 ```
 
 **Mobile platform adjustments (ios, android, cross-platform):**
@@ -333,6 +336,7 @@ For inline steps (CHANGELOG generation, self-review, code review, study existing
 | Verify plan criteria | `spec-driven:verify-plan-criteria` | All tasks have verifiable criteria |
 | Commit planning artifacts | No skill — inline step (see below) | Planning docs and config committed to base branch |
 | Worktree setup | `superpowers:using-git-worktrees` | Isolated worktree created |
+| Copy env files | No skill — inline step (see below) | Env files available in worktree |
 | Implement | `superpowers:subagent-driven-development` | Code written with tests, spec-reviewed, and quality-reviewed per task |
 | Self-review | No skill — inline step (see below) | Code verified against coding standards before formal review |
 | Code review | No skill — inline step (see below) | All Critical/Important findings fixed, tests pass |
@@ -443,9 +447,39 @@ This step runs after verify-plan-criteria and before worktree setup. It commits 
 - **No plan files exist** — handled by the guard check in step 1
 - **Only `.spec-driven.yml` changed (no plan docs)** — still commits; the file should be tracked regardless
 
+### Copy Env Files Step (inline — no separate skill)
+
+This step runs after worktree setup and before study existing patterns. It copies non-production `.env*` files from the main worktree into the new worktree so that tests, tools, and dependency scripts have access to environment configuration.
+
+**Process:**
+1. Locate the main worktree root:
+   ```bash
+   MAIN_WORKTREE=$(git worktree list --porcelain | head -1 | sed 's/^worktree //')
+   ```
+2. Copy non-production env files:
+   ```bash
+   for f in "$MAIN_WORKTREE"/.env*; do
+     [ -f "$f" ] || continue
+     name=$(basename "$f")
+     case "$name" in
+       .env.production|.env.production.local|*.production|*.production.*) continue ;;
+       .env.example) continue ;;
+     esac
+     cp "$f" "./$name"
+   done
+   ```
+3. **If env files were copied:** Announce what was copied: `"Copied N env files from main worktree: .env .env.local"`
+4. **If no env files exist:** Silent skip — not all projects use env files. Do not warn or error.
+
+**Why before study existing patterns:** Ensures environment variables are available for implementation, test runs, and any tools that depend on env configuration later in the lifecycle. Production files are excluded as a safety measure (principle of least privilege).
+
+**What is skipped and why:**
+- `.env.production`, `.env.production.local`, any `*.production` or `*.production.*` — never propagate production secrets to development worktrees
+- `.env.example` — tracked by git, already present in the worktree automatically
+
 ### Study Existing Patterns Step (inline — no separate skill)
 
-This step runs after worktree setup and before implementation. It forces reading the actual codebase to understand how similar things are done before writing new code. This prevents "vibing" — writing code that works but doesn't follow the project's established patterns.
+This step runs after copy env files and before implementation. It forces reading the actual codebase to understand how similar things are done before writing new code. This prevents "vibing" — writing code that works but doesn't follow the project's established patterns.
 
 **Process:**
 1. Read `../../references/coding-standards.md` to load the senior-engineer principles
