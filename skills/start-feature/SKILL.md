@@ -1055,6 +1055,32 @@ If the lifecycle ran in YOLO mode, append the decision log after the standard co
 **Checkpoints presented:** M of M approved [with/without changes]
 ```
 
+**YOLO with compaction prompts (any scope):**
+
+```
+## YOLO Decision Log
+
+**Mode:** YOLO with compaction prompts ([scope] scope)
+**Compaction checkpoints:** N shown, M compacted, K skipped
+
+| # | Skill | Decision | Auto-Selected |
+|---|-------|----------|---------------|
+| 1 | start-feature | Scope + mode | [scope], YOLO with compaction |
+| ... | ... | ... | ... |
+| N | start-feature | Compact checkpoint 1 | /compact (or skipped) |
+| N | start-feature | Compact checkpoint 2 | /compact (or skipped) |
+| N | start-feature | Compact checkpoint 3 | /compact (or skipped) |
+| N | design-document | Document approval | ✋ User reviewed (if Feature/Major scope) |
+| N | brainstorming | Design questions (self-answered) | [count decisions auto-answered] |
+| N | writing-plans | Execution choice | Subagent-Driven (auto-selected) |
+| N | using-git-worktrees | Worktree directory | .worktrees/ (auto-selected) |
+| N | finishing-a-dev-branch | Completion strategy | Push and create PR (auto-selected) |
+
+**Total decisions auto-selected:** N (includes feature-flow decisions + superpowers overrides)
+**Compaction checkpoints:** M of N shown (K skipped by scope filter)
+**Quality gates preserved:** hooks, tests, verification, code review
+```
+
 **Cancellation:** There is no formal YOLO cancellation mechanism. Inline announcements (`YOLO: [skill] — [decision] → [option]`) serve as an "emergency brake" — the user sees each decision as it's made and can interrupt the lifecycle at any point by sending a message. The lifecycle will pause at the current step, and the user can redirect from there.
 
 ## Scope Adjustment Rules
