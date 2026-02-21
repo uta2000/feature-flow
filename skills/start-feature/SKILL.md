@@ -446,7 +446,13 @@ When YOLO mode is active and invoking `superpowers:using-git-worktrees`:
 **CRITICAL OVERRIDE — the using-git-worktrees skill may ask "Where should I create worktrees?" and may ask "proceed or investigate?" if baseline tests fail — you MUST SUPPRESS both prompts. Do NOT follow the skill's instructions to ask the user.**
 
 Instead:
-1. **Worktree directory:** Auto-select `.worktrees/` (project-local, hidden). If it doesn't exist, create it. Announce: `YOLO: using-git-worktrees — Worktree directory → .worktrees/ (auto-selected)`
+1. **Worktree directory:** Auto-select `.worktrees/` (project-local, hidden).
+   Check existence with:
+   ```bash
+   test -d .worktrees && echo "exists" || echo "creating"
+   ```
+   If it doesn't exist, create it. Do NOT use `ls -d` for existence checks — it returns non-zero when the directory doesn't exist, causing false tool errors.
+   Announce: `YOLO: using-git-worktrees — Worktree directory → .worktrees/ (auto-selected)`
 2. **Baseline test failure:** If tests fail during baseline verification, log the failures as a warning and proceed. Announce: `YOLO: using-git-worktrees — Baseline tests failed → Proceeding with warning (N failures logged)`. Do NOT ask the user whether to proceed or investigate — the lifecycle will catch test issues during implementation and verification steps.
 
 ### Finishing a Development Branch YOLO Override
