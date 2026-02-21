@@ -95,7 +95,7 @@ Dispatch one agent per selected assumption to run experiments in parallel. Each 
 
 #### Dispatch
 
-Use the Task tool with `subagent_type=general-purpose` (not Explore — experiments execute scripts and need write access) and `isolation: "worktree"` for every agent. Launch up to **5 agents** in a single message to run them concurrently. If more than 5 assumptions need testing, dispatch the first 5, wait for completion, then dispatch the remainder.
+Use the Task tool with `subagent_type=general-purpose` (not Explore — experiments execute scripts and need write access), `model: sonnet`, and `isolation: "worktree"` for every agent. Launch up to **5 agents** in a single message to run them concurrently. If more than 5 assumptions need testing, dispatch the first 5, wait for completion, then dispatch the remainder.
 
 Announce: "Dispatching N experiment agents in parallel (worktree-isolated)..."
 
