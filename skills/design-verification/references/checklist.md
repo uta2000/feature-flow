@@ -1,5 +1,15 @@
 # Design Verification Checklist
 
+<!-- Verification Batches:
+  Batch 1 (Schema & Types): Categories 1-2
+  Batch 2 (Pipeline & Components): Categories 3-5
+  Batch 3 (Quality & Safety): Categories 6-8
+  Batch 4 (Patterns & Build): Categories 9-12
+  Batch 5 (Structure & Layout): Categories 13-14
+  Batch 6 (Stack/Platform/Docs): Categories 15-18 (defined in SKILL.md, not here)
+-->
+
+<!-- batch: 1 -->
 ## 1. Schema Compatibility
 
 For every proposed column change in the design, verify against the actual database schema:
@@ -42,6 +52,7 @@ For every proposed schema change, verify the application-level type definitions 
 - Input type requires a field that the new feature won't provide
 - Enum type doesn't include the new value
 
+<!-- batch: 2 -->
 ## 3. Pipeline / Flow Compatibility
 
 For features that interact with existing workflows, hooks, or processing pipelines:
@@ -101,6 +112,7 @@ For changes to shared tables, types, or components:
 - Adding a new availability status breaks a switch statement that doesn't have a default case
 - CSV export doesn't include new columns
 
+<!-- batch: 3 -->
 ## 6. Completeness
 
 - [ ] **Error states:** Every external call (API, DB, LLM) has a defined failure UX
@@ -140,6 +152,7 @@ For changes to shared tables, types, or components:
 - Adding NOT NULL column without default fails on table with existing rows
 - Dropping a column while old code is still running causes errors during deployment window
 
+<!-- batch: 4 -->
 ## 9. Internal Consistency
 
 - [ ] **Section agreement:** All sections of the design doc agree (migration count matches the actual list, pipeline phases are consistent)
@@ -199,6 +212,7 @@ For changes to shared tables, types, or components:
 - `next.config.js` or equivalent
 - `.env.example` for env var documentation
 
+<!-- batch: 5 -->
 ## 13. Route & Layout Chain
 
 For features adding new pages:
