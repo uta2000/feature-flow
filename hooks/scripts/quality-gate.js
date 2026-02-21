@@ -10,20 +10,44 @@ const path = require('path');
 const failures = [];
 const warnings = [];
 
-try { checkTypeScript(); } catch (e) { warnings.push(`[feature-flow] TypeScript check failed unexpectedly: ${e.message?.slice(0, 100)}`); }
-try { checkLint(); } catch (e) { warnings.push(`[feature-flow] Lint check failed unexpectedly: ${e.message?.slice(0, 100)}`); }
-try { checkTypeSync(); } catch (e) { warnings.push(`[feature-flow] Type-sync check failed unexpectedly: ${e.message?.slice(0, 100)}`); }
-try { checkTests(); } catch (e) { warnings.push(`[feature-flow] Test check failed unexpectedly: ${e.message?.slice(0, 100)}`); }
+async function main() {
+  const results = await Promise.allSettled([
+    checkTypeScript(),
+    checkLint(),
+    checkTypeSync(),
+  ]);
 
-if (failures.length > 0) {
-  const report = failures.join('\n\n');
-  const warn = warnings.length > 0 ? '\n\n' + warnings.join('\n') : '';
-  console.log(`BLOCK: Code quality checks failed. Fix before ending session:\n\n${report}${warn}`);
-} else if (warnings.length > 0) {
-  console.error(warnings.join('\n'));
+  // Log unexpected crashes as warnings
+  for (const r of results) {
+    if (r.status === 'rejected') {
+      warnings.push(`[feature-flow] Check failed unexpectedly: ${r.reason?.message?.slice(0, 100)}`);
+    }
+  }
+
+  // Run tests only if typecheck passed (no type errors in failures)
+  const hasTypeErrors = failures.some(f => f.startsWith('[TSC]'));
+  if (!hasTypeErrors) {
+    try {
+      await checkTests();
+    } catch (e) {
+      warnings.push(`[feature-flow] Test check failed unexpectedly: ${e.message?.slice(0, 100)}`);
+    }
+  }
+
+  if (failures.length > 0) {
+    const report = failures.join('\n\n');
+    const warn = warnings.length > 0 ? '\n\n' + warnings.join('\n') : '';
+    console.log(`BLOCK: Code quality checks failed. Fix before ending session:\n\n${report}${warn}`);
+  } else if (warnings.length > 0) {
+    console.error(warnings.join('\n'));
+  }
 }
 
-process.exit(0);
+main().catch(e => {
+  console.error(`[feature-flow] Quality gate crashed: ${e.message?.slice(0, 200)}`);
+}).finally(() => {
+  process.exit(0);
+});
 
 // --- Check 1: TypeScript ---
 
