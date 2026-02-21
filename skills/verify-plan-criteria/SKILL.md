@@ -108,7 +108,7 @@ Accept all, edit, or skip?
 Use a single `AskUserQuestion` to get approval for all tasks at once. Options: "Accept all as-is", "Let me edit them", "Skip drafting".
 
 - **"Accept all as-is"** → Apply all drafted criteria (proceed to Step 5)
-- **"Let me edit them"** → User provides corrections in freeform text, criteria are revised, then applied
+- **"Let me edit them"** → User provides corrections in freeform text, criteria are revised, then applied. The user may also selectively accept or reject criteria for individual tasks (e.g., "Accept Task 2 and 4 criteria, skip Task 3").
 - **"Skip drafting"** → Skip Steps 4 and 5, proceed to Step 6 with missing criteria noted in the report
 
 **YOLO behavior:** If `yolo: true` is in the skill's `ARGUMENTS`, skip this question. Auto-select "Accept all as-is" and announce: `YOLO: verify-plan-criteria — Approve criteria → Accept as-is ([N] tasks)`
