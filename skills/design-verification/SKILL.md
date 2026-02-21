@@ -64,26 +64,44 @@ Key areas to explore:
 
 ### Step 4: Run Verification Checklist
 
-Execute each category from the verification checklist. For each item, record: PASS, FAIL, or WARNING.
+Dispatch parallel verification agents to check the design against the codebase. Each agent handles a thematic batch of checklist categories.
 
-**Read `references/checklist.md` for the full detailed checklist before proceeding with verification.** The base categories are:
+**Read `references/checklist.md` for the full detailed checklist.** The checklist is partitioned into 6 batches using `<!-- batch: N -->` markers:
 
-1. **Schema Compatibility** — Nullability, constraints, FKs, column types
-2. **Type Compatibility** — TypeScript/language types match proposed schema changes
-3. **Pipeline / Flow Compatibility** — Existing hooks, API routes, data shapes
-4. **UI Component Inventory** — Required components exist or are planned
-5. **Cross-Feature Impact** — Changes to shared tables/types/components affect other features
-6. **Completeness** — Error handling, loading states, edge cases
-7. **Cost & Performance** — API costs, rate limits, payload sizes, N+1 queries
-8. **Migration Safety** — Existing data, defaults, rollback
-9. **Internal Consistency** — Design doc sections agree with each other
-10. **Pattern Adherence** — Follows existing codebase conventions
-11. **Dependency & API Contract Verification** — Library versions support proposed usage, external APIs behave as assumed
-12. **Build Compatibility** — TypeScript strict mode, linting rules, framework config
-13. **Route & Layout Chain** — New pages inherit auth, layout, providers correctly
-14. **Structural Anti-Patterns** — God objects, tight coupling, circular dependencies, dependency direction
+| Batch | Agent | Categories |
+|-------|-------|------------|
+| 1 | Schema & Types | 1. Schema Compatibility, 2. Type Compatibility |
+| 2 | Pipeline & Components | 3. Pipeline/Flow, 4. UI Component Inventory, 5. Cross-Feature Impact |
+| 3 | Quality & Safety | 6. Completeness, 7. Cost & Performance, 8. Migration Safety |
+| 4 | Patterns & Build | 9. Internal Consistency, 10. Pattern Adherence, 11. Dependencies, 12. Build Compatibility |
+| 5 | Structure & Layout | 13. Route & Layout Chain, 14. Structural Anti-Patterns |
+| 6 | Stack/Platform/Docs | 15. Stack-Specific, 16. Platform-Specific, 17. Project Gotchas, 18. Documentation Compliance |
 
-**Then run additional checks from project context (if loaded in Step 2):**
+**Verification depth filtering:** Before dispatching, consult the Verification Depth table below. Only dispatch batches containing at least one applicable category for the design's scope. Pass the list of applicable categories to each agent so it skips non-applicable categories within its batch.
+
+#### Dispatch
+
+Use the Task tool with `subagent_type=Explore` for Batches 1-5. Launch all applicable batch agents in a **single message** to run them concurrently. Announce: "Dispatching N verification agents in parallel..."
+
+**Context passed to each agent:**
+- The full design document content
+- Its assigned checklist categories (partitioned from `references/checklist.md` using batch markers)
+- The codebase exploration results from Step 3
+- The `.spec-driven.yml` content (for stack/platform/gotchas context)
+- The list of applicable categories for this batch (from verification depth filtering)
+
+**Expected return format per agent:**
+
+Each agent returns a list of results, one per category checked:
+```
+{ category: string, status: "PASS" | "FAIL" | "WARNING", finding: string }
+```
+
+#### Batch 6 — Conditional Dispatch
+
+Batch 6 (Stack/Platform/Docs) is only dispatched if `.spec-driven.yml` exists with a non-empty `stack`, `platform`, or `gotchas` field, or if Context7 is available. If none of these conditions are met, skip Batch 6 entirely.
+
+Batch 6 sources its check instructions from this SKILL.md (not from checklist.md):
 
 15. **Stack-Specific Checks** — Run every check from the loaded stack reference files (e.g., Supabase PostgREST limits, Next.js server/client boundaries)
 16. **Platform-Specific Checks** — Run checks from the platform reference file (e.g., mobile backward compatibility, feature flag requirements)
@@ -94,7 +112,15 @@ Execute each category from the verification checklist. For each item, record: PA
     - [ ] **Proper error handling:** Error patterns match current framework conventions (e.g., Server Actions return `{ errors }`, not throw)
     - [ ] **No deprecated APIs:** Design doesn't rely on APIs marked as deprecated in current docs
 
-    If Context7 is not available, skip this category and note: "Context7 not available — documentation compliance check skipped."
+    If Context7 is not available, skip category 18 and note: "Context7 not available — documentation compliance check skipped."
+
+#### Failure Handling
+
+If an agent fails or crashes, retry it once. If it fails again, skip it and log a warning: "Batch N ([agent name]) failed — categories X-Y skipped. Continuing with available results." Do not stall verification for a single agent failure.
+
+#### Consolidation
+
+After all agents complete, merge results into the unified report table (same format as Step 5). Sort by category number. If a batch was skipped due to failure, note: "Categories N-M: SKIPPED (agent failed after retry)."
 
 ### Step 5: Report Findings
 
