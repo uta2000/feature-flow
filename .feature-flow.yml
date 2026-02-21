@@ -1,0 +1,5 @@
+platform: cli
+stack:
+  - node-js
+context7: {}
+gotchas: []
