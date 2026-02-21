@@ -155,7 +155,23 @@ Does this section look right, or should I adjust anything?
 
 If the document is short enough (under 1,000 words total), present it all at once.
 
-**YOLO behavior:** If `yolo: true` is in the skill's `ARGUMENTS`, skip section-by-section confirmation. Present the full document at once without asking "Does this section look right?" after each section. Announce: `YOLO: design-document — Section approval → Accepted (all sections)`
+**YOLO behavior:** If `yolo: true` is in the skill's `ARGUMENTS`:
+
+- **Quick fix or Small enhancement scope** (or scope not specified): Skip section-by-section confirmation entirely. Present the full document at once without asking. Announce: `YOLO: design-document — Section approval → Accepted (all sections)`
+
+- **Feature or Major Feature scope:** Present the full document as a **mandatory YOLO checkpoint**. Do NOT skip approval. Use `AskUserQuestion`:
+
+  ```
+  YOLO checkpoint: Here's the design document. Continue or adjust?
+  ```
+
+  Options:
+  - "Continue" — approve the document and resume YOLO mode
+  - "Let me adjust" — user provides corrections, document is updated, then YOLO resumes
+
+  Announce: `YOLO: design-document — Document approval → ✋ Checkpoint presented`
+
+  The scope is determined from the `scope:` field in the skill's `ARGUMENTS` (e.g., `args: "yolo: true. scope: feature. ..."`). If no scope is specified, default to the skip behavior (backward compatible with pre-graduated-YOLO invocations).
 
 ### Step 6: Suggest Next Steps
 
