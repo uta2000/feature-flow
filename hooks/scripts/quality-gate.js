@@ -11,27 +11,26 @@ const failures = [];
 const warnings = [];
 
 async function main() {
-  const results = await Promise.allSettled([
-    checkTypeScript(),
-    checkLint(),
-    checkTypeSync(),
-  ]);
+  const checks = [
+    ['TypeScript', checkTypeScript],
+    ['Lint', checkLint],
+    ['Type-sync', checkTypeSync],
+  ];
 
-  // Log unexpected crashes as warnings
-  for (const r of results) {
-    if (r.status === 'rejected') {
-      warnings.push(`[feature-flow] Check failed unexpectedly: ${r.reason?.message?.slice(0, 100)}`);
-    }
-  }
+  await Promise.allSettled(
+    checks.map(([name, fn]) =>
+      fn().catch(e => {
+        warnings.push(`[feature-flow] ${name} check failed unexpectedly: ${e.message?.slice(0, 100)}`);
+      })
+    )
+  );
 
-  // Run tests only if typecheck passed (no type errors in failures)
+  // Run tests only after typecheck passes — tests depend on valid types
   const hasTypeErrors = failures.some(f => f.startsWith('[TSC]'));
   if (!hasTypeErrors) {
-    try {
-      await checkTests();
-    } catch (e) {
+    await checkTests().catch(e => {
       warnings.push(`[feature-flow] Test check failed unexpectedly: ${e.message?.slice(0, 100)}`);
-    }
+    });
   }
 
   if (failures.length > 0) {
@@ -174,7 +173,9 @@ function checkPrismaTypes() {
     if (clientPath && schemaTime > statSync(clientPath).mtimeMs) {
       failures.push('[TYPE-SYNC] Prisma schema modified since last generation\n  Run: npx prisma generate');
     }
-  } catch {}
+  } catch (e) {
+    warnings.push(`[feature-flow] Prisma type-sync check failed: ${e.message?.slice(0, 100)}`);
+  }
 }
 
 function checkDuplicateTypes(typesPathOverride) {
@@ -183,13 +184,22 @@ function checkDuplicateTypes(typesPathOverride) {
   if (!existsSync('supabase/functions')) return;
 
   const canonicalContent = readFileSync(canonical, 'utf8');
-  for (const tf of findTypeFiles('supabase/functions')) {
+  let typeFiles;
+  try {
+    typeFiles = findTypeFiles('supabase/functions');
+  } catch (e) {
+    warnings.push(`[feature-flow] Could not scan supabase/functions for duplicate types: ${e.message?.slice(0, 80)}`);
+    return;
+  }
+  for (const tf of typeFiles) {
     if (path.resolve(tf) === path.resolve(canonical)) continue;
     try {
       if (readFileSync(tf, 'utf8') !== canonicalContent) {
         failures.push(`[TYPE-SYNC] Type file ${tf} has drifted from canonical source ${canonical}`);
       }
-    } catch {}
+    } catch (e) {
+      warnings.push(`[feature-flow] Could not read type file ${tf} for drift check: ${e.message?.slice(0, 80)}`);
+    }
   }
 }
 
@@ -210,7 +220,8 @@ async function checkTests() {
       warnings.push('[feature-flow] Test suite timed out (60s) — skipping. Run tests manually.');
       return;
     }
-    if (e.code === 'ENOENT' || e.status === 127) {
+    // e.code is the numeric exit code with promisify(exec); 127 = shell "command not found"
+    if (e.code === 127) {
       warnings.push(`[feature-flow] Test command not found: "${cmd}". Ensure the tool is installed.`);
       return;
     }
@@ -268,13 +279,18 @@ function findTypesFile() {
 
 function findTypeFiles(dir) {
   const results = [];
-  try {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) results.push(...findTypeFiles(full));
-      else if (/\.types\.ts$/.test(entry.name)) results.push(full);
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      try {
+        results.push(...findTypeFiles(full));
+      } catch (e) {
+        warnings.push(`[feature-flow] Could not scan directory ${full} for type files: ${e.message?.slice(0, 80)}`);
+      }
+    } else if (/\.types\.ts$/.test(entry.name)) {
+      results.push(full);
     }
-  } catch {}
+  }
   return results;
 }
 
