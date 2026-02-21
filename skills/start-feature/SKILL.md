@@ -191,7 +191,7 @@ Run mode?
 
 **Option ordering depends on recommendation:**
 
-*YOLO recommended* (quick fix, small enhancement, or feature/major with detailed context):
+*YOLO recommended* (quick fix, small enhancement, or feature with detailed context):
 - Option 1: "YOLO — auto-select recommended options" with description: "*Recommended — [reasoning]*"
 - Option 2: "Interactive — all questions asked normally"
 
@@ -199,11 +199,13 @@ Run mode?
 - Option 1: "Interactive — all questions asked normally" with description: "*Recommended — [reasoning]*"
 - Option 2: "YOLO — auto-select recommended options"
 
-*Neutral* (major feature with detailed issue):
+*Neutral* (major feature with detailed issue or detailed inline context):
 - Option 1: "Interactive — all questions asked normally" (no recommendation marker)
 - Option 2: "YOLO — auto-select recommended options" (no recommendation marker)
 
 The recommended option always appears first in the list. Each option's description includes italicized reasoning when a recommendation is made.
+
+**Scope correction:** If the user believes the scope is misclassified, they can select "Other" on the `AskUserQuestion` and state their preferred scope. The lifecycle will adjust the step list and checkpoint rules accordingly.
 
 **YOLO behavior (trigger phrase activated):** If YOLO was already activated by a trigger phrase in Step 0, skip this question entirely. Auto-classify scope and announce: `YOLO: start-feature — Scope + mode → [scope], YOLO (trigger phrase)`
 
