@@ -168,6 +168,13 @@ These are loaded from Context7 and the stack reference files. When implementing,
 - Loading/error/empty states for every async operation.
 - Avoid prop drilling > 2 levels. Use context or composition instead.
 
+## Tool Usage Patterns
+
+- **Check file size before `Read` on unfamiliar files:** `wc -c < file`. Files >200KB will exceed the 256KB tool limit.
+- **Large files (>200KB):** Use Grep to find relevant sections, or Read with offset/limit targeting specific functions.
+- **Code review:** `git diff` is always smaller than the full file — prefer it for reviewing changes.
+- **Never read generated files whole:** Build artifacts, minified bundles, lock files, and generated types can be megabytes. Always use targeted reads.
+
 ## How This File Is Used
 
 1. **Study Existing Patterns step:** Claude reads this file AND existing codebase patterns before writing code
