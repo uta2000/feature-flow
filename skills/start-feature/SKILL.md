@@ -907,6 +907,61 @@ After writing, announce: "CHANGELOG.md updated with N entries across M categorie
 **Action:** Written to CHANGELOG.md / Skipped by user
 ```
 
+### Comment and Close Issue Step (inline — no separate skill)
+
+This step runs after "Commit and PR" (or after mobile-specific steps like app store review) and before the completion summary. It only runs when a GitHub issue was linked during Step 1 (issue reference detection). If no issue was linked, skip this step silently.
+
+**Process:**
+
+1. **Check if issue is already closed:**
+   ```bash
+   gh issue view N --json state --jq '.state'
+   ```
+   If the state is `CLOSED`, log: `"Issue #N is already closed — skipping."` and skip.
+
+2. **Generate the comment body** from lifecycle context:
+
+   ```markdown
+   ## Implementation Complete
+
+   **PR:** #[PR number]
+
+   ### What was built
+   - [2-4 bullet points summarizing what was implemented, derived from the design doc and commit history]
+
+   ### Acceptance criteria verified
+   - [x] [Each acceptance criterion from the implementation plan, marked as verified]
+
+   ### Key files changed
+   - `[file path]` — [1-line description of change]
+   - `[file path]` — [1-line description of change]
+   [limit to 10 most significant files]
+   ```
+
+   **Content sources:**
+   - "What was built" → derive from design doc overview + `git log --format="%s" [base-branch]...HEAD`
+   - Acceptance criteria → from the implementation plan tasks, verified during the final verification step
+   - Key files → from `git diff --stat [base-branch]...HEAD`, limited to 10 most-changed files
+
+3. **Post the comment:**
+   ```bash
+   gh issue comment N --body "[generated comment]"
+   ```
+
+4. **Close the issue:**
+   ```bash
+   gh issue close N
+   ```
+
+5. **Announce:** `"Issue #N commented and closed."`
+
+**Edge cases:**
+- **No issue linked:** Skip this step silently — not all lifecycle runs start from an issue
+- **Issue already closed:** Log warning: `"Issue #N is already closed — skipping."` Do not reopen or double-comment.
+- **`gh` command fails:** Log warning and continue — don't block completion on a comment failure
+
+**YOLO behavior:** No prompt needed — this step is always automated. In YOLO mode, runs silently. In Interactive mode, announce but don't ask for confirmation.
+
 ### Documentation Lookup Step (inline — no separate skill)
 
 This step queries Context7 for current patterns relevant to the feature being built. It runs between brainstorming and the design document to ensure the design uses up-to-date patterns.
