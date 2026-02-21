@@ -175,12 +175,12 @@ Options:
 Update the YOLO Propagation block to include scope context in the args string. Change the examples from:
 ```
 Skill(skill: "superpowers:brainstorming", args: "yolo: true. [original args]")
-Skill(skill: "spec-driven:design-document", args: "yolo: true. [original args]")
+Skill(skill: "feature-flow:design-document", args: "yolo: true. [original args]")
 ```
 to:
 ```
 Skill(skill: "superpowers:brainstorming", args: "yolo: true. scope: [scope]. [original args]")
-Skill(skill: "spec-driven:design-document", args: "yolo: true. scope: [scope]. [original args]")
+Skill(skill: "feature-flow:design-document", args: "yolo: true. scope: [scope]. [original args]")
 ```
 
 Add a note explaining why: "Scope context is required for graduated YOLO behavior — design-document uses it to determine whether a mandatory checkpoint is needed."

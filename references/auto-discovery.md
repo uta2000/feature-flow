@@ -1,13 +1,13 @@
 # Auto-Discovery Rules
 
-Detect project platform and tech stack from project files when `.spec-driven.yml` does not exist. These rules are language/framework-agnostic — scan all indicators before making a determination.
+Detect project platform and tech stack from project files when `.feature-flow.yml` does not exist. These rules are language/framework-agnostic — scan all indicators before making a determination.
 
 ## Detection Order
 
 1. **Platform** — Determine web vs mobile first (affects lifecycle)
 2. **Stack** — Detect frameworks, databases, hosting, and key libraries
 3. **Present** — Show detected context to user for confirmation
-4. **Write** — Save confirmed context to `.spec-driven.yml`
+4. **Write** — Save confirmed context to `.feature-flow.yml`
 
 ## Platform Detection
 
@@ -157,13 +157,13 @@ Also scan for config files that imply stack usage:
 
 ## Context7 Library Detection
 
-After detecting the stack, resolve Context7 library IDs for each stack entry. These are stored in the `context7` field of `.spec-driven.yml` and used by skills to query up-to-date documentation before designing and implementing features.
+After detecting the stack, resolve Context7 library IDs for each stack entry. These are stored in the `context7` field of `.feature-flow.yml` and used by skills to query up-to-date documentation before designing and implementing features.
 
-**Prerequisite:** The Context7 MCP plugin must be installed (`context7@claude-plugins-official`). If not available, skip this entire section — the `context7` field will be omitted from `.spec-driven.yml` and skills will proceed without documentation lookups.
+**Prerequisite:** The Context7 MCP plugin must be installed (`context7@claude-plugins-official`). If not available, skip this entire section — the `context7` field will be omitted from `.feature-flow.yml` and skills will proceed without documentation lookups.
 
 ### How It Works (Any Project, Any Stack)
 
-Context7 hosts documentation for thousands of libraries. The `resolve-library-id` tool searches for any technology by name and returns matching libraries ranked by relevance, snippet count, and benchmark score. This means spec-driven can find documentation for **any** tech stack — not just the ones with pre-built reference files.
+Context7 hosts documentation for thousands of libraries. The `resolve-library-id` tool searches for any technology by name and returns matching libraries ranked by relevance, snippet count, and benchmark score. This means feature-flow can find documentation for **any** tech stack — not just the ones with pre-built reference files.
 
 ### Detection Flow
 
@@ -253,23 +253,23 @@ Context7 Documentation (for live doc lookups):
   - [stack-1]: [library-id] (or "not found")
   - [stack-2]: [library-id-1], [library-id-2]
 
-Does this look right? I'll save this to `.spec-driven.yml`.
+Does this look right? I'll save this to `.feature-flow.yml`.
 ```
 
 **Note:** Only show the Context7 section if the Context7 MCP plugin is available. If not available, omit it silently.
 
 Use `AskUserQuestion` with options: "Looks correct", "Let me adjust".
 
-## Validation (Existing .spec-driven.yml)
+## Validation (Existing .feature-flow.yml)
 
-When `.spec-driven.yml` already exists, cross-check the declared stack against detected stack:
+When `.feature-flow.yml` already exists, cross-check the declared stack against detected stack:
 
 1. Run detection as normal
 2. Compare declared vs detected
 3. If new dependencies detected that aren't in the file, suggest additions:
 
 ```
-Your .spec-driven.yml declares: [supabase, next-js, vercel]
+Your .feature-flow.yml declares: [supabase, next-js, vercel]
 I also detected: [stripe] (from package.json)
 
 Want me to add stripe to your stack list?

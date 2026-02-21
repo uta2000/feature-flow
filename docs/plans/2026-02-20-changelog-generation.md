@@ -6,7 +6,7 @@
 
 ## Overview
 
-The spec-driven lifecycle's final steps (Commit and PR) create commits and a pull request but do not update the CHANGELOG. This means every feature ships without a changelog entry unless the developer writes one manually. This enhancement adds a new inline step — "Generate CHANGELOG entry" — that parses the feature branch's git commits, categorizes them by conventional commit prefix, generates a Keep a Changelog entry, and presents it for user approval before writing it to `CHANGELOG.md`.
+The feature-flow lifecycle's final steps (Commit and PR) create commits and a pull request but do not update the CHANGELOG. This means every feature ships without a changelog entry unless the developer writes one manually. This enhancement adds a new inline step — "Generate CHANGELOG entry" — that parses the feature branch's git commits, categorizes them by conventional commit prefix, generates a Keep a Changelog entry, and presents it for user approval before writing it to `CHANGELOG.md`.
 
 ## Example
 

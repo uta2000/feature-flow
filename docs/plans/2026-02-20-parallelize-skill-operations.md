@@ -6,7 +6,7 @@
 
 ## Overview
 
-Several skills in the spec-driven lifecycle perform heavy sequential work where subtasks have no data dependencies on each other. This feature applies the parallel dispatch pattern (already proven in the code review pipeline at `skills/start-feature/SKILL.md:475-569`) to four additional operations: design verification checklist, spike experiments, design document context gathering, and start-feature pattern study. The checklist reference file is annotated with batch groupings to support the verification dispatch.
+Several skills in the feature-flow lifecycle perform heavy sequential work where subtasks have no data dependencies on each other. This feature applies the parallel dispatch pattern (already proven in the code review pipeline at `skills/start-feature/SKILL.md:475-569`) to four additional operations: design verification checklist, spike experiments, design document context gathering, and start-feature pattern study. The checklist reference file is annotated with batch groupings to support the verification dispatch.
 
 ## User Flow
 
@@ -63,7 +63,7 @@ Each agent receives:
 - The full design document content
 - Its assigned checklist categories (copied from `references/checklist.md`)
 - The codebase exploration results from Step 3
-- The `.spec-driven.yml` content (for stack/platform/gotchas context)
+- The `.feature-flow.yml` content (for stack/platform/gotchas context)
 
 ### Expected Return Format
 
@@ -78,7 +78,7 @@ After all agents complete, merge results into the unified report table (same for
 
 ### Batch 6 Conditional Dispatch
 
-Batch 6 (Stack/Platform/Docs) is only dispatched if `.spec-driven.yml` exists with a non-empty `stack`, `platform`, or `gotchas` field, or if Context7 is available. If none of these conditions are met, skip Batch 6 entirely.
+Batch 6 (Stack/Platform/Docs) is only dispatched if `.feature-flow.yml` exists with a non-empty `stack`, `platform`, or `gotchas` field, or if Context7 is available. If none of these conditions are met, skip Batch 6 entirely.
 
 **Verification depth filtering:** Before dispatching batches, consult the verification depth table in SKILL.md. Only dispatch batches containing at least one applicable category for the design's scope. Pass the applicable category list to each agent so it skips non-applicable categories within its batch.
 
@@ -133,14 +133,14 @@ If more than 5 assumptions are selected, dispatch the first 5 in parallel, wait 
 | Format patterns | Existing design docs in `docs/plans/` — structure, sections, conventions | Always |
 | Stack & dependencies | `package.json`, config files, framework versions, installed libraries | Always |
 | Relevant code | API routes, data models, UI components related to the feature | Always |
-| Documentation | Context7 queries for relevant stack libraries | Only if `.spec-driven.yml` has a `context7` field |
+| Documentation | Context7 queries for relevant stack libraries | Only if `.feature-flow.yml` has a `context7` field |
 
 ### Context Passed to Each Agent
 
 Each agent receives:
 - The feature description (from brainstorming output or issue body)
 - Its specific gathering assignment (what to look for, where to look)
-- For the Documentation agent: the library IDs from `.spec-driven.yml` `context7` field
+- For the Documentation agent: the library IDs from `.feature-flow.yml` `context7` field
 
 ### Expected Return Format
 

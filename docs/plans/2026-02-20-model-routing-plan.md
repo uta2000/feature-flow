@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Add `model` parameters to all Task tool dispatches in the spec-driven plugin so reasoning tasks use Opus, structured tasks use Sonnet, and file-search tasks use Haiku.
+**Goal:** Add `model` parameters to all Task tool dispatches in the feature-flow plugin so reasoning tasks use Opus, structured tasks use Sonnet, and file-search tasks use Haiku.
 
 **Architecture:** Markdown-only edits across 4 skill files. Each dispatch instruction gains a `model` parameter. A user override paragraph is added to start-feature.
 
@@ -189,12 +189,12 @@ Replace at ~line 102:
 
 From:
 ```markdown
-Batch 6 (Stack/Platform/Docs) is only dispatched if `.spec-driven.yml` exists with a non-empty `stack`, `platform`, or `gotchas` field, or if Context7 is available. If none of these conditions are met, skip Batch 6 entirely. When the conditions are met, use the Task tool with `subagent_type=Explore` for Batch 6 and include it in the same single-message launch as Batches 1-5 so all agents run concurrently.
+Batch 6 (Stack/Platform/Docs) is only dispatched if `.feature-flow.yml` exists with a non-empty `stack`, `platform`, or `gotchas` field, or if Context7 is available. If none of these conditions are met, skip Batch 6 entirely. When the conditions are met, use the Task tool with `subagent_type=Explore` for Batch 6 and include it in the same single-message launch as Batches 1-5 so all agents run concurrently.
 ```
 
 To:
 ```markdown
-Batch 6 (Stack/Platform/Docs) is only dispatched if `.spec-driven.yml` exists with a non-empty `stack`, `platform`, or `gotchas` field, or if Context7 is available. If none of these conditions are met, skip Batch 6 entirely. When the conditions are met, use the Task tool with `subagent_type=Explore` and `model: sonnet` for Batch 6 and include it in the same single-message launch as Batches 1-5 so all agents run concurrently.
+Batch 6 (Stack/Platform/Docs) is only dispatched if `.feature-flow.yml` exists with a non-empty `stack`, `platform`, or `gotchas` field, or if Context7 is available. If none of these conditions are met, skip Batch 6 entirely. When the conditions are met, use the Task tool with `subagent_type=Explore` and `model: sonnet` for Batch 6 and include it in the same single-message launch as Batches 1-5 so all agents run concurrently.
 ```
 
 **Step 4: Commit**

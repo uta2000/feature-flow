@@ -1,6 +1,6 @@
 # Coding Standards — Senior Engineer Principles
 
-These standards are loaded during the implementation phase. Every piece of code written during a spec-driven lifecycle must follow these principles. Skills reference this file during the "Study Existing Patterns" step, implementation, and self-review.
+These standards are loaded during the implementation phase. Every piece of code written during a feature-flow lifecycle must follow these principles. Skills reference this file during the "Study Existing Patterns" step, implementation, and self-review.
 
 ## Core Principle
 

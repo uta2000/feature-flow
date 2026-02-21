@@ -8,7 +8,7 @@
 
 Add a "Copy Env Files" inline step to the `start-feature` skill so that gitignored `.env` files from the main worktree are available in new worktrees before tests run. Without this, baseline tests fail on env-dependent projects, implementations can't be tested, and some dependency installs break.
 
-**Key decision:** This is implemented as an inline step in spec-driven's `start-feature/SKILL.md` — NOT by modifying the superpowers `using-git-worktrees` skill, which we don't own.
+**Key decision:** This is implemented as an inline step in feature-flow's `start-feature/SKILL.md` — NOT by modifying the superpowers `using-git-worktrees` skill, which we don't own.
 
 ## Problem
 
@@ -35,7 +35,7 @@ The lifecycle continues with study existing patterns and then implementation. Te
 
 ### Target File
 
-`skills/start-feature/SKILL.md` in the spec-driven plugin. The change adds one new inline step section and updates three existing sections (step lists, skill mapping table).
+`skills/start-feature/SKILL.md` in the feature-flow plugin. The change adds one new inline step section and updates three existing sections (step lists, skill mapping table).
 
 ### New Inline Step: Copy Env Files Step (inline — no separate skill)
 
@@ -94,7 +94,7 @@ Local-to-local copy on the same machine. No security boundary is crossed. The pr
 
 **Excluded:**
 - No changes to superpowers `using-git-worktrees` skill
-- No changes to other spec-driven skills or files
+- No changes to other feature-flow skills or files
 - No changes to hooks
 - No changes to quick fix scope (doesn't use worktrees)
 - No `.env.example` generation or templating

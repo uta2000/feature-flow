@@ -121,9 +121,9 @@ Replace with new content that:
 3. Lists the 6 batch groupings table (matching the design doc)
 4. Specifies verification depth filtering: before dispatching, consult the verification depth table; only dispatch batches containing at least one applicable category; pass applicable categories to each agent
 5. Describes how to dispatch: use Task tool with `subagent_type=Explore`, all agents in a single message
-6. Specifies context passed to each agent: (a) full design document, (b) assigned checklist categories from `references/checklist.md` (use batch markers to partition), (c) codebase exploration results from Step 3, (d) `.spec-driven.yml` content
+6. Specifies context passed to each agent: (a) full design document, (b) assigned checklist categories from `references/checklist.md` (use batch markers to partition), (c) codebase exploration results from Step 3, (d) `.feature-flow.yml` content
 7. Specifies expected return format per agent: `{ category, status: PASS|FAIL|WARNING, finding }`
-8. Specifies Batch 6 conditional dispatch: only if `.spec-driven.yml` has stack/platform/gotchas or Context7 is available; Batch 6 sources check instructions from lines 86-97 of this SKILL.md, not from checklist.md
+8. Specifies Batch 6 conditional dispatch: only if `.feature-flow.yml` has stack/platform/gotchas or Context7 is available; Batch 6 sources check instructions from lines 86-97 of this SKILL.md, not from checklist.md
 9. Specifies failure handling: retry failed agent once, then skip with warning noting which categories were skipped
 10. Specifies consolidation: merge all agent results into unified report table, sort by category number
 11. Preserves the category reference list (1-18) so the skill still documents what gets checked
@@ -153,7 +153,7 @@ git commit -m "feat: parallelize design verification with 6 batch agents"
 - [ ] Step 4 instructs dispatching 6 Explore agents in parallel batches (one per batch from checklist.md)
 - [ ] The batch groupings table matches: Batch 1 (categories 1-2), Batch 2 (3-5), Batch 3 (6-8), Batch 4 (9-12), Batch 5 (13-14), Batch 6 (15-18)
 - [ ] Step 4 specifies verification depth filtering before dispatching
-- [ ] Step 4 specifies context passed: design doc, checklist categories, exploration results, .spec-driven.yml
+- [ ] Step 4 specifies context passed: design doc, checklist categories, exploration results, .feature-flow.yml
 - [ ] Step 4 specifies expected return format: `{ category, status, finding }`
 - [ ] Step 4 specifies consolidation: merge into unified report table, sort by category number
 - [ ] Step 4 specifies failure handling: retry once, then skip with warning
@@ -240,7 +240,7 @@ The new Step 1 should:
 1. Preserve item 1: "From the conversation: Extract all decisions..."
 2. Replace items 2-3 and Glob/Grep/Read instructions with parallel Explore agent dispatch:
    - Describe dispatching 3-4 Explore agents in parallel
-   - Agent table: Format patterns (always), Stack & dependencies (always), Relevant code (always), Documentation via Context7 (conditional on `.spec-driven.yml` `context7` field)
+   - Agent table: Format patterns (always), Stack & dependencies (always), Relevant code (always), Documentation via Context7 (conditional on `.feature-flow.yml` `context7` field)
    - Context per agent: feature description from brainstorming/issue, specific gathering assignment, library IDs for Documentation agent
    - Return format: `{ area, findings: string[] }`
    - Consolidation: synthesize all summaries into context for writing

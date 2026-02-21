@@ -223,6 +223,6 @@ If scope is upgraded during the lifecycle (e.g., Small Enhancement → Feature),
 
 **Excluded:**
 - Changes to downstream skill YOLO behavior (design-verification, spike, create-issue, verify-plan-criteria — all unchanged)
-- Persistent YOLO preferences in `.spec-driven.yml`
+- Persistent YOLO preferences in `.feature-flow.yml`
 - Automatic scope-based YOLO without any prompt (always presents the combined prompt unless `--yolo` trigger used)
 - Changes to quality gates, hooks, or verification steps

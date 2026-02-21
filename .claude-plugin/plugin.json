@@ -1,12 +1,12 @@
 {
-  "name": "spec-driven",
+  "name": "feature-flow",
   "description": "Full feature development lifecycle — design docs, verification, acceptance criteria, and automated checks. Requires superpowers plugin.",
-  "version": "1.13.0",
+  "version": "1.14.0",
   "author": {
     "name": "uta2000"
   },
-  "homepage": "https://github.com/uta2000/spec-driven",
-  "repository": "https://github.com/uta2000/spec-driven",
+  "homepage": "https://github.com/uta2000/feature-flow",
+  "repository": "https://github.com/uta2000/feature-flow",
   "license": "MIT",
-  "keywords": ["spec-driven", "lifecycle", "design-verification", "acceptance-criteria", "platform-aware", "auto-discovery", "gotchas", "context7", "documentation", "coding-standards", "yolo"]
+  "keywords": ["feature-flow", "lifecycle", "design-verification", "acceptance-criteria", "platform-aware", "auto-discovery", "gotchas", "context7", "documentation", "coding-standards", "yolo"]
 }

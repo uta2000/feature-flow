@@ -6,7 +6,7 @@
 
 ## Overview
 
-Add model routing to the spec-driven plugin so that reasoning-heavy subagents (code review, security analysis) run on Opus 4.6 while structured/pattern-based subagents (simplification, test analysis, codebase exploration) run on Sonnet 4.6 or Haiku. This reduces cost and latency without sacrificing quality where it matters.
+Add model routing to the feature-flow plugin so that reasoning-heavy subagents (code review, security analysis) run on Opus 4.6 while structured/pattern-based subagents (simplification, test analysis, codebase exploration) run on Sonnet 4.6 or Haiku. This reduces cost and latency without sacrificing quality where it matters.
 
 ## Scope
 

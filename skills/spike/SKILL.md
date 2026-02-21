@@ -17,9 +17,9 @@ Run time-boxed technical experiments to de-risk unknowns before committing to a 
 - When a design document references an external API, library feature, or integration pattern that has not been tested
 - When the user explicitly asks to validate something
 
-**Project context:** Check for `.spec-driven.yml` in the project root. If found, load the `stack` entries and check for matching stack-specific assumption patterns at `../../references/stacks/{name}.md`. Each stack file includes a "Risky Assumptions (for Spike)" section with common assumptions and how to test them.
+**Project context:** Check for `.feature-flow.yml` in the project root. If found, load the `stack` entries and check for matching stack-specific assumption patterns at `../../references/stacks/{name}.md`. Each stack file includes a "Risky Assumptions (for Spike)" section with common assumptions and how to test them.
 
-**Documentation context:** If `.spec-driven.yml` has a `context7` field, query relevant Context7 libraries before designing experiments. Current documentation often reveals known limitations, deprecated APIs, or undocumented behaviors that inform what to test. For example, querying Context7 for "Supabase bulk insert limits" before spiking a batch data import can surface rate limits or payload size constraints documented in the official guides.
+**Documentation context:** If `.feature-flow.yml` has a `context7` field, query relevant Context7 libraries before designing experiments. Current documentation often reveals known limitations, deprecated APIs, or undocumented behaviors that inform what to test. For example, querying Context7 for "Supabase bulk insert limits" before spiking a batch data import can surface rate limits or payload size constraints documented in the official guides.
 
 ## When to Skip
 
@@ -61,7 +61,7 @@ Use `AskUserQuestion` to confirm which assumptions to test.
 
 Before designing experiments, check if existing documentation already answers the question:
 
-1. If `.spec-driven.yml` has a `context7` field, query relevant Context7 libraries for the assumptions being tested
+1. If `.feature-flow.yml` has a `context7` field, query relevant Context7 libraries for the assumptions being tested
 2. Check stack reference files at `../../references/stacks/{name}.md` for known gotchas related to the assumptions
 3. If documentation clearly confirms or denies an assumption with evidence (code examples, explicit limits), mark it as CONFIRMED_BY_DOCS or DENIED_BY_DOCS — no experiment needed
 4. If documentation is ambiguous or missing, proceed to experiment
@@ -158,14 +158,14 @@ These spike findings could prevent future bugs if added to your project gotchas:
 
 1. "[specific gotcha phrased as a warning]"
 
-Add to .spec-driven.yml?
+Add to .feature-flow.yml?
 ```
 
 Use `AskUserQuestion` with options: "Add", "Skip".
 
 **YOLO behavior:** If `yolo: true` is in the skill's `ARGUMENTS`, skip this question. Auto-select "Add" and announce: `YOLO: spike — Add gotcha → Added`
 
-If approved, append to the `gotchas` list in `.spec-driven.yml`. If the file doesn't exist, create it first using auto-detection (see `../../references/auto-discovery.md`).
+If approved, append to the `gotchas` list in `.feature-flow.yml`. If the file doesn't exist, create it first using auto-detection (see `../../references/auto-discovery.md`).
 
 ### Step 6: Clean Up
 
