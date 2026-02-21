@@ -22,6 +22,7 @@ gotchas:
   - "PostgREST caps all queries at 1000 rows without .range() pagination"
   - "WhoisFreaks bulk endpoint has separate RPM bucket from single-domain"
 types_path: src/types/database.types.ts  # Optional: canonical generated types path
+default_branch: staging  # Optional: PR target branch (default: detected via cascade)
 ```
 
 ## Fields
@@ -112,6 +113,23 @@ Optional path to the canonical generated types file (e.g., `src/types/database.t
 types_path: src/types/database.types.ts
 ```
 
+### `default_branch`
+
+Optional PR target branch. When set, overrides the automatic detection cascade used by `start-feature` to determine where PRs should target.
+
+**Detection cascade (when `default_branch` is absent):**
+1. `git config --get init.defaultBranch` (if set)
+2. Check if `staging` branch exists: `git rev-parse --verify staging 2>/dev/null`
+3. Fall back to `main` (or `master` if `main` doesn't exist)
+
+**Format:** Single branch name string.
+
+```yaml
+default_branch: staging
+```
+
+**When needed:** Only when the automatic detection cascade doesn't select the correct branch. Most projects using `main` as their PR target don't need this field.
+
 ## How Skills Use This File
 
 ### start-feature (reads + writes)
@@ -119,6 +137,7 @@ types_path: src/types/database.types.ts
 - **Creates** `.feature-flow.yml` via auto-detection if it doesn't exist.
 - **Updates** stack list if new dependencies are detected that aren't declared.
 - **Reads** `context7` field to query relevant documentation before the design phase.
+- **Reads** `default_branch` field to determine the PR target branch. If absent, runs the detection cascade.
 
 ### design-verification (reads + writes)
 - **Reads** base checklist (13 categories), stack-specific checks, platform-specific checks, and project gotchas.
