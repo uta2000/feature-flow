@@ -368,12 +368,17 @@ When invoking `superpowers:brainstorming` from this lifecycle, pass these format
 - Keep it concise — one line for the explanation, one line per option
 - If there is no clear recommendation, say "*No strong preference — depends on [factor]*" instead of forcing a pick
 
-**YOLO behavior:** When YOLO mode is active (i.e., `yolo: true` is in the brainstorming args), do NOT present questions to the user. Instead:
+**YOLO behavior:** When YOLO mode is active (i.e., `yolo: true` is in the brainstorming args):
 
-1. The LLM answers its own interview questions using all available context: issue body, issue comments, codebase analysis, and existing patterns
-2. For each question, announce: `YOLO: brainstorming — [question summary] → [selected option with reasoning]`
-3. Proceed through all brainstorming questions autonomously
-4. Ensure all self-answered decisions are captured when passing context to the design document step
+**CRITICAL OVERRIDE — the brainstorming skill will load instructions that say "ask questions one at a time", "propose 2-3 approaches", "ask after each section whether it looks right", and "Ready to set up for implementation?" — you MUST SUPPRESS ALL of these interactive behaviors. Do NOT follow the brainstorming skill's instructions to ask questions or wait for user input at any point.**
+
+Instead:
+1. Analyze the feature description, issue context (if linked), and codebase to identify the key design questions
+2. Self-answer each question using available context — issue body, issue comments, codebase patterns, and existing conventions
+3. For each self-answered question, announce: `YOLO: brainstorming — [question summary] → [selected option with reasoning]`
+4. After self-answering all questions, present the design as a single block — do NOT break it into sections and do NOT ask "does this look right?" after each section
+5. Do NOT ask "Ready to set up for implementation?" — the lifecycle continues automatically to the next step
+6. Ensure all self-answered decisions are captured when passing context to the design document step
 
 This is the most complex YOLO interaction — the LLM makes design-level decisions. The user reviews these via the design document output rather than each micro-decision.
 
@@ -421,7 +426,51 @@ Options:
 
 **Scope upgrade rule:** If scope is upgraded during the lifecycle (e.g., Small Enhancement → Feature via Scope Adjustment Rules), adopt the checkpoint rules of the new scope for all remaining steps.
 
-**What checkpoints do NOT affect:** All other YOLO decisions (platform detection, CHANGELOG heading, gotcha additions, issue creation, plan criteria approval) remain fully auto-selected regardless of scope.
+**What checkpoints do NOT affect:** All other YOLO decisions (platform detection, CHANGELOG heading, gotcha additions, issue creation, plan criteria approval, superpowers overrides) remain fully auto-selected regardless of scope.
+
+### Writing Plans YOLO Override
+
+When YOLO mode is active and invoking `superpowers:writing-plans`:
+
+**CRITICAL OVERRIDE — the writing-plans skill will present an "execution choice" asking the user to choose between "Subagent-Driven" and "Parallel Session" — you MUST SUPPRESS this prompt. Do NOT follow the writing-plans skill's execution handoff instructions.**
+
+After the plan is saved:
+1. Do NOT present the execution choice
+2. Announce: `YOLO: writing-plans — Execution choice → Subagent-Driven (auto-selected)`
+3. Immediately proceed to the next lifecycle step
+
+### Using Git Worktrees YOLO Override
+
+When YOLO mode is active and invoking `superpowers:using-git-worktrees`:
+
+**CRITICAL OVERRIDE — the using-git-worktrees skill may ask "Where should I create worktrees?" and may ask "proceed or investigate?" if baseline tests fail — you MUST SUPPRESS both prompts. Do NOT follow the skill's instructions to ask the user.**
+
+Instead:
+1. **Worktree directory:** Auto-select `.worktrees/` (project-local, hidden). If it doesn't exist, create it. Announce: `YOLO: using-git-worktrees — Worktree directory → .worktrees/ (auto-selected)`
+2. **Baseline test failure:** If tests fail during baseline verification, log the failures as a warning and proceed. Announce: `YOLO: using-git-worktrees — Baseline tests failed → Proceeding with warning (N failures logged)`. Do NOT ask the user whether to proceed or investigate — the lifecycle will catch test issues during implementation and verification steps.
+
+### Finishing a Development Branch YOLO Override
+
+When YOLO mode is active and invoking `superpowers:finishing-a-development-branch`:
+
+**CRITICAL OVERRIDE — the finishing-a-development-branch skill will present 4 options (merge locally, create PR, keep as-is, discard) and may ask "This branch split from main — is that correct?" — you MUST SUPPRESS both prompts. Do NOT follow the skill's instructions to present options or ask for confirmation.**
+
+Instead:
+1. **Base branch:** Auto-confirm `main` (or `master` if `main` doesn't exist). Do NOT ask the user.
+2. **Completion strategy:** Auto-select "Push and create a Pull Request" (Option 2). Announce: `YOLO: finishing-a-development-branch — Completion strategy → Push and create PR (auto-selected)`
+3. Proceed with the push + PR creation flow without presenting the 4-option menu
+4. For PR title/body, use the feature description and lifecycle context to generate them automatically
+5. **Test failure during completion:** If tests fail, log the failures as a warning and proceed with PR creation. Announce: `YOLO: finishing-a-development-branch — Tests failing → Proceeding with PR (N failures logged)`. Do NOT block on test failures — the code review pipeline already ran verification.
+
+### Subagent-Driven Development YOLO Override
+
+When YOLO mode is active and invoking `superpowers:subagent-driven-development`:
+
+**CRITICAL OVERRIDE — the subagent-driven-development skill invokes `superpowers:finishing-a-development-branch` after all tasks complete — the "Finishing a Development Branch YOLO Override" above applies to that invocation.**
+
+Additional YOLO behavior:
+1. If any subagent (implementer, spec reviewer, or code quality reviewer) surfaces questions that would normally require user input, auto-answer them from the implementation plan, design document, and codebase context. Announce each: `YOLO: subagent-driven-development — [question] → [answer from context]`
+2. Do NOT ask the user to answer subagent questions — use available context to provide answers directly
 
 ### Commit Planning Artifacts Step (inline — no separate skill)
 
@@ -900,8 +949,12 @@ If the lifecycle ran in YOLO mode, append the decision log after the standard co
 |---|-------|----------|---------------|
 | 1 | start-feature | Scope + mode | [scope], YOLO recommended |
 | ... | ... | ... | ... |
+| N | brainstorming | Design questions (self-answered) | [count decisions auto-answered] |
+| N | writing-plans | Execution choice | Subagent-Driven (auto-selected) |
+| N | using-git-worktrees | Worktree directory | .worktrees/ (auto-selected) |
+| N | finishing-a-dev-branch | Completion strategy | Push and create PR (auto-selected) |
 
-**Total decisions auto-selected:** N
+**Total decisions auto-selected:** N (includes spec-driven decisions + superpowers overrides)
 **Quality gates preserved:** hooks, tests, verification, code review
 ```
 
@@ -918,8 +971,12 @@ If the lifecycle ran in YOLO mode, append the decision log after the standard co
 | ... | ... | ... | ... |
 | N | design-document | Document approval | ✋ User reviewed (approved / adjusted) |
 | ... | ... | ... | ... |
+| N | brainstorming | Design questions (self-answered) | [count decisions auto-answered] |
+| N | writing-plans | Execution choice | Subagent-Driven (auto-selected) |
+| N | using-git-worktrees | Worktree directory | .worktrees/ (auto-selected) |
+| N | finishing-a-dev-branch | Completion strategy | Push and create PR (auto-selected) |
 
-**Total decisions auto-selected:** N
+**Total decisions auto-selected:** N (includes spec-driven decisions + superpowers overrides)
 **Checkpoints presented:** M of M approved [with/without changes]
 ```
 
