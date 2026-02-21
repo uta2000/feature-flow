@@ -477,6 +477,9 @@ When YOLO mode is active and invoking `superpowers:subagent-driven-development`:
 Additional YOLO behavior:
 1. If any subagent (implementer, spec reviewer, or code quality reviewer) surfaces questions that would normally require user input, auto-answer them from the implementation plan, design document, and codebase context. Announce each: `YOLO: subagent-driven-development — [question] → [answer from context]`
 2. Do NOT ask the user to answer subagent questions — use available context to provide answers directly
+3. When dispatching implementation subagents, use `model: sonnet` unless the task description contains keywords indicating architectural complexity: "design", "architect", "migration", "schema change", "new data model". For these, use `model: opus`. Announce: `YOLO: subagent-driven-development — Model selection → sonnet (or opus for [keyword])`
+4. When dispatching spec review or consumer verification subagents, use `model: sonnet`. These agents compare implementation against acceptance criteria or verify existing code is unchanged — structured comparison work that does not require deep reasoning.
+5. When dispatching Explore agents during implementation, use `model: haiku`. These agents do read-only file exploration and pattern extraction.
 
 ### Commit Planning Artifacts Step (inline — no separate skill)
 
