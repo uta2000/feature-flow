@@ -235,6 +235,7 @@ Based on scope AND platform, determine which steps apply. Create a todo list to 
 - [ ] 4. Self-review
 - [ ] 5. Verify acceptance criteria
 - [ ] 6. Commit and PR
+- [ ] 7. Comment and close issue
 ```
 
 **Small enhancement:**
@@ -255,6 +256,7 @@ Based on scope AND platform, determine which steps apply. Create a todo list to 
 - [ ] 14. Generate CHANGELOG entry
 - [ ] 15. Final verification
 - [ ] 16. Commit and PR
+- [ ] 17. Comment and close issue
 ```
 
 **Feature:**
@@ -276,6 +278,7 @@ Based on scope AND platform, determine which steps apply. Create a todo list to 
 - [ ] 15. Generate CHANGELOG entry
 - [ ] 16. Final verification
 - [ ] 17. Commit and PR
+- [ ] 18. Comment and close issue
 ```
 
 **Major feature:**
@@ -298,6 +301,7 @@ Based on scope AND platform, determine which steps apply. Create a todo list to 
 - [ ] 16. Generate CHANGELOG entry
 - [ ] 17. Final verification
 - [ ] 18. Commit and PR
+- [ ] 19. Comment and close issue
 ```
 
 **Mobile platform adjustments (ios, android, cross-platform):**
@@ -308,8 +312,9 @@ When the platform is mobile, modify the step list:
 - **After implementation:** Insert **device matrix testing** step (test on min OS version, small/large screens, slow network)
 - **After final verification:** Insert **beta testing** step (TestFlight / Play Console internal testing)
 - **After commit and PR:** Insert **app store review** step (human-driven gate — submission, review, potential rejection)
+- **After app store review (or after commit and PR if not mobile):** Insert **comment and close issue** step (post implementation summary comment, close issue). Only runs when an issue is linked.
 
-Announce the platform-specific additions: "Mobile platform detected. Adding: device matrix testing, beta testing, and app store review steps."
+Announce the platform-specific additions: "Mobile platform detected. Adding: device matrix testing, beta testing, app store review, and comment and close issue steps."
 
 Use `TaskCreate` to create a todo item for each step.
 
@@ -357,6 +362,7 @@ For inline steps (CHANGELOG generation, self-review, code review, study existing
 | Generate CHANGELOG entry | No skill — inline step (see below) | CHANGELOG.md updated with categorized entry |
 | Final verification | `feature-flow:verify-acceptance-criteria` + `superpowers:verification-before-completion` | All criteria PASS + lint/typecheck/build pass |
 | Commit and PR | `superpowers:finishing-a-development-branch` | PR URL |
+| Comment and close issue | No skill — inline step (see below) | Issue commented with implementation summary + closed |
 | Device matrix testing | No skill — manual step | Tested on min OS, small/large screens, slow network |
 | Beta testing | No skill — manual step | TestFlight / Play Console build tested by internal tester |
 | App store review | No skill — manual step | Submission accepted |
