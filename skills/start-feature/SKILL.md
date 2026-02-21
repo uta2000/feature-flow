@@ -717,6 +717,8 @@ After all fixes are applied, re-verify:
 
 **Parallelization:** When running quality checks inline, dispatch typecheck, lint, and type-sync as parallel Bash commands in a single message. These are independent checks. Only run tests after typecheck passes (tests depend on valid types).
 
+**Skip if clean:** Before running quality checks in each iteration, check `git diff --stat` against the last verified state. If no source files changed since the last successful quality gate pass within this pipeline, skip the quality gate re-run and announce: "Quality gates passed at [commit] — no changes since last check. Skipping re-verify." Only run `verify-acceptance-criteria` (step 2 below).
+
 1. **Run tests:** Detect the test runner from the project (matching the quality gate's `detectTestCommand()` in `hooks/scripts/quality-gate.js`):
    - `package.json` with `scripts.test` (not the npm default placeholder) → `npm test`. If `node_modules` doesn't exist, skip with warning.
    - `Cargo.toml` → `cargo test`
