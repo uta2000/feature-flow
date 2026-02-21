@@ -320,7 +320,8 @@ For each step, follow this pattern:
 3. **Invoke the skill** using the Skill tool (see mapping below)
 4. **Confirm completion:** Verify the step produced its expected output
 5. **Mark complete:** Update the todo item to `completed`
-6. **Announce next step:** "Step N complete. Next: Step N+1 — [name]."
+6. **Check for context checkpoint:** If the just-completed step is a checkpoint trigger (see Context Window Checkpoints section), and the current mode is not YOLO-without-compaction, and the current scope includes this checkpoint — output the checkpoint block and wait for the user to respond before announcing the next step.
+7. **Announce next step:** "Step N complete. Next: Step N+1 — [name]."
 
 **YOLO Propagation:** When YOLO mode is active, prepend `yolo: true. scope: [scope].` to the `args` parameter of every `Skill` invocation. Scope context is required for graduated YOLO behavior — design-document uses it to determine whether a mandatory checkpoint is needed. For example:
 
@@ -330,6 +331,8 @@ Skill(skill: "feature-flow:design-document", args: "yolo: true. scope: [scope]. 
 ```
 
 For inline steps (CHANGELOG generation, self-review, code review, study existing patterns), the YOLO flag is already in the conversation context — no explicit propagation is needed.
+
+**YOLO with compaction propagation:** When "YOLO with compaction prompts" mode is active, prepend `yolo: true. compact_prompts: true. scope: [scope].` to the `args` parameter of every `Skill` invocation. Skills receive the `compact_prompts` flag but do not act on it — checkpoints are centralized in the orchestrator between skill invocations.
 
 **Do not skip steps.** If the user asks to skip a step, explain why it matters and confirm they want to skip. If they insist, mark it as skipped and note the risk.
 
