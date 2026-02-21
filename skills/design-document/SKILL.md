@@ -24,12 +24,37 @@ Turn brainstorming decisions into a structured, implementable design document. T
 Collect the inputs needed to write the document:
 
 1. **From the conversation:** Extract all decisions made during brainstorming — scope, approach, UX flow, data model, technical choices
-2. **From the codebase:** Explore existing patterns, tech stack, file structure, and conventions
-3. **From Context7 documentation lookup:** If a documentation lookup step was run before this skill (as part of the `start-feature` lifecycle), use the patterns and recommendations it produced. These represent current best practices from official docs and should inform the technical approach in the design. If no lookup was run, check `.spec-driven.yml` for a `context7` field and query relevant libraries directly.
+2. **From the codebase and documentation:** Dispatch parallel Explore agents to gather context from multiple areas simultaneously.
 
-- Use Glob to find source files (e.g., `src/**/*.ts`, `src/**/*.tsx`)
-- Use Grep to search for relevant patterns in the existing codebase
-- Read existing design docs in `docs/plans/` for format reference
+#### Parallel Context Gathering
+
+Launch 3-4 Explore agents in a **single message** using the Task tool with `subagent_type=Explore`. Announce: "Dispatching N context-gathering agents in parallel..."
+
+| Agent | Assignment | Always? |
+|-------|-----------|---------|
+| Format patterns | Read existing design docs in `docs/plans/` and extract document structure, section patterns, and conventions | Yes |
+| Stack & dependencies | Examine dependency files (`package.json`, config files), project structure, and tech stack conventions | Yes |
+| Relevant code | Search for and read source files related to the feature being designed (e.g., existing components, routes, hooks, models in the affected areas) | Yes |
+| Documentation (Context7) | If `.spec-driven.yml` has a `context7` field, query relevant Context7 libraries for current patterns the design should follow. If no `context7` field or Context7 is unavailable, skip this agent. | Conditional |
+
+**Context passed to each agent:**
+- Feature description (from brainstorming output or issue body)
+- Specific gathering assignment from the table above
+- For the Documentation agent: library IDs from `.spec-driven.yml` `context7` field
+
+**Expected return format per agent:**
+
+```
+{ area: string, findings: string[] }
+```
+
+#### Failure Handling
+
+If an agent fails or crashes, retry it once. If it fails again, skip it and log a warning: "[Agent name] failed — [area] context skipped. Continuing with available results."
+
+#### Consolidation
+
+After all agents complete, synthesize their findings into a unified context summary for writing the design document. If a documentation lookup step was already run before this skill (as part of the `start-feature` lifecycle), use those results instead of dispatching the Documentation agent.
 
 If the conversation does not contain enough decisions, ask the user to clarify. Use `AskUserQuestion` — one question at a time, with options when possible.
 
