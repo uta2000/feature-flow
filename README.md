@@ -1,4 +1,4 @@
-# spec-driven
+# feature-flow
 
 A Claude Code plugin that enforces a full feature development lifecycle — from idea to merged PR — so you don't discover schema mismatches, deprecated APIs, or broken assumptions halfway through coding. You say "start feature: add user notifications" and it auto-detects your tech stack, queries live documentation for current patterns, walks you through brainstorming and design, then verifies that design against your actual codebase (columns, types, routes, constraints) before a single line of implementation is written. After implementation (done via TDD in an isolated git worktree), it runs a multi-agent code review pipeline with up to 7 specialized reviewers, auto-fixes findings, generates a CHANGELOG entry, and mechanically verifies every acceptance criterion before opening a PR.
 
@@ -24,8 +24,8 @@ The upfront design adds ~20-30 minutes but typically saves 2-4 hours of mid-impl
 claude plugins add superpowers
 claude plugins add context7
 
-# Install spec-driven
-claude plugins add spec-driven
+# Install feature-flow
+claude plugins add feature-flow
 
 # Recommended plugins (for full code review coverage)
 claude plugins add pr-review-toolkit
@@ -40,8 +40,8 @@ claude plugins add backend-api-security
 claude plugins add https://github.com/obra/superpowers
 claude plugins add context7
 
-# Install spec-driven
-claude plugins add https://github.com/uta2000/spec-driven
+# Install feature-flow
+claude plugins add https://github.com/uta2000/feature-flow
 
 # Recommended plugins (for full code review coverage)
 claude plugins add pr-review-toolkit
@@ -61,10 +61,10 @@ After installing, open any project and tell Claude:
 start feature: add user notifications
 ```
 
-spec-driven will:
+feature-flow will:
 1. Scan your project files and auto-detect your platform and tech stack
 2. Resolve Context7 documentation libraries for each detected technology
-3. Create a `.spec-driven.yml` with your project context (first time only)
+3. Create a `.feature-flow.yml` with your project context (first time only)
 4. Classify the scope (quick fix → major feature)
 5. Walk you through the right steps — brainstorm, look up docs, design, verify, implement, ship
 
@@ -102,25 +102,25 @@ At completion, a full decision log table is printed so you can review what was d
 
 ## How It Works with Superpowers and Context7
 
-spec-driven owns the design and verification phases. superpowers owns implementation and delivery. Context7 provides live documentation lookups. The `start-feature` orchestrator coordinates all three:
+feature-flow owns the design and verification phases. superpowers owns implementation and delivery. Context7 provides live documentation lookups. The `start-feature` orchestrator coordinates all three:
 
 | Lifecycle Step | Plugin | Skill / Tool |
 |---------------|--------|-------------|
 | Brainstorm | superpowers | `brainstorming` |
-| Spike / PoC | **spec-driven** | `spike` (queries Context7 docs before experiments) |
+| Spike / PoC | **feature-flow** | `spike` (queries Context7 docs before experiments) |
 | Documentation lookup | **Context7** | `resolve-library-id` + `query-docs` |
-| Design document | **spec-driven** | `design-document` |
-| Design verification | **spec-driven** + **Context7** | `design-verification` (includes doc compliance check) |
-| Create issue | **spec-driven** | `create-issue` |
+| Design document | **feature-flow** | `design-document` |
+| Design verification | **feature-flow** + **Context7** | `design-verification` (includes doc compliance check) |
+| Create issue | **feature-flow** | `create-issue` |
 | Implementation plan | superpowers | `writing-plans` |
-| Verify plan criteria | **spec-driven** | `verify-plan-criteria` |
+| Verify plan criteria | **feature-flow** | `verify-plan-criteria` |
 | Worktree setup | superpowers | `using-git-worktrees` |
-| Study existing patterns | **spec-driven** (inline) | Reads codebase conventions, generates "How to Code This" notes |
+| Study existing patterns | **feature-flow** (inline) | Reads codebase conventions, generates "How to Code This" notes |
 | Implement (TDD) | superpowers | `test-driven-development` |
-| Self-review | **spec-driven** (inline) | Reviews code against `coding-standards.md` checklist |
-| Code review | **spec-driven** (inline) | Multi-agent review pipeline (7 agents, auto-fix, re-verify loop) |
-| Generate CHANGELOG entry | **spec-driven** (inline) | Parses branch commits, generates Keep a Changelog entry |
-| Final verification | **spec-driven** + superpowers | `verify-acceptance-criteria` + `verification-before-completion` |
+| Self-review | **feature-flow** (inline) | Reviews code against `coding-standards.md` checklist |
+| Code review | **feature-flow** (inline) | Multi-agent review pipeline (7 agents, auto-fix, re-verify loop) |
+| Generate CHANGELOG entry | **feature-flow** (inline) | Parses branch commits, generates Keep a Changelog entry |
+| Final verification | **feature-flow** + superpowers | `verify-acceptance-criteria` + `verification-before-completion` |
 | Commit and PR | superpowers | `finishing-a-development-branch` |
 
 ## Skills
@@ -165,7 +165,7 @@ run design-verification on docs/plans/2024-03-15-notifications-design.md
 run verify-acceptance-criteria against the plan in docs/plans/
 ```
 
-Skills that need project context (`design-verification`, `spike`) will auto-create `.spec-driven.yml` if it doesn't exist (same auto-discovery flow as `start-feature`). Other skills like `verify-plan-criteria` and `verify-acceptance-criteria` work without it.
+Skills that need project context (`design-verification`, `spike`) will auto-create `.feature-flow.yml` if it doesn't exist (same auto-discovery flow as `start-feature`). Other skills like `verify-plan-criteria` and `verify-acceptance-criteria` work without it.
 
 ## Where These Fit in the Lifecycle
 
@@ -201,15 +201,15 @@ Skills that need project context (`design-verification`, `spike`) will auto-crea
 | PreToolUse (Edit) | Source file being edited | **BLOCKS** if new code contains `any` types, `as any`, or empty catch blocks |
 | PostToolUse (Write) | Plan file written to `plans/*.md` | Reminds to run `verify-plan-criteria` |
 | PostToolUse (Write/Edit) | Source file written or edited | Warns about `console.log`/`console.debug` (non-blocking — useful during TDD, cleaned up in self-review) |
-| SessionStart | Every session | Injects spec-driven conventions into context |
+| SessionStart | Every session | Injects feature-flow conventions into context |
 | Stop | Session ending | Blocks if code was implemented without running `verify-acceptance-criteria` |
 
 ## Project Context
 
-spec-driven uses a `.spec-driven.yml` file in your project root for platform and stack-specific behavior. **You don't need to create this manually** — `start-feature` auto-detects your platform and stack from project files (package.json, Gemfile, go.mod, config files, directory structure, etc.) and creates it for you on first run.
+feature-flow uses a `.feature-flow.yml` file in your project root for platform and stack-specific behavior. **You don't need to create this manually** — `start-feature` auto-detects your platform and stack from project files (package.json, Gemfile, go.mod, config files, directory structure, etc.) and creates it for you on first run.
 
 ```yaml
-# .spec-driven.yml (auto-generated, then curated)
+# .feature-flow.yml (auto-generated, then curated)
 platform: web          # web | ios | android | cross-platform
 stack:
   - supabase
@@ -226,7 +226,7 @@ gotchas:
   - "PostgREST caps all queries at 1000 rows without .range() pagination"
 ```
 
-**Should you commit this file?** Yes — `.spec-driven.yml` should be committed to your repo. It captures project-specific knowledge (especially gotchas) that benefits the whole team. It's not sensitive data and evolves with the project.
+**Should you commit this file?** Yes — `.feature-flow.yml` should be committed to your repo. It captures project-specific knowledge (especially gotchas) that benefits the whole team. It's not sensitive data and evolves with the project.
 
 **How it works:**
 - `platform` adjusts the lifecycle — mobile adds beta testing, app store review, required feature flags
@@ -236,7 +236,7 @@ gotchas:
 
 **Auto-discovery:** On first run, `start-feature` scans your project files, detects the stack, and resolves Context7 library IDs for each detected technology. It presents the full context for confirmation. On subsequent runs, it cross-checks for new dependencies and suggests additions.
 
-**Context7 resolution:** For every detected stack entry, spec-driven calls Context7's `resolve-library-id` to find the best documentation library. Well-known stacks (Next.js, Supabase, Vercel) use pre-verified mappings. All other stacks are resolved dynamically — this means spec-driven works with **any technology** Context7 has documentation for (Django, Rails, FastAPI, Vue, Angular, Stripe, Prisma, etc.).
+**Context7 resolution:** For every detected stack entry, feature-flow calls Context7's `resolve-library-id` to find the best documentation library. Well-known stacks (Next.js, Supabase, Vercel) use pre-verified mappings. All other stacks are resolved dynamically — this means feature-flow works with **any technology** Context7 has documentation for (Django, Rails, FastAPI, Vue, Angular, Stripe, Prisma, etc.).
 
 **Gotcha write-back:** When `design-verification` finds a reusable pitfall or `spike` discovers a denied assumption that could affect future features, the skill offers to add it to your gotchas list automatically. The file gets smarter over time without manual curation.
 
@@ -253,7 +253,7 @@ gotchas:
 
 ### Coding Standards and Code Quality
 
-spec-driven enforces senior-engineer code quality through three layers:
+feature-flow enforces senior-engineer code quality through three layers:
 
 1. **Study Existing Patterns** (before implementation) — Reads 2-3 existing files per area being modified, extracts conventions, and generates per-task "How to Code This" notes that map implementation tasks to specific codebase patterns
 2. **Self-Review** (after implementation) — Reviews all changed code against a 10-point checklist: function size (≤30 lines), naming conventions, error handling, type safety (no `any`), DRY, pattern adherence, separation of concerns, guard clauses (≤3 nesting levels), debug artifacts, import organization
@@ -267,12 +267,12 @@ Context7 provides live documentation lookups for any technology, ensuring code f
 
 **How it works:**
 
-1. During auto-detection, spec-driven resolves Context7 library IDs for each stack entry
+1. During auto-detection, feature-flow resolves Context7 library IDs for each stack entry
 2. Before writing the design document, the "Documentation lookup" step queries relevant libraries for current patterns
 3. During design verification, the "Documentation Compliance" check (category #17) verifies the design uses current patterns
 4. A PreToolUse hook reminds about doc lookups before creating new source files
 
-**Works with any stack:** Context7 hosts docs for thousands of libraries. Even if spec-driven doesn't have a pre-built stack reference file (e.g., for Django or Stripe), it can still resolve and query Context7 documentation dynamically.
+**Works with any stack:** Context7 hosts docs for thousands of libraries. Even if feature-flow doesn't have a pre-built stack reference file (e.g., for Django or Stripe), it can still resolve and query Context7 documentation dynamically.
 
 **Example — what doc lookups catch:**
 - Supabase deprecated `auth-helpers` in favor of `@supabase/ssr` — Context7 docs show the new `createServerClient` pattern
@@ -307,7 +307,7 @@ Each would have been 30-60 minutes of debugging mid-implementation. Total time s
 
 ## Example: Project Gotchas Preventing Repeat Bugs
 
-After discovering Supabase's PostgREST 1000-row silent truncation bug (21+ queries affected, zero error signals), the team added it to `.spec-driven.yml`:
+After discovering Supabase's PostgREST 1000-row silent truncation bug (21+ queries affected, zero error signals), the team added it to `.feature-flow.yml`:
 
 ```yaml
 gotchas:

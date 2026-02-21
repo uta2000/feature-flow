@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Add YOLO mode to the spec-driven lifecycle that auto-selects recommended options at all `AskUserQuestion` call sites, with inline decision logging and a completion summary.
+**Goal:** Add YOLO mode to the feature-flow lifecycle that auto-selects recommended options at all `AskUserQuestion` call sites, with inline decision logging and a completion summary.
 
 **Architecture:** Three-layer design — Detection (parse `--yolo` from user input), Propagation (append `yolo: true` to Skill tool args), Behavior (each skill checks flag and skips `AskUserQuestion`). All changes are markdown edits to skill files.
 
@@ -15,10 +15,10 @@
 
 ### Task 1: Add YOLO Detection to start-feature Step 0
 
-Add the YOLO detection block at the very beginning of Step 0, before the `.spec-driven.yml` check. This is Layer 1 of the architecture.
+Add the YOLO detection block at the very beginning of Step 0, before the `.feature-flow.yml` check. This is Layer 1 of the architecture.
 
 **Acceptance Criteria:**
-- [ ] `skills/start-feature/SKILL.md` contains a "YOLO Mode Detection" section before the `.spec-driven.yml` check in Step 0
+- [ ] `skills/start-feature/SKILL.md` contains a "YOLO Mode Detection" section before the `.feature-flow.yml` check in Step 0
 - [ ] The section lists three trigger phrases: `--yolo`, `yolo mode`, `run unattended`
 - [ ] The section specifies word-boundary matching (not substring)
 - [ ] The section includes a startup question via `AskUserQuestion` when no trigger is detected, with options "Interactive (default)" and "YOLO"
@@ -31,7 +31,7 @@ Add the YOLO detection block at the very beginning of Step 0, before the `.spec-
 **Steps:**
 
 1. Read `skills/start-feature/SKILL.md` and locate the "### Step 0: Load or Create Project Context" heading (line 77)
-2. Insert a new "**YOLO Mode Detection**" block immediately after the heading and before "Check for a `.spec-driven.yml` file":
+2. Insert a new "**YOLO Mode Detection**" block immediately after the heading and before "Check for a `.feature-flow.yml` file":
 
 ```markdown
 **YOLO Mode Detection:**
@@ -79,7 +79,7 @@ Add the propagation instruction to Step 3 (Execute Steps in Order) so the YOLO f
 
 ```
 Skill(skill: "superpowers:brainstorming", args: "yolo: true. [original args]")
-Skill(skill: "spec-driven:design-document", args: "yolo: true. [original args]")
+Skill(skill: "feature-flow:design-document", args: "yolo: true. [original args]")
 ```
 
 For inline steps (CHANGELOG generation, self-review, code review, study existing patterns), the YOLO flag is already in the conversation context — no explicit propagation is needed.

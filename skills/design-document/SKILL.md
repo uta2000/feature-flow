@@ -35,12 +35,12 @@ Launch 3-4 Explore agents in a **single message** using the Task tool with `suba
 | Format patterns | Read existing design docs in `docs/plans/` and extract document structure, section patterns, and conventions | Yes |
 | Stack & dependencies | Examine dependency files (`package.json`, config files), project structure, and tech stack conventions | Yes |
 | Relevant code | Search for and read source files related to the feature being designed (e.g., existing components, routes, hooks, models in the affected areas) | Yes |
-| Documentation (Context7) | If `.spec-driven.yml` has a `context7` field, Context7 is available, AND no documentation lookup step was already run in the `start-feature` lifecycle — query relevant Context7 libraries for current patterns the design should follow. Skip this agent if any condition is not met. | Conditional |
+| Documentation (Context7) | If `.feature-flow.yml` has a `context7` field, Context7 is available, AND no documentation lookup step was already run in the `start-feature` lifecycle — query relevant Context7 libraries for current patterns the design should follow. Skip this agent if any condition is not met. | Conditional |
 
 **Context passed to each agent:**
 - Feature description (from brainstorming output or issue body)
 - Specific gathering assignment from the table above
-- For the Documentation agent: library IDs from `.spec-driven.yml` `context7` field
+- For the Documentation agent: library IDs from `.feature-flow.yml` `context7` field
 
 **Expected return format per agent:**
 
@@ -84,7 +84,7 @@ Select sections based on what the feature requires. Not every feature needs ever
 
 **Include when platform is mobile (ios, android, cross-platform):**
 
-Check for `.spec-driven.yml` in the project root to determine the platform. If `platform` is `ios`, `android`, or `cross-platform`, add these sections:
+Check for `.feature-flow.yml` in the project root to determine the platform. If `platform` is `ios`, `android`, or `cross-platform`, add these sections:
 
 | Section | Required | Purpose |
 |---------|----------|---------|

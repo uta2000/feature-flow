@@ -158,7 +158,7 @@ In the Skill Mapping table, insert a new row after `Worktree setup` (line 335) a
 
 **Step 1: Insert the new inline step section**
 
-After the Commit Planning Artifacts Step section (ends at line 444 with the edge case about `.spec-driven.yml`) and before the Study Existing Patterns Step section (starts at line 446), insert the new inline step section:
+After the Commit Planning Artifacts Step section (ends at line 444 with the edge case about `.feature-flow.yml`) and before the Study Existing Patterns Step section (starts at line 446), insert the new inline step section:
 
 ```markdown
 
@@ -227,7 +227,7 @@ Copies non-production .env* files from the main worktree into new
 worktrees after setup, before study existing patterns. Prevents
 baseline test failures from missing environment configuration.
 
-Implemented in spec-driven's start-feature rather than modifying the
+Implemented in feature-flow's start-feature rather than modifying the
 superpowers using-git-worktrees skill (which we don't own).
 
 Closes #26"

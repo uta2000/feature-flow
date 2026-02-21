@@ -17,11 +17,11 @@ process.stdin.on('end', () => {
     if (errors) {
       const name = path.basename(filePath);
       console.log(
-        `[spec-driven] LINT ERRORS in ${name} — fix these before continuing:\n${errors}`
+        `[feature-flow] LINT ERRORS in ${name} — fix these before continuing:\n${errors}`
       );
     }
   } catch (e) {
-    console.error(`[spec-driven] lint-file hook error: ${e?.message || 'unknown'}`);
+    console.error(`[feature-flow] lint-file hook error: ${e?.message || 'unknown'}`);
   }
   process.exit(0);
 });

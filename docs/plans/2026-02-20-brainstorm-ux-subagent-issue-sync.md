@@ -6,13 +6,13 @@
 
 ## Overview
 
-Three improvements to the spec-driven feature lifecycle. (1) Brainstorming interview questions get a concise format — plain English explanation, one example per option, and a recommendation tag. (2) The implementation dispatch choice between subagent-driven and parallel session is removed — subagent-driven is always selected automatically. (3) When the user starts a feature from an existing GitHub issue, the lifecycle pulls the issue body + comments as context and updates the issue after design instead of creating a duplicate.
+Three improvements to the feature-flow feature lifecycle. (1) Brainstorming interview questions get a concise format — plain English explanation, one example per option, and a recommendation tag. (2) The implementation dispatch choice between subagent-driven and parallel session is removed — subagent-driven is always selected automatically. (3) When the user starts a feature from an existing GitHub issue, the lifecycle pulls the issue body + comments as context and updates the issue after design instead of creating a duplicate.
 
 ## Change 1: Brainstorming Interview Format
 
 **File:** `skills/start-feature/SKILL.md`
 
-**What:** Add an inline section after the skill mapping table that specifies the required question format when `superpowers:brainstorming` is invoked from the spec-driven lifecycle.
+**What:** Add an inline section after the skill mapping table that specifies the required question format when `superpowers:brainstorming` is invoked from the feature-flow lifecycle.
 
 **Format per question:**
 ```

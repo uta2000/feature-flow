@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Improve the spec-driven feature lifecycle with better brainstorming question UX, automatic subagent-driven execution, and GitHub issue round-trip sync.
+**Goal:** Improve the feature-flow feature lifecycle with better brainstorming question UX, automatic subagent-driven execution, and GitHub issue round-trip sync.
 
 **Architecture:** Three changes to two markdown skill files. No code, no tests — these are Claude Code plugin skill instructions. Changes are additive sections and targeted line edits.
 
@@ -139,11 +139,11 @@ If no issue reference is found, proceed as before.
 
 Change line 208 from:
 ```
-| Create issue | `spec-driven:create-issue` | GitHub issue URL |
+| Create issue | `feature-flow:create-issue` | GitHub issue URL |
 ```
 to:
 ```
-| Create issue | `spec-driven:create-issue` | GitHub issue URL. **If an issue number was detected in Step 1**, pass it to create-issue as the `existing_issue` context — the skill will update the existing issue instead of creating a new one. |
+| Create issue | `feature-flow:create-issue` | GitHub issue URL. **If an issue number was detected in Step 1**, pass it to create-issue as the `existing_issue` context — the skill will update the existing issue instead of creating a new one. |
 ```
 
 **Step 3: Verify the edits**

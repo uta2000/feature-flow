@@ -50,7 +50,7 @@ gh issue list --limit 5
 
 Read `references/issue-templates.md` to select the appropriate template for the feature type.
 
-**Check project context:** If `.spec-driven.yml` exists and `platform` is `ios`, `android`, or `cross-platform`, include mobile-specific sections in the issue (Feature Flag Strategy, Rollback Plan, Device Compatibility, Beta Testing Requirements). See `../../references/platforms/mobile.md` for section content.
+**Check project context:** If `.feature-flow.yml` exists and `platform` is `ios`, `android`, or `cross-platform`, include mobile-specific sections in the issue (Feature Flag Strategy, Rollback Plan, Device Compatibility, Beta Testing Requirements). See `../../references/platforms/mobile.md` for section content.
 
 Map the design document sections to issue sections:
 

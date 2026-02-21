@@ -8,10 +8,10 @@ const path = require('path');
 const failures = [];
 const warnings = [];
 
-try { checkTypeScript(); } catch (e) { warnings.push(`[spec-driven] TypeScript check failed unexpectedly: ${e.message?.slice(0, 100)}`); }
-try { checkLint(); } catch (e) { warnings.push(`[spec-driven] Lint check failed unexpectedly: ${e.message?.slice(0, 100)}`); }
-try { checkTypeSync(); } catch (e) { warnings.push(`[spec-driven] Type-sync check failed unexpectedly: ${e.message?.slice(0, 100)}`); }
-try { checkTests(); } catch (e) { warnings.push(`[spec-driven] Test check failed unexpectedly: ${e.message?.slice(0, 100)}`); }
+try { checkTypeScript(); } catch (e) { warnings.push(`[feature-flow] TypeScript check failed unexpectedly: ${e.message?.slice(0, 100)}`); }
+try { checkLint(); } catch (e) { warnings.push(`[feature-flow] Lint check failed unexpectedly: ${e.message?.slice(0, 100)}`); }
+try { checkTypeSync(); } catch (e) { warnings.push(`[feature-flow] Type-sync check failed unexpectedly: ${e.message?.slice(0, 100)}`); }
+try { checkTests(); } catch (e) { warnings.push(`[feature-flow] Test check failed unexpectedly: ${e.message?.slice(0, 100)}`); }
 
 if (failures.length > 0) {
   const report = failures.join('\n\n');
@@ -60,7 +60,7 @@ function checkLint() {
         return;
       }
     } catch (e) {
-      warnings.push(`[spec-driven] Failed to parse package.json: ${e.message?.slice(0, 100) || 'unknown'}. Falling back to direct linter detection.`);
+      warnings.push(`[feature-flow] Failed to parse package.json: ${e.message?.slice(0, 100) || 'unknown'}. Falling back to direct linter detection.`);
     }
   }
 
@@ -87,9 +87,9 @@ function runLintCommand(command, label) {
 // --- Check 3: Type-sync ---
 
 function checkTypeSync() {
-  if (!existsSync('.spec-driven.yml')) return;
+  if (!existsSync('.feature-flow.yml')) return;
 
-  const yml = readFileSync('.spec-driven.yml', 'utf8');
+  const yml = readFileSync('.feature-flow.yml', 'utf8');
   const stack = parseStack(yml);
   const typesPath = parseTypesPath(yml);
 
@@ -112,14 +112,14 @@ function checkSupabaseTypes(typesPathOverride) {
     execSync('npx supabase status', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
   } catch {
     warnings.push(
-      '[spec-driven] Supabase not running locally — skipping type freshness check. Run "supabase start" to enable.'
+      '[feature-flow] Supabase not running locally — skipping type freshness check. Run "supabase start" to enable.'
     );
     return;
   }
 
   const typesFile = typesPathOverride || findTypesFile();
   if (!typesFile) {
-    warnings.push('[spec-driven] No generated types file found — skipping Supabase type freshness check.');
+    warnings.push('[feature-flow] No generated types file found — skipping Supabase type freshness check.');
     return;
   }
 
@@ -135,7 +135,7 @@ function checkSupabaseTypes(typesPathOverride) {
       );
     }
   } catch (e) {
-    warnings.push(`[spec-driven] Failed to generate Supabase types: ${(e.message || '').slice(0, 100)}`);
+    warnings.push(`[feature-flow] Failed to generate Supabase types: ${(e.message || '').slice(0, 100)}`);
   }
 }
 
@@ -183,11 +183,11 @@ function checkTests() {
     });
   } catch (e) {
     if (e.killed && e.signal === 'SIGTERM') {
-      warnings.push('[spec-driven] Test suite timed out (60s) — skipping. Run tests manually.');
+      warnings.push('[feature-flow] Test suite timed out (60s) — skipping. Run tests manually.');
       return;
     }
     if (e.code === 'ENOENT' || e.status === 127) {
-      warnings.push(`[spec-driven] Test command not found: "${cmd}". Ensure the tool is installed.`);
+      warnings.push(`[feature-flow] Test command not found: "${cmd}". Ensure the tool is installed.`);
       return;
     }
     const output = execOutput(e);
@@ -207,13 +207,13 @@ function detectTestCommand() {
       const testScript = pkg.scripts?.test;
       if (testScript && !testScript.includes('no test specified')) {
         if (!existsSync('node_modules')) {
-          warnings.push('[spec-driven] node_modules not found — skipping test check. Run "npm install" first.');
+          warnings.push('[feature-flow] node_modules not found — skipping test check. Run "npm install" first.');
           return null;
         }
         return 'npm test';
       }
     } catch (e) {
-      warnings.push(`[spec-driven] Failed to parse package.json for test detection: ${e.message?.slice(0, 100) || 'unknown'}`);
+      warnings.push(`[feature-flow] Failed to parse package.json for test detection: ${e.message?.slice(0, 100) || 'unknown'}`);
     }
   }
 

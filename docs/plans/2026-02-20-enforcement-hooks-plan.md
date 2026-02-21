@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Add blocking enforcement hooks for tsc type checking, linting, and type-sync validation to the spec-driven plugin.
+**Goal:** Add blocking enforcement hooks for tsc type checking, linting, and type-sync validation to the feature-flow plugin.
 
 **Architecture:** Two-layer enforcement — PostToolUse runs per-file lint after each Write/Edit (immediate feedback), Stop hook runs full-project tsc + lint + type-sync gate (hard BLOCK). External Node.js scripts handle detection logic. All checks skip gracefully when tools aren't detected.
 
@@ -26,7 +26,7 @@
 - [ ] Script detects Biome by checking BOTH `node_modules/.bin/biome` AND config file existence
 - [ ] Script outputs nothing when no linter is detected (graceful skip)
 - [ ] Script outputs nothing when lint passes
-- [ ] Script outputs `[spec-driven] LINT ERRORS in {filename}` format when lint fails
+- [ ] Script outputs `[feature-flow] LINT ERRORS in {filename}` format when lint fails
 - [ ] Script always exits 0 (never crashes the hook system)
 
 **Step 1: Create the scripts directory**
@@ -55,7 +55,7 @@ process.stdin.on('end', () => {
     if (errors) {
       const name = path.basename(filePath);
       console.log(
-        `[spec-driven] LINT ERRORS in ${name} — fix these before continuing:\n${errors}`
+        `[feature-flow] LINT ERRORS in ${name} — fix these before continuing:\n${errors}`
       );
     }
   } catch {
@@ -148,8 +148,8 @@ git commit -m "feat: add per-file lint hook script (PostToolUse)"
 - [ ] File exists at `hooks/scripts/quality-gate.js`
 - [ ] Script checks for `tsconfig.json` AND `node_modules/.bin/tsc` before running tsc
 - [ ] Script checks for `package.json` lint script first, falls back to direct linter detection
-- [ ] Script reads `.spec-driven.yml` stack field via line-based YAML parsing
-- [ ] Script reads `.spec-driven.yml` types_path field when present
+- [ ] Script reads `.feature-flow.yml` stack field via line-based YAML parsing
+- [ ] Script reads `.feature-flow.yml` types_path field when present
 - [ ] Script checks `supabase status` before running `gen types` — skips with warning if not running
 - [ ] Script compares generated Supabase types against existing file on disk
 - [ ] Script checks Prisma schema mtime vs generated client mtime
@@ -254,9 +254,9 @@ function checkLint() {
 // --- Check 3: Type-sync ---
 
 function checkTypeSync() {
-  if (!existsSync('.spec-driven.yml')) return;
+  if (!existsSync('.feature-flow.yml')) return;
 
-  const yml = readFileSync('.spec-driven.yml', 'utf8');
+  const yml = readFileSync('.feature-flow.yml', 'utf8');
   const stack = parseStack(yml);
   const typesPath = parseTypesPath(yml);
 
@@ -279,14 +279,14 @@ function checkSupabaseTypes(typesPathOverride) {
     execSync('npx supabase status', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
   } catch {
     warnings.push(
-      '[spec-driven] Supabase not running locally — skipping type freshness check. Run "supabase start" to enable.'
+      '[feature-flow] Supabase not running locally — skipping type freshness check. Run "supabase start" to enable.'
     );
     return;
   }
 
   const typesFile = typesPathOverride || findTypesFile();
   if (!typesFile) {
-    warnings.push('[spec-driven] No generated types file found — skipping Supabase type freshness check.');
+    warnings.push('[feature-flow] No generated types file found — skipping Supabase type freshness check.');
     return;
   }
 
@@ -302,7 +302,7 @@ function checkSupabaseTypes(typesPathOverride) {
       );
     }
   } catch (e) {
-    warnings.push(`[spec-driven] Failed to generate Supabase types: ${(e.message || '').slice(0, 100)}`);
+    warnings.push(`[feature-flow] Failed to generate Supabase types: ${(e.message || '').slice(0, 100)}`);
   }
 }
 
@@ -397,7 +397,7 @@ function hasBiomeConfig() {
 **Step 2: Verify quality-gate.js — no tools case (this plugin project)**
 
 Run: `node hooks/scripts/quality-gate.js < /dev/null`
-Expected: No stdout output (no tsconfig, no package.json lint script, no .spec-driven.yml), exit 0
+Expected: No stdout output (no tsconfig, no package.json lint script, no .feature-flow.yml), exit 0
 
 **Step 3: Verify quality-gate.js — handles missing stdin gracefully**
 
@@ -525,7 +525,7 @@ git commit -m "feat: add Stop quality gate hook (tsc + lint + type-sync)"
 
 **Step 1: Update SessionStart message**
 
-In the SessionStart hook's echo message for existing `.spec-driven.yml` users, add a rule #5:
+In the SessionStart hook's echo message for existing `.feature-flow.yml` users, add a rule #5:
 
 `(5) Stop hook runs tsc, lint, and type-sync checks — session cannot end with errors.`
 
@@ -626,7 +626,7 @@ Prepend a new section before `## [1.6.0]`:
 - External Node.js scripts (`hooks/scripts/lint-file.js`, `hooks/scripts/quality-gate.js`) for complex detection logic
 - Dynamic tool detection — checks `node_modules/.bin/` for installed tools before running; never lets `npx` download tools
 - Supabase instance guard — checks `supabase status` before `gen types --local`; skips gracefully if not running
-- New `types_path` field in `.spec-driven.yml` for overriding canonical types file location
+- New `types_path` field in `.feature-flow.yml` for overriding canonical types file location
 
 ### Changed
 - Stop hook array ordering: quality gate runs first, acceptance-criteria check runs second

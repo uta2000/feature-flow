@@ -33,10 +33,10 @@ Check for the Context7 MCP plugin by looking for `mcp__plugin_context7_context7_
 ```
 The Context7 plugin is required for documentation lookups but doesn't appear to be installed.
 Install it: claude plugins add context7
-Without it, spec-driven cannot query up-to-date library documentation during design and implementation.
+Without it, feature-flow cannot query up-to-date library documentation during design and implementation.
 ```
 
-Do not proceed with the lifecycle if Context7 is missing — documentation lookups are a core part of the design phase. The `context7` field in `.spec-driven.yml` will not be populated, and the documentation lookup step, documentation compliance verification, and PreToolUse hook will all be non-functional.
+Do not proceed with the lifecycle if Context7 is missing — documentation lookups are a core part of the design phase. The `context7` field in `.feature-flow.yml` will not be populated, and the documentation lookup step, documentation compliance verification, and PreToolUse hook will all be non-functional.
 
 ### pr-review-toolkit (recommended)
 
@@ -91,13 +91,13 @@ Before any other processing, check if the user requested YOLO mode via a trigger
 3. If no trigger is found:
    - Do nothing here — the YOLO/Interactive mode prompt is presented in Step 1 after scope classification, where the system can make a smart recommendation based on scope and issue context.
 
-Check for a `.spec-driven.yml` file in the project root.
+Check for a `.feature-flow.yml` file in the project root.
 
 **If found:**
 1. Read it and extract `platform`, `stack`, `context7`, and `gotchas`
 2. Cross-check against auto-detected stack (see `../../references/auto-discovery.md`). If new dependencies are detected that aren't declared, suggest additions:
    ```
-   Your .spec-driven.yml declares: [supabase, next-js]
+   Your .feature-flow.yml declares: [supabase, next-js]
    I also detected: [stripe] (from package.json)
    Want me to add stripe to your stack list?
    ```
@@ -117,13 +117,13 @@ Check for a `.spec-driven.yml` file in the project root.
      - [stack-1] (from [source])
      - [stack-2] (from [source])
 
-   Does this look right? I'll save this to `.spec-driven.yml`.
+   Does this look right? I'll save this to `.feature-flow.yml`.
    ```
 4. Use `AskUserQuestion` with options: "Looks correct", "Let me adjust"
 
 **YOLO behavior:** If YOLO mode is active, skip this question. Accept the detected context as-is and announce: `YOLO: start-feature — Platform/stack detection → Accepted: [platform], [stack list]`
 
-5. Write `.spec-driven.yml` with confirmed values (gotchas starts empty — skills will populate it as they discover issues)
+5. Write `.feature-flow.yml` with confirmed values (gotchas starts empty — skills will populate it as they discover issues)
 
 See `../../references/auto-discovery.md` for the full detection rules.
 See `../../references/project-context-schema.md` for the schema.
@@ -314,7 +314,7 @@ For each step, follow this pattern:
 
 ```
 Skill(skill: "superpowers:brainstorming", args: "yolo: true. scope: [scope]. [original args]")
-Skill(skill: "spec-driven:design-document", args: "yolo: true. scope: [scope]. [original args]")
+Skill(skill: "feature-flow:design-document", args: "yolo: true. scope: [scope]. [original args]")
 ```
 
 For inline steps (CHANGELOG generation, self-review, code review, study existing patterns), the YOLO flag is already in the conversation context — no explicit propagation is needed.
@@ -326,14 +326,14 @@ For inline steps (CHANGELOG generation, self-review, code review, study existing
 | Step | Skill to Invoke | Expected Output |
 |------|----------------|-----------------|
 | Brainstorm requirements | `superpowers:brainstorming` | Decisions on scope, approach, UX |
-| Spike / PoC | `spec-driven:spike` | Confirmed/denied assumptions |
+| Spike / PoC | `feature-flow:spike` | Confirmed/denied assumptions |
 | Documentation lookup | No skill — inline step (see below) | Current patterns from official docs injected into context |
-| Design document | `spec-driven:design-document` | File at `docs/plans/YYYY-MM-DD-*.md` |
+| Design document | `feature-flow:design-document` | File at `docs/plans/YYYY-MM-DD-*.md` |
 | Study existing patterns | No skill — inline step (see below) | Understanding of codebase conventions for the areas being modified |
-| Design verification | `spec-driven:design-verification` | Blockers/gaps identified and fixed |
-| Create issue | `spec-driven:create-issue` | GitHub issue URL. **If an issue number was detected in Step 1**, pass it to create-issue as the `existing_issue` context — the skill will update the existing issue instead of creating a new one. |
+| Design verification | `feature-flow:design-verification` | Blockers/gaps identified and fixed |
+| Create issue | `feature-flow:create-issue` | GitHub issue URL. **If an issue number was detected in Step 1**, pass it to create-issue as the `existing_issue` context — the skill will update the existing issue instead of creating a new one. |
 | Implementation plan | `superpowers:writing-plans` | Numbered tasks with acceptance criteria. **Override:** After the plan is saved, always proceed with subagent-driven execution — do not present the execution choice to the user. Immediately invoke `superpowers:subagent-driven-development`. |
-| Verify plan criteria | `spec-driven:verify-plan-criteria` | All tasks have verifiable criteria |
+| Verify plan criteria | `feature-flow:verify-plan-criteria` | All tasks have verifiable criteria |
 | Commit planning artifacts | No skill — inline step (see below) | Planning docs and config committed to base branch |
 | Worktree setup | `superpowers:using-git-worktrees` | Isolated worktree created |
 | Copy env files | No skill — inline step (see below) | Env files available in worktree |
@@ -341,7 +341,7 @@ For inline steps (CHANGELOG generation, self-review, code review, study existing
 | Self-review | No skill — inline step (see below) | Code verified against coding standards before formal review |
 | Code review | No skill — inline step (see below) | All Critical/Important findings fixed, tests pass |
 | Generate CHANGELOG entry | No skill — inline step (see below) | CHANGELOG.md updated with categorized entry |
-| Final verification | `spec-driven:verify-acceptance-criteria` + `superpowers:verification-before-completion` | All criteria PASS + lint/typecheck/build pass |
+| Final verification | `feature-flow:verify-acceptance-criteria` + `superpowers:verification-before-completion` | All criteria PASS + lint/typecheck/build pass |
 | Commit and PR | `superpowers:finishing-a-development-branch` | PR URL |
 | Device matrix testing | No skill — manual step | Tested on min OS, small/large screens, slow network |
 | Beta testing | No skill — manual step | TestFlight / Play Console build tested by internal tester |
@@ -430,12 +430,12 @@ This step runs after verify-plan-criteria and before worktree setup. It commits 
 **Process:**
 1. Check if there are planning artifacts to commit:
    ```bash
-   git status --porcelain docs/plans/*.md .spec-driven.yml 2>/dev/null
+   git status --porcelain docs/plans/*.md .feature-flow.yml 2>/dev/null
    ```
 2. If no files are reported (empty output), skip the step: "No planning artifacts to commit — skipping."
 3. Stage the planning artifacts:
    ```bash
-   git add docs/plans/*.md .spec-driven.yml
+   git add docs/plans/*.md .feature-flow.yml
    ```
 4. Commit with a descriptive message using the feature name from Step 1:
    ```bash
@@ -443,9 +443,9 @@ This step runs after verify-plan-criteria and before worktree setup. It commits 
    ```
 
 **Edge cases:**
-- **`.spec-driven.yml` already tracked and unchanged** — `git add` is a no-op for unchanged tracked files, so this is safe
+- **`.feature-flow.yml` already tracked and unchanged** — `git add` is a no-op for unchanged tracked files, so this is safe
 - **No plan files exist** — handled by the guard check in step 1
-- **Only `.spec-driven.yml` changed (no plan docs)** — still commits; the file should be tracked regardless
+- **Only `.feature-flow.yml` changed (no plan docs)** — still commits; the file should be tracked regardless
 
 ### Copy Env Files Step (inline — no separate skill)
 
@@ -826,13 +826,13 @@ This step queries Context7 for current patterns relevant to the feature being bu
 
 **Prerequisites:**
 - The Context7 MCP plugin must be available (`context7@claude-plugins-official`)
-- `.spec-driven.yml` must have a `context7` field (populated during auto-detection)
+- `.feature-flow.yml` must have a `context7` field (populated during auto-detection)
 
 **If Context7 is not available:** Skip this step silently. Announce: "Context7 not available — skipping documentation lookup. Proceeding with stack reference files only."
 
 **Process:**
 1. From the brainstorming output, identify which stack technologies are relevant to this feature (e.g., a new API route touches Next.js + Supabase; a UI change touches Next.js only)
-2. Read the `context7` field from `.spec-driven.yml` to get library IDs for relevant stacks
+2. Read the `context7` field from `.feature-flow.yml` to get library IDs for relevant stacks
 3. Query each relevant Context7 library using `mcp__plugin_context7_context7__query-docs` with a focused query about the feature's specific needs:
    - Example: building a new API route → query `/vercel/next.js` for "server actions error handling revalidation"
    - Example: adding a new table → query `/supabase/supabase-js` for "typed queries insert RPC" and `/websites/supabase` for "RLS policies migration"
@@ -942,7 +942,7 @@ When adjusting, announce: "Adjusting scope from [old] to [new]. Adding/removing 
 - **Output verification.** Each step must produce its expected output before marking complete.
 - **No silent skips.** If a step is skipped, it must be acknowledged with a reason.
 - **Scope can change.** The lifecycle adapts to what is discovered during execution.
-- **Platform context is loaded once.** Read `.spec-driven.yml` at the start; pass context to skills that need it.
+- **Platform context is loaded once.** Read `.feature-flow.yml` at the start; pass context to skills that need it.
 
 ## Additional Resources
 
@@ -952,6 +952,6 @@ For detailed scope classification guidance and step descriptions:
 - **`references/scope-guide.md`** — Detailed criteria for classifying work scope, with examples and edge cases
 
 For project context and platform-specific lifecycle adjustments:
-- **`../../references/project-context-schema.md`** — Schema for `.spec-driven.yml`
+- **`../../references/project-context-schema.md`** — Schema for `.feature-flow.yml`
 - **`../../references/platforms/mobile.md`** — Mobile lifecycle adjustments, required sections, beta testing checklist
 - **`../../references/platforms/web.md`** — Web lifecycle adjustments

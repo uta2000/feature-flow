@@ -5,7 +5,7 @@
 
 ## Overview
 
-Add three enforcement capabilities to the spec-driven plugin's hook system: TypeScript type checking (`tsc --noEmit`), linting (project's configured linter), and type-sync validation (generated types freshness + duplicate detection). All hooks are dynamic — they detect the project's tooling at runtime and skip gracefully when tools are unavailable. Enforcement uses a two-layer strategy: PostToolUse for immediate per-file feedback and a Stop hook as a hard blocking gate.
+Add three enforcement capabilities to the feature-flow plugin's hook system: TypeScript type checking (`tsc --noEmit`), linting (project's configured linter), and type-sync validation (generated types freshness + duplicate detection). All hooks are dynamic — they detect the project's tooling at runtime and skip gracefully when tools are unavailable. Enforcement uses a two-layer strategy: PostToolUse for immediate per-file feedback and a Stop hook as a hard blocking gate.
 
 ## Architecture — Two-Layer Enforcement
 
@@ -22,14 +22,14 @@ Add three enforcement capabilities to the spec-driven plugin's hook system: Type
    - Else check `node_modules/.bin/biome` exists AND (`biome.json` or `biome.jsonc` exists) → run `npx biome check {file}`.
    - Else skip. **Never let `npx` download a tool** — only run tools already installed in the project.
 3. Run linter on the single changed file (full rules, not errors-only).
-4. On failure, output feedback to Claude: `[spec-driven] LINT ERRORS in {filename} — fix these before continuing:\n{errors}`
+4. On failure, output feedback to Claude: `[feature-flow] LINT ERRORS in {filename} — fix these before continuing:\n{errors}`
 5. On success or no linter detected, output nothing.
 
 **Why per-file lint only (no tsc):** Running `tsc --noEmit` after every file change compiles the entire project (10-30s on large codebases). Single-file lint runs in ~1-2s. tsc is deferred to the Stop gate.
 
 **Timeout:** 30 seconds.
 
-**Implementation:** External Node.js script at `hooks/scripts/lint-file.js`, referenced via `node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/lint-file.js`. Node.js is used instead of bash because scripts need to (a) parse JSON from stdin, (b) parse YAML from `.spec-driven.yml`, and (c) run cross-platform. Node.js is guaranteed available since Claude Code runs on it.
+**Implementation:** External Node.js script at `hooks/scripts/lint-file.js`, referenced via `node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/lint-file.js`. Node.js is used instead of bash because scripts need to (a) parse JSON from stdin, (b) parse YAML from `.feature-flow.yml`, and (c) run cross-platform. Node.js is guaranteed available since Claude Code runs on it.
 
 ### Layer 2: Stop Hook (full project gate)
 
@@ -49,10 +49,10 @@ Add three enforcement capabilities to the spec-driven plugin's hook system: Type
 3. If errors → include in BLOCK output.
 
 **Check 3 — Type-sync (generated types freshness):**
-1. Read `.spec-driven.yml` for `stack` field (parse YAML via simple line-based parsing in Node.js — no external YAML library needed for the flat structure).
+1. Read `.feature-flow.yml` for `stack` field (parse YAML via simple line-based parsing in Node.js — no external YAML library needed for the flat structure).
 2. If `supabase` in stack:
-   a. First, check if Supabase is running: `npx supabase status 2>/dev/null`. If exit code is non-zero (not running), **skip freshness check** and output warning: `"[spec-driven] Supabase not running locally — skipping type freshness check. Run 'supabase start' to enable."`
-   b. If running: find existing generated types file — glob for `**/database.types.ts` or `**/supabase.types.ts` in `src/`, `lib/`, `types/`, or `app/`. Also check `.spec-driven.yml` for `types_path` override.
+   a. First, check if Supabase is running: `npx supabase status 2>/dev/null`. If exit code is non-zero (not running), **skip freshness check** and output warning: `"[feature-flow] Supabase not running locally — skipping type freshness check. Run 'supabase start' to enable."`
+   b. If running: find existing generated types file — glob for `**/database.types.ts` or `**/supabase.types.ts` in `src/`, `lib/`, `types/`, or `app/`. Also check `.feature-flow.yml` for `types_path` override.
    c. Run `npx supabase gen types typescript --local` and capture output.
    d. Diff output against the existing file. If different → include in BLOCK output with the regeneration command.
 3. If `prisma` in stack:
@@ -62,7 +62,7 @@ Add three enforcement capabilities to the spec-driven plugin's hook system: Type
 4. Additional generators can be added over time.
 
 **Check 3b — Type-sync (duplicate type file detection):**
-1. Find canonical types file location (heuristic: glob for `*.types.ts` in `src/types/`, `src/lib/`, `types/`, `lib/`). Override: `types_path` in `.spec-driven.yml`.
+1. Find canonical types file location (heuristic: glob for `*.types.ts` in `src/types/`, `src/lib/`, `types/`, `lib/`). Override: `types_path` in `.feature-flow.yml`.
 2. Search edge function directories for type files:
    - `supabase/functions/**/*.types.ts`
    - Other edge function patterns as detected
@@ -101,18 +101,18 @@ All hooks must work with any project without configuration. Detection runs at ho
 | ESLint | `node_modules/.bin/eslint` exists AND (`.eslintrc*` or `eslint.config.*`) | Try biome |
 | Biome | `node_modules/.bin/biome` exists AND (`biome.json` or `biome.jsonc`) | Skip lint check |
 | npm lint script | `package.json` has `scripts.lint` | Direct tool detection |
-| Supabase types | `supabase` in `.spec-driven.yml` stack + `supabase/` dir exists | Skip type-sync |
-| Prisma types | `prisma` in `.spec-driven.yml` stack + `prisma/schema.prisma` exists | Skip type-sync |
-| Canonical types path | Glob heuristic for `*.types.ts` in common locations | `types_path` in `.spec-driven.yml` |
+| Supabase types | `supabase` in `.feature-flow.yml` stack + `supabase/` dir exists | Skip type-sync |
+| Prisma types | `prisma` in `.feature-flow.yml` stack + `prisma/schema.prisma` exists | Skip type-sync |
+| Canonical types path | Glob heuristic for `*.types.ts` in common locations | `types_path` in `.feature-flow.yml` |
 
 **Graceful degradation:** If none of the tools are detected, the hooks produce no output and don't block. The plugin adds zero friction to projects that don't use these tools.
 
 ## Schema Addition
 
-Add optional `types_path` field to `.spec-driven.yml`:
+Add optional `types_path` field to `.feature-flow.yml`:
 
 ```yaml
-# .spec-driven.yml
+# .feature-flow.yml
 platform: web
 stack:
   - supabase
@@ -147,7 +147,7 @@ Claude writes src/lib/api.ts via Write tool
   → PostToolUse fires
   → lint-file.js detects eslint (node_modules/.bin/eslint + config exist), runs: npx eslint src/lib/api.ts
   → ESLint finds unused import
-  → Output: "[spec-driven] LINT ERRORS in api.ts — fix before continuing:
+  → Output: "[feature-flow] LINT ERRORS in api.ts — fix before continuing:
              src/lib/api.ts:3 — no-unused-vars: 'helper' is imported but never used"
   → Claude reads feedback, fixes the import, continues
 ```
@@ -183,7 +183,7 @@ Claude attempts to end session
 - External Node.js scripts for complex detection logic
 - Supabase and Prisma type generator support
 - Heuristic canonical types detection with `types_path` override
-- Schema addition for `types_path` in `.spec-driven.yml`
+- Schema addition for `types_path` in `.feature-flow.yml`
 - Update to project-context-schema.md documenting the new field
 
 **Excluded:**

@@ -189,7 +189,7 @@ The table should now look like:
 | Self-review | No skill — inline step (see below) | Code verified against coding standards before formal review |
 | Code review | No skill — inline step (see below) | All Critical/Important findings fixed, tests pass |
 | Generate CHANGELOG entry | No skill — inline step (see below) | CHANGELOG.md updated with categorized entry |
-| Final verification | `spec-driven:verify-acceptance-criteria` + `superpowers:verification-before-completion` | All criteria PASS + lint/typecheck/build pass |
+| Final verification | `feature-flow:verify-acceptance-criteria` + `superpowers:verification-before-completion` | All criteria PASS + lint/typecheck/build pass |
 ```
 
 **Acceptance Criteria:**
@@ -362,12 +362,12 @@ Add the Generate CHANGELOG entry row to the lifecycle table in README.md.
 Insert between "Code review" (line 101) and "Final verification" (line 102):
 
 ```markdown
-| Generate CHANGELOG entry | **spec-driven** (inline) | Parses branch commits, generates Keep a Changelog entry |
+| Generate CHANGELOG entry | **feature-flow** (inline) | Parses branch commits, generates Keep a Changelog entry |
 ```
 
 **Acceptance Criteria:**
 - [ ] README.md lifecycle table contains a "Generate CHANGELOG entry" row
-- [ ] Plugin column shows `**spec-driven** (inline)`
+- [ ] Plugin column shows `**feature-flow** (inline)`
 - [ ] Row appears between "Code review" and "Final verification"
 
 ---

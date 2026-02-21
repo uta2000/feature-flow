@@ -1,14 +1,14 @@
 {
-  "name": "spec-driven",
+  "name": "feature-flow",
   "description": "Full feature development lifecycle — from design through implementation to verification, with live documentation lookups via Context7",
   "owner": {
     "name": "uta2000"
   },
   "plugins": [
     {
-      "name": "spec-driven",
+      "name": "feature-flow",
       "description": "Full feature development lifecycle — design docs, verification, acceptance criteria, coding standards enforcement, and automated checks. Queries Context7 for current library patterns. Anti-pattern detection hooks. Requires superpowers and context7 plugins.",
-      "version": "1.6.0",
+      "version": "1.14.0",
       "source": "./",
       "author": {
         "name": "uta2000"

@@ -14,7 +14,7 @@ Validates that every task in an implementation plan has machine-verifiable accep
 
 - After writing an implementation plan
 - Before the user reviews and approves a plan
-- When reviewing an existing plan for spec-driven compliance
+- When reviewing an existing plan for feature-flow compliance
 
 ## Process
 

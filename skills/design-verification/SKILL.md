@@ -35,18 +35,18 @@ Read the full document and extract all proposed changes.
 
 ### Step 2: Load Project Context
 
-Check for a `.spec-driven.yml` file in the project root:
+Check for a `.feature-flow.yml` file in the project root:
 
 1. If found, read the `platform`, `stack`, and `gotchas` fields
 2. For each entry in `stack`, look for a matching reference file at `../../references/stacks/{name}.md` (relative to this skill's directory)
 3. For the declared `platform`, load the platform reference from `../../references/platforms/{platform}.md` (use `mobile.md` for `ios`, `android`, or `cross-platform`)
 4. If a stack has no matching reference file, note it and use `WebSearch` to research known gotchas for that technology
 
-If `.spec-driven.yml` does not exist, offer to create it via auto-detection:
+If `.feature-flow.yml` does not exist, offer to create it via auto-detection:
 
 1. Detect platform and stack from project files (see `../../references/auto-discovery.md`)
 2. Present detected context to user and ask for confirmation
-3. If confirmed, write `.spec-driven.yml` and continue with the detected context
+3. If confirmed, write `.feature-flow.yml` and continue with the detected context
 4. If declined, proceed with the base checklist only
 
 See `../../references/project-context-schema.md` for the full schema documentation.
@@ -87,7 +87,7 @@ Use the Task tool with `subagent_type=Explore` and `model: sonnet` for Batches 1
 - The full design document content
 - Its assigned checklist categories (partitioned from `references/checklist.md` using batch markers)
 - The codebase exploration results from Step 3
-- The `.spec-driven.yml` content (for stack/platform/gotchas context)
+- The `.feature-flow.yml` content (for stack/platform/gotchas context)
 - The list of applicable categories for this batch (from verification depth filtering)
 
 **Expected return format per agent:**
@@ -99,21 +99,21 @@ Each agent returns a list of results, one per category checked:
 
 #### Batch 6 — Conditional Dispatch
 
-Batch 6 (Stack/Platform/Docs) is only dispatched if `.spec-driven.yml` exists with a non-empty `stack`, `platform`, or `gotchas` field, or if Context7 is available. If none of these conditions are met, skip Batch 6 entirely. When the conditions are met, use the Task tool with `subagent_type=Explore` and `model: sonnet` for Batch 6 and include it in the same single-message launch as Batches 1-5 so all agents run concurrently.
+Batch 6 (Stack/Platform/Docs) is only dispatched if `.feature-flow.yml` exists with a non-empty `stack`, `platform`, or `gotchas` field, or if Context7 is available. If none of these conditions are met, skip Batch 6 entirely. When the conditions are met, use the Task tool with `subagent_type=Explore` and `model: sonnet` for Batch 6 and include it in the same single-message launch as Batches 1-5 so all agents run concurrently.
 
 **Context passed to the Batch 6 agent:**
 - The full design document content
 - The check instructions for categories 15-18 (defined inline below in this SKILL.md, not from checklist.md)
 - The codebase exploration results from Step 3
-- The `.spec-driven.yml` content (stack, platform, gotchas, context7 field)
+- The `.feature-flow.yml` content (stack, platform, gotchas, context7 field)
 - The list of applicable categories for this batch (from verification depth filtering)
 
 Batch 6 sources its check instructions from this SKILL.md (not from checklist.md):
 
 15. **Stack-Specific Checks** — Run every check from the loaded stack reference files (e.g., Supabase PostgREST limits, Next.js server/client boundaries)
 16. **Platform-Specific Checks** — Run checks from the platform reference file (e.g., mobile backward compatibility, feature flag requirements)
-17. **Project Gotchas** — Check every entry in `.spec-driven.yml` `gotchas` against the design. Each gotcha is a mandatory verification item.
-18. **Documentation Compliance (Context7)** — If `.spec-driven.yml` has a `context7` field and the Context7 MCP plugin is available, verify the design uses current patterns from official documentation. Query relevant Context7 libraries for the specific patterns the design proposes (auth flows, data fetching, client setup, etc.) and check for:
+17. **Project Gotchas** — Check every entry in `.feature-flow.yml` `gotchas` against the design. Each gotcha is a mandatory verification item.
+18. **Documentation Compliance (Context7)** — If `.feature-flow.yml` has a `context7` field and the Context7 MCP plugin is available, verify the design uses current patterns from official documentation. Query relevant Context7 libraries for the specific patterns the design proposes (auth flows, data fetching, client setup, etc.) and check for:
     - [ ] **Current API patterns:** Design uses the latest recommended patterns, not deprecated approaches
     - [ ] **Correct client setup:** Supabase/framework clients are initialized following current docs (e.g., `@supabase/ssr` with `getAll`/`setAll`, not legacy `auth-helpers`)
     - [ ] **Proper error handling:** Error patterns match current framework conventions (e.g., Server Actions return `{ errors }`, not throw)
@@ -196,14 +196,14 @@ I found findings that could prevent future bugs if added to your project gotchas
 1. "[specific gotcha phrased as a warning]"
 2. "[specific gotcha]"
 
-Add these to .spec-driven.yml?
+Add these to .feature-flow.yml?
 ```
 
 Use `AskUserQuestion` with options: "Add all", "Let me pick", "Skip".
 
 **YOLO behavior:** If `yolo: true` is in the skill's `ARGUMENTS`, skip this question. Auto-select "Add all" and announce: `YOLO: design-verification — Add gotchas → Add all ([N] gotchas added)`
 
-If approved, append to the `gotchas` list in `.spec-driven.yml`. If the file doesn't exist, create it first using auto-detection (see `../../references/auto-discovery.md`).
+If approved, append to the `gotchas` list in `.feature-flow.yml`. If the file doesn't exist, create it first using auto-detection (see `../../references/auto-discovery.md`).
 
 ## Verification Depth
 
@@ -231,6 +231,6 @@ For the full detailed verification checklist with specific checks per category:
 - **`references/checklist.md`** — Base verification checklist with 14 categories, specific checks, and examples of common findings
 
 For project context and stack/platform-specific checks:
-- **`../../references/project-context-schema.md`** — Schema for `.spec-driven.yml`
+- **`../../references/project-context-schema.md`** — Schema for `.feature-flow.yml`
 - **`../../references/stacks/`** — Stack-specific verification checks (supabase, next-js, react-native, vercel)
 - **`../../references/platforms/`** — Platform-specific lifecycle adjustments and checks (mobile, web)
