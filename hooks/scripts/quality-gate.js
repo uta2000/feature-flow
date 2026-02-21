@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 
-const { execSync } = require('child_process');
+const { exec } = require('child_process');
+const { promisify } = require('util');
+const execAsync = promisify(exec);
 const { existsSync, readFileSync, readdirSync, statSync } = require('fs');
 const path = require('path');
 
@@ -25,7 +27,7 @@ process.exit(0);
 
 // --- Check 1: TypeScript ---
 
-function checkTypeScript() {
+async function checkTypeScript() {
   const tsconfig = ['tsconfig.json', 'tsconfig.app.json', 'tsconfig.build.json'].find(f =>
     existsSync(f)
   );
@@ -33,7 +35,7 @@ function checkTypeScript() {
   if (!existsSync('node_modules/.bin/tsc')) return;
 
   try {
-    execSync(`npx tsc --noEmit --project "${tsconfig}"`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+    await execAsync(`npx tsc --noEmit --project "${tsconfig}"`, { encoding: 'utf8' });
   } catch (e) {
     const output = execOutput(e);
     const errorLines = output.split('\n').filter(l => l.includes('error TS'));
@@ -50,13 +52,13 @@ function checkTypeScript() {
 
 // --- Check 2: Lint ---
 
-function checkLint() {
+async function checkLint() {
   // Try npm run lint first
   if (existsSync('package.json')) {
     try {
       const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
       if (pkg.scripts?.lint) {
-        runLintCommand('npm run lint', 'Lint errors found');
+        await runLintCommand('npm run lint', 'Lint errors found');
         return;
       }
     } catch (e) {
@@ -66,18 +68,18 @@ function checkLint() {
 
   // Fallback: direct linter detection
   if (existsSync('node_modules/.bin/eslint') && hasEslintConfig()) {
-    runLintCommand('npx eslint .', 'ESLint errors');
+    await runLintCommand('npx eslint .', 'ESLint errors');
     return;
   }
 
   if (existsSync('node_modules/.bin/biome') && hasBiomeConfig()) {
-    runLintCommand('npx biome check .', 'Biome errors');
+    await runLintCommand('npx biome check .', 'Biome errors');
   }
 }
 
-function runLintCommand(command, label) {
+async function runLintCommand(command, label) {
   try {
-    execSync(command, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+    await execAsync(command, { encoding: 'utf8' });
   } catch (e) {
     const lines = execOutput(e).split('\n').slice(0, 20).join('\n  ');
     failures.push(`[LINT] ${label}\n  ${lines}`);
@@ -86,7 +88,7 @@ function runLintCommand(command, label) {
 
 // --- Check 3: Type-sync ---
 
-function checkTypeSync() {
+async function checkTypeSync() {
   if (!existsSync('.feature-flow.yml')) return;
 
   const yml = readFileSync('.feature-flow.yml', 'utf8');
@@ -94,7 +96,7 @@ function checkTypeSync() {
   const typesPath = parseTypesPath(yml);
 
   if (stack.includes('supabase') && existsSync('supabase')) {
-    checkSupabaseTypes(typesPath);
+    await checkSupabaseTypes(typesPath);
   }
 
   if (stack.includes('prisma') && existsSync('prisma/schema.prisma')) {
@@ -104,12 +106,12 @@ function checkTypeSync() {
   checkDuplicateTypes(typesPath);
 }
 
-function checkSupabaseTypes(typesPathOverride) {
+async function checkSupabaseTypes(typesPathOverride) {
   if (!existsSync('node_modules/.bin/supabase')) return;
 
   // Guard: is Supabase running?
   try {
-    execSync('npx supabase status', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+    await execAsync('npx supabase status', { encoding: 'utf8' });
   } catch {
     warnings.push(
       '[feature-flow] Supabase not running locally — skipping type freshness check. Run "supabase start" to enable.'
@@ -124,9 +126,8 @@ function checkSupabaseTypes(typesPathOverride) {
   }
 
   try {
-    const fresh = execSync('npx supabase gen types typescript --local', {
+    const { stdout: fresh } = await execAsync('npx supabase gen types typescript --local', {
       encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'pipe'],
     });
     const existing = readFileSync(typesFile, 'utf8');
     if (fresh.trim() !== existing.trim()) {
@@ -170,14 +171,13 @@ function checkDuplicateTypes(typesPathOverride) {
 
 // --- Check 4: Tests ---
 
-function checkTests() {
+async function checkTests() {
   const cmd = detectTestCommand();
   if (!cmd) return;
 
   try {
-    execSync(cmd, {
+    await execAsync(cmd, {
       encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'pipe'],
       timeout: 60000,
       env: { ...process.env, CI: '1' },
     });
