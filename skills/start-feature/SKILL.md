@@ -473,7 +473,7 @@ Or type "continue" to skip compaction and proceed.
 | Feature | All 3 |
 | Major feature | All 3 |
 
-**Suppression rules:**
+**Suppression rules** (determined by whether `compact_prompts` flag is set):
 - **YOLO mode (no compaction):** Checkpoints are suppressed — do not output the checkpoint block
 - **YOLO with compaction prompts:** Checkpoints are shown — output the checkpoint block and wait
 - **Interactive mode:** Checkpoints are shown — output the checkpoint block and wait
