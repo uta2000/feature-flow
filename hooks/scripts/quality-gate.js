@@ -270,6 +270,17 @@ function detectTestCommand() {
     }
   }
 
+  // Bun detection
+  if (existsSync('bun.lockb') || existsSync('bunfig.toml')) {
+    try {
+      execSync('bun --version', { stdio: 'pipe', timeout: 5000 });
+      return 'bun test';
+    } catch {
+      warnings.push('[feature-flow] bun.lockb found but bun not installed — skipping test check.');
+      return null;
+    }
+  }
+
   return null;
 }
 
