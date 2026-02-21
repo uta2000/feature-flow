@@ -1020,9 +1020,17 @@ Lifecycle complete!
 Summary:
 - Platform: [web/ios/android/cross-platform]
 - Design doc: docs/plans/YYYY-MM-DD-feature.md
-- Issue: #[number]
-- PR: #[number]
+- Issue: #[number] (commented and closed) [or "(no issue linked)" if none]
+- PR: #[number] → [base branch]
 - All acceptance criteria verified
+
+Worktree: [Removed / Still active at .worktrees/feature-name]
+[If still active: "Run `git worktree remove .worktrees/feature-name` when done."]
+
+What to do next:
+1. Review PR #[number] on GitHub (or request team review)
+2. After PR merges to [base branch], verify in [base branch] environment
+3. Clean up local branch: `git branch -d feature-name && git fetch --prune`
 
 [List any skipped steps and their risks]
 [List any platform-specific notes (e.g., "App store submission pending")]
