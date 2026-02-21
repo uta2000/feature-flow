@@ -28,7 +28,7 @@ Collect the inputs needed to write the document:
 
 #### Parallel Context Gathering
 
-Launch 3-4 Explore agents in a **single message** using the Task tool with `subagent_type=Explore`. Announce: "Dispatching N context-gathering agents in parallel..."
+Launch 3-4 Explore agents in a **single message** using the Task tool with `subagent_type=Explore` and `model: haiku`. Announce: "Dispatching N context-gathering agents in parallel..."
 
 | Agent | Assignment | Always? |
 |-------|-----------|---------|
