@@ -669,6 +669,8 @@ This step runs after self-review and before final verification. It dispatches mu
 
 **Model override:** If the user has requested a specific model for the entire lifecycle (e.g., "use opus for everything" or "use sonnet for everything"), apply that model to all agent dispatches in this code review pipeline, overriding the per-agent defaults in the table.
 
+**Large file handling:** If the branch diff includes files >200KB, instruct review agents to use `git diff main...HEAD -- <file>` for those files instead of reading the full file. The diff contains only the changed sections, which is what reviewers need.
+
 #### Phase 1: Dispatch review agents
 
 Dispatch all available review agents in parallel. For each agent, use the Task tool with the agent's `subagent_type` and `model` parameter (see table below). Each agent's prompt should include the full branch diff (`git diff main...HEAD`) and a description of what to review. Launch all agents in a single message to run them concurrently.
