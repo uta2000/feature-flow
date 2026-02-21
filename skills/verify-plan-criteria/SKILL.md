@@ -21,7 +21,7 @@ Validates that every task in an implementation plan has machine-verifiable accep
 ### Step 1: Find the Plan File
 
 Look for the plan file:
-1. If the user specified a path, use it
+1. If the user specified a path, use it directly
 2. Otherwise, find the most recently modified `.md` file in the plans directory:
 
 ```
@@ -32,7 +32,11 @@ If no `docs/plans/` directory exists, check for plan files in common locations:
 - `plans/*.md`
 - `docs/*.md` (look for files with "plan" or "implementation" in the name)
 
-Pick the most recent file. Confirm with the user: "Checking plan: `[path]`. Is this correct?"
+**Path selection:**
+- If 1 candidate found → use it directly without confirmation
+- If multiple candidates found → pick the most recent and confirm with the user: "Found multiple plan files. Checking plan: `[path]`. Is this correct?"
+
+Announce the selected path: "Checking plan: `[path]`"
 
 ### Step 2: Parse Tasks
 
@@ -58,6 +62,8 @@ For each task, determine if it has acceptance criteria:
 **Missing criteria:** The task has no `**Acceptance Criteria:**` section or the section is empty.
 - Proceed to Step 4 to draft criteria.
 
+**Fast-path:** If ALL tasks already have criteria and none are flagged as vague, skip directly to Step 6 (Report). Do not execute Steps 4 or 5.
+
 ### Step 4: Draft Missing Criteria
 
 For each task missing criteria, generate machine-verifiable criteria from the task's context:
@@ -81,23 +87,31 @@ For each task missing criteria, generate machine-verifiable criteria from the ta
 - Typecheck passes (use the project's actual command — `npm run typecheck`, `yarn typecheck`, `pnpm typecheck`, `bun typecheck`, `tsc --noEmit`, or whatever `package.json` scripts defines)
 - Lint passes (use the project's actual lint command)
 
-**Present drafted criteria to the user:**
+**Present all drafted criteria in a single message:**
+
+After drafting criteria for all tasks with missing criteria, present them together:
 
 ```
-Task 3: "Add allergen badge to menu items" is missing acceptance criteria.
+The following tasks are missing acceptance criteria. Here are the suggested criteria:
 
-Suggested criteria (based on task context):
-- [ ] `src/components/AllergenBadge.tsx` exists
-- [ ] Component exports `AllergenBadge` as default or named export
-- [ ] `npm run typecheck` passes with no new errors
-- [ ] `npm run lint` passes with no new warnings
+**Task N: "[title]"**
+- [ ] [criterion 1]
+- [ ] [criterion 2]
 
-Accept these criteria, or would you like to edit them?
+**Task M: "[title]"**
+- [ ] [criterion 1]
+- [ ] [criterion 2]
+
+Accept all, edit, or skip?
 ```
 
-Use `AskUserQuestion` to get approval. Options: "Accept as-is", "Let me edit them", "Skip this task".
+Use a single `AskUserQuestion` to get approval for all tasks at once. Options: "Accept all as-is", "Let me edit them", "Skip drafting".
 
-**YOLO behavior:** If `yolo: true` is in the skill's `ARGUMENTS`, skip this question. Auto-select "Accept as-is" for all tasks with drafted criteria and announce: `YOLO: verify-plan-criteria — Approve criteria → Accept as-is ([N] tasks)`
+- **"Accept all as-is"** → Apply all drafted criteria (proceed to Step 5)
+- **"Let me edit them"** → User provides corrections in freeform text, criteria are revised, then applied. The user may also selectively accept or reject criteria for individual tasks (e.g., "Accept Task 2 and 4 criteria, skip Task 3").
+- **"Skip drafting"** → Skip Steps 4 and 5, proceed to Step 6 with missing criteria noted in the report
+
+**YOLO behavior:** If `yolo: true` is in the skill's `ARGUMENTS`, skip this question. Auto-select "Accept all as-is" and announce: `YOLO: verify-plan-criteria — Approve criteria → Accept as-is ([N] tasks)`
 
 ### Step 5: Apply Approved Criteria
 
