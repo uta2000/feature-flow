@@ -5,10 +5,18 @@ All notable changes to the spec-driven plugin.
 ## [Unreleased]
 
 ### Added
+- **Scope-aware YOLO mode** — moves the YOLO/Interactive mode prompt from Step 0 to after scope classification and issue detection in Step 1. Adds a 3-signal recommendation engine (scope complexity default, issue richness scoring, inline context richness) that recommends YOLO for quick fixes and small enhancements, recommends Interactive for features and major features without detailed context, and overrides to YOLO for features with detailed issues or inline context. Combines scope confirmation and mode selection into a single `AskUserQuestion` prompt with three variants (YOLO recommended, Interactive recommended, Neutral).
+- **Graduated YOLO behavior** — checkpoint count scales with scope: quick fix and small enhancement get full autonomy (0 checkpoints), feature gets 1 checkpoint (design document approval), major feature gets 2 checkpoints (brainstorming output summary + design document approval). Checkpoints use `AskUserQuestion` with "Continue" / "Let me adjust" options and resume YOLO after adjustment. Scope upgrade rule adopts new checkpoint count for remaining steps.
+- **Brainstorming YOLO checkpoint for major features** — after all brainstorming questions are self-answered in YOLO mode, major features present a mandatory decision summary table for user review before proceeding to design document
+- **Conditional YOLO checkpoint in design-document** — design document Step 5 now checks scope: quick fix/small enhancement skip confirmation entirely, feature/major feature present a mandatory YOLO checkpoint for document approval. Backward-compatible fallback for missing scope defaults to skip behavior.
+- **Enhanced YOLO decision log** — two distinct formats: "Full YOLO" for quick fix/small enhancement (no checkpoints, low complexity note) and "Graduated YOLO" for feature/major feature (checkpoint count, `✋ User reviewed` markers for checkpoint rows, approval outcome tracking)
+- YOLO propagation now includes `scope: [scope]` in args passed to sub-skills for graduated behavior
 - **Parallel agent dispatch for skill operations** — converts four sequential skill operations to parallel agent dispatch using the Task tool. Design verification dispatches 6 thematic batch agents (Schema & Types, Pipeline & Components, Quality & Safety, Patterns & Build, Structure & Layout, Stack/Platform/Docs) with verification depth filtering. Spike experiments dispatch one worktree-isolated `general-purpose` agent per assumption (cap: 5 concurrent). Design document context gathering dispatches 3-4 Explore agents for format patterns, stack dependencies, relevant code, and optional Context7 documentation. Start-feature pattern study dispatches one Explore agent per codebase area to extract patterns and flag anti-patterns. All skills use consistent failure handling (retry once, then skip with warning) and consolidation patterns.
 - Batch grouping annotations added to verification checklist (`<!-- batch: N -->` markers) for parallel partitioning
 
 ### Fixed
+- Combined prompt variants correctly exclude major features from YOLO-recommended label (major with detailed context maps to Neutral)
+- Neutral recommendation variant includes both detailed issue and detailed inline context triggers
 - Batch 6 dispatch now specifies `subagent_type=Explore`, context specification, and concurrent launch with Batches 1-5
 - Verification return format uses array notation to match list-of-results semantics
 - SKIPPED verification categories tracked distinctly from PASS/FAIL/WARNING with prominent warnings
