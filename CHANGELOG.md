@@ -19,7 +19,11 @@ All notable changes to the feature-flow plugin.
 
 - **YOLO superpowers overrides** — adds CRITICAL OVERRIDE blocks for 5 superpowers skills (brainstorming, writing-plans, using-git-worktrees, finishing-a-development-branch, subagent-driven-development) that explicitly name and suppress conflicting interactive prompts. Strengthens the brainstorming override from weak 4-line block to 6-step explicit pre-emption. Adds test failure handling to finishing override. Updates YOLO Decision Log templates with superpowers auto-decision rows.
 
+### Changed
+- **Optimized verify-plan-criteria latency** — plan path confirmation is now conditional (skipped when only 1 candidate exists), all criteria approval is batched into a single prompt instead of per-task, and an explicit fast-path skips Steps 4-5 when all tasks already have criteria. Reduces worst-case user round-trips from N+1 to 1, and common-case (all criteria exist) to 0.
+
 ### Fixed
+- Batch criteria edit option now explicitly supports per-task selective accept/reject
 - Combined prompt variants correctly exclude major features from YOLO-recommended label (major with detailed context maps to Neutral)
 - Neutral recommendation variant includes both detailed issue and detailed inline context triggers
 - Spike dispatch instruction repositioned parenthetical to correctly attach to `subagent_type` rather than `model`
