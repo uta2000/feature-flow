@@ -371,6 +371,27 @@ When invoking `superpowers:brainstorming` from this lifecycle, pass these format
 
 This is the most complex YOLO interaction — the LLM makes design-level decisions. The user reviews these via the design document output rather than each micro-decision.
 
+**Graduated YOLO checkpoint (Major Feature only):**
+
+After all brainstorming questions have been self-answered, if the scope is **Major Feature**, present a mandatory checkpoint summarizing all auto-answered decisions:
+
+```
+YOLO checkpoint: Brainstorming complete. Here are the design decisions I made:
+
+| # | Question | Decision |
+|---|----------|----------|
+| 1 | [question] | [selected option with reasoning] |
+| ... | ... | ... |
+
+Continue or adjust?
+```
+
+Use `AskUserQuestion` with options:
+- "Continue" — proceed to design document with these decisions
+- "Let me adjust" — user provides corrections to specific decisions, then YOLO resumes
+
+For Quick fix, Small enhancement, and Feature scopes, skip this checkpoint — proceed directly from brainstorming to the next step.
+
 ### Graduated YOLO Behavior
 
 When YOLO mode is active (whether from trigger phrase or user selection), the number of mandatory checkpoints scales with scope complexity:
