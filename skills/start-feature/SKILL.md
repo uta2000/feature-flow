@@ -360,7 +360,7 @@ For inline steps (CHANGELOG generation, self-review, code review, study existing
 | Self-review | No skill — inline step (see below) | Code verified against coding standards before formal review |
 | Code review | No skill — inline step (see below) | All Critical/Important findings fixed, tests pass |
 | Generate CHANGELOG entry | No skill — inline step (see below) | CHANGELOG.md updated with categorized entry |
-| Final verification | `feature-flow:verify-acceptance-criteria` + `superpowers:verification-before-completion` | All criteria PASS + lint/typecheck/build pass |
+| Final verification | No skill — inline step (see below) | All criteria PASS + quality gates pass (or skipped if Phase 4 already passed) |
 | Commit and PR | `superpowers:finishing-a-development-branch` | PR URL |
 | Device matrix testing | No skill — manual step | Tested on min OS, small/large screens, slow network |
 | Beta testing | No skill — manual step | TestFlight / Play Console build tested by internal tester |
@@ -738,6 +738,8 @@ After all fixes are applied, re-verify:
 
 **Parallelization:** When running quality checks inline, dispatch typecheck, lint, and type-sync as parallel Bash commands in a single message. These are independent checks. Only run tests after typecheck passes (tests depend on valid types).
 
+**Skip if clean:** Before running quality checks in each iteration, check `git status --porcelain`. If no files changed (output is empty) since the last successful quality gate pass within this pipeline, skip the quality gate re-run and announce: "Quality gates passed at [commit] — no changes since last check. Skipping re-verify." Only run `verify-acceptance-criteria` (step 2 below).
+
 1. **Run tests:** Detect the test runner from the project (matching the quality gate's `detectTestCommand()` in `hooks/scripts/quality-gate.js`):
    - `package.json` with `scripts.test` (not the npm default placeholder) → `npm test`. If `node_modules` doesn't exist, skip with warning.
    - `Cargo.toml` → `cargo test`
@@ -1002,6 +1004,24 @@ This step queries Context7 for current patterns relevant to the feature being bu
 - Query at most 3 libraries per feature (focus on the most relevant)
 - Keep queries specific to the feature, not generic
 - If the docs contradict the stack reference file, note the discrepancy
+
+### Final Verification Step (inline — no separate skill)
+
+This step runs after CHANGELOG generation and before commit and PR. It verifies acceptance criteria and runs quality gates — but skips redundant quality gate runs when the code review pipeline already passed them.
+
+**Process:**
+
+1. **Check for redundant quality gates:** Before running `verification-before-completion` (which runs typecheck, lint, build), check if the Code Review Pipeline's Phase 4 already passed these checks in this lifecycle. If it did, check `git status --porcelain`:
+   - If output is empty (no modifications since Phase 4): Skip `verification-before-completion`. Announce: "Quality gates already passed in code review Phase 4 — no changes since. Skipping redundant checks."
+   - If output is non-empty: Run `verification-before-completion` normally (files changed since Phase 4).
+
+2. **Always run `verify-acceptance-criteria`:** This checks plan-specific criteria and must always run regardless of quality gate skip.
+
+3. **Write verification marker:** After all checks pass (both acceptance criteria and any quality gates that ran), write the HEAD commit hash to the git directory for the stop hook to read:
+   ```bash
+   git rev-parse HEAD > "$(git rev-parse --git-dir)/feature-flow-verified"
+   ```
+   This prevents the stop hook from re-running the same quality gates when the session ends.
 
 ### Step 4: Handle Interruptions
 
