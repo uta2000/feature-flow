@@ -4,13 +4,31 @@
 const { exec, execSync } = require('child_process');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
-const { existsSync, readFileSync, readdirSync, statSync } = require('fs');
+const { existsSync, readFileSync, writeFileSync, readdirSync, statSync } = require('fs');
 const path = require('path');
 
 const failures = [];
 const warnings = [];
 
 async function main() {
+  // Skip if lifecycle already verified at this commit with clean working tree
+  try {
+    const markerPath = path.join(
+      execSync('git rev-parse --git-dir', { encoding: 'utf8' }).trim(),
+      'feature-flow-verified'
+    );
+    if (existsSync(markerPath)) {
+      const savedHash = readFileSync(markerPath, 'utf8').trim();
+      const currentHash = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
+      const dirty = execSync('git diff HEAD --name-only', { encoding: 'utf8' }).trim();
+      if (savedHash === currentHash && !dirty) {
+        return; // All checks passed at this commit, working tree clean
+      }
+    }
+  } catch {
+    // Fall through to run checks — fail-open on any git/fs error
+  }
+
   const checks = [
     ['TypeScript', checkTypeScript],
     ['Lint', checkLint],
@@ -40,6 +58,11 @@ async function main() {
   } else if (warnings.length > 0) {
     console.error(warnings.join('\n'));
   }
+
+  // Write verification marker when all checks pass (warnings are OK, failures are not)
+  if (failures.length === 0) {
+    writeVerificationMarker();
+  }
 }
 
 main().catch(e => {
@@ -47,6 +70,21 @@ main().catch(e => {
 }).finally(() => {
   process.exit(0);
 });
+
+// --- Marker file ---
+
+function writeVerificationMarker() {
+  try {
+    const markerPath = path.join(
+      execSync('git rev-parse --git-dir', { encoding: 'utf8' }).trim(),
+      'feature-flow-verified'
+    );
+    const hash = execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim();
+    writeFileSync(markerPath, hash + '\n');
+  } catch {
+    // Non-critical — marker write failure doesn't affect quality gate results
+  }
+}
 
 // --- Check 1: TypeScript ---
 
