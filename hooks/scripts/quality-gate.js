@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-const { exec } = require('child_process');
+const { exec, execSync } = require('child_process');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
 const { existsSync, readFileSync, readdirSync, statSync } = require('fs');
