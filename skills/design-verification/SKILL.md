@@ -94,12 +94,19 @@ Use the Task tool with `subagent_type=Explore` for Batches 1-5. Launch all appli
 
 Each agent returns a list of results, one per category checked:
 ```
-{ category: string, status: "PASS" | "FAIL" | "WARNING", finding: string }
+[{ category: string, status: "PASS" | "FAIL" | "WARNING", finding: string }]
 ```
 
 #### Batch 6 — Conditional Dispatch
 
-Batch 6 (Stack/Platform/Docs) is only dispatched if `.spec-driven.yml` exists with a non-empty `stack`, `platform`, or `gotchas` field, or if Context7 is available. If none of these conditions are met, skip Batch 6 entirely.
+Batch 6 (Stack/Platform/Docs) is only dispatched if `.spec-driven.yml` exists with a non-empty `stack`, `platform`, or `gotchas` field, or if Context7 is available. If none of these conditions are met, skip Batch 6 entirely. When the conditions are met, use the Task tool with `subagent_type=Explore` for Batch 6 and include it in the same single-message launch as Batches 1-5 so all agents run concurrently.
+
+**Context passed to the Batch 6 agent:**
+- The full design document content
+- The check instructions for categories 15-18 (defined inline below in this SKILL.md, not from checklist.md)
+- The codebase exploration results from Step 3
+- The `.spec-driven.yml` content (stack, platform, gotchas, context7 field)
+- The list of applicable categories for this batch (from verification depth filtering)
 
 Batch 6 sources its check instructions from this SKILL.md (not from checklist.md):
 
@@ -120,7 +127,7 @@ If an agent fails or crashes, retry it once. If it fails again, skip it and log 
 
 #### Consolidation
 
-After all agents complete, merge results into the unified report table (same format as Step 5). Sort by category number. If a batch was skipped due to failure, note: "Categories N-M: SKIPPED (agent failed after retry)."
+After all agents complete, merge results into the unified report table (same format as Step 5). Sort by category number. If a batch was skipped due to failure, add each of its categories to the report as status "SKIPPED" with finding: "Verification agent failed after retry — this category was NOT checked." In the summary, count SKIPPED categories separately and add a warning: "N categories could not be verified. Review these areas manually before proceeding."
 
 ### Step 5: Report Findings
 

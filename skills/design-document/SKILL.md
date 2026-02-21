@@ -35,7 +35,7 @@ Launch 3-4 Explore agents in a **single message** using the Task tool with `suba
 | Format patterns | Read existing design docs in `docs/plans/` and extract document structure, section patterns, and conventions | Yes |
 | Stack & dependencies | Examine dependency files (`package.json`, config files), project structure, and tech stack conventions | Yes |
 | Relevant code | Search for and read source files related to the feature being designed (e.g., existing components, routes, hooks, models in the affected areas) | Yes |
-| Documentation (Context7) | If `.spec-driven.yml` has a `context7` field, query relevant Context7 libraries for current patterns the design should follow. If no `context7` field or Context7 is unavailable, skip this agent. | Conditional |
+| Documentation (Context7) | If `.spec-driven.yml` has a `context7` field, Context7 is available, AND no documentation lookup step was already run in the `start-feature` lifecycle — query relevant Context7 libraries for current patterns the design should follow. Skip this agent if any condition is not met. | Conditional |
 
 **Context passed to each agent:**
 - Feature description (from brainstorming output or issue body)
@@ -54,7 +54,7 @@ If an agent fails or crashes, retry it once. If it fails again, skip it and log 
 
 #### Consolidation
 
-After all agents complete, synthesize their findings into a unified context summary for writing the design document. If a documentation lookup step was already run before this skill (as part of the `start-feature` lifecycle), use those results instead of dispatching the Documentation agent.
+After all agents complete, synthesize their findings into a unified context summary for writing the design document.
 
 If the conversation does not contain enough decisions, ask the user to clarify. Use `AskUserQuestion` — one question at a time, with options when possible.
 
