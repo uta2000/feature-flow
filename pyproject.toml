@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "feature-flow-dispatcher"
+version = "0.1.0"
+description = "Batch-process GitHub issues through feature-flow YOLO mode"
+requires-python = ">=3.11"
+dependencies = [
+    "textual>=0.47",
+    "pyyaml",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+]
+
+[tool.setuptools.packages.find]
+include = ["dispatcher*"]
