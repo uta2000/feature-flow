@@ -271,6 +271,10 @@ Based on scope AND platform, determine which steps apply. Create a todo list to 
 ```
 
 **Small enhancement:**
+
+If the small enhancement qualifies for fast-track (issue richness 3+ or equivalent inline detail), use the fast-track step list. Otherwise, use the standard step list.
+
+*Standard (no fast-track):*
 ```
 - [ ] 1. Brainstorm requirements
 - [ ] 2. Documentation lookup (Context7)
@@ -289,6 +293,24 @@ Based on scope AND platform, determine which steps apply. Create a todo list to 
 - [ ] 15. Final verification
 - [ ] 16. Commit and PR
 - [ ] 17. Comment and close issue
+```
+
+*Fast-track (issue richness 3+ or detailed inline context):*
+```
+- [ ] 1. Documentation lookup (Context7)
+- [ ] 2. Create issue
+- [ ] 3. Implementation plan
+- [ ] 4. Commit planning artifacts
+- [ ] 5. Worktree setup
+- [ ] 6. Copy env files
+- [ ] 7. Study existing patterns
+- [ ] 8. Implement (TDD)
+- [ ] 9. Self-review
+- [ ] 10. Code review
+- [ ] 11. Generate CHANGELOG entry
+- [ ] 12. Final verification
+- [ ] 13. Commit and PR
+- [ ] 14. Comment and close issue
 ```
 
 **Feature:**
