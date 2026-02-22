@@ -178,6 +178,22 @@ A score of 3+ means the issue is "detailed."
 
 If the user's initial message (not the issue) contains detailed design decisions — specific approach descriptions, UX flows, data model specifics, or concrete behavior specifications — treat this as equivalent to a detailed issue for recommendation purposes.
 
+**Fast-track detection (small enhancement only):**
+
+After scoring issue richness and evaluating inline context, check if the small enhancement qualifies for a fast-track lifecycle:
+
+1. **Condition:** Scope is classified as "small enhancement" AND either:
+   - Issue richness score is 3+ (detailed issue), OR
+   - Inline context provides equivalent detail (specific approach, file references, acceptance criteria)
+2. **If fast-track qualifies:**
+   - Set `fast_track` flag for step list building
+   - Announce activation:
+     - **YOLO/Express:** `"YOLO: start — Small enhancement fast-track → Activated (issue #N richness: [score]/4). Skipping: brainstorming, design document, verify-plan-criteria."`
+     - **Interactive:** `"Issue #N has detailed requirements (richness: [score]/4). Fast-tracking: skipping brainstorming, design document, and verify-plan-criteria. The issue content serves as the design."`
+3. **If fast-track does not qualify:** Use the standard 17-step small enhancement list. No announcement needed.
+
+Fast-track detection runs after scope classification and mode selection. The step count in the scope + mode prompt reflects the fast-track status: 14 steps if fast-track qualifies, 17 steps otherwise.
+
 **Scope classification:**
 
 | Scope | Description | Example |
