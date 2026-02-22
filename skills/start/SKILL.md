@@ -733,34 +733,46 @@ This step runs after self-review and before final verification. It dispatches mu
 
 **Large file handling:** If the branch diff includes files >200KB, instruct review agents to use `git diff [base-branch]...HEAD -- <file>` (where `[base-branch]` is the branch detected in Step 0) for those files instead of reading the full file. The diff contains only the changed sections, which is what reviewers need.
 
+**Scope-based agent selection:** Select which agents to dispatch based on the current lifecycle scope. The scope is determined in Step 1 and propagated through all steps.
+
+| Scope | Tier | Agents to Dispatch |
+|-------|------|--------------------|
+| Small enhancement | 1 | `superpowers:code-reviewer`, `pr-review-toolkit:silent-failure-hunter` |
+| Feature | 2 | Tier 1 + `pr-review-toolkit:code-simplifier`, `feature-dev:code-reviewer` |
+| Major feature | 3 | All agents in the table below |
+
+Only dispatch agents that belong to the current tier (or lower). The availability check still applies — if a tier-selected agent's plugin is missing, skip it as before.
+
 #### Phase 1: Dispatch review agents
 
-Dispatch all available review agents in parallel. For each agent, use the Task tool with the agent's `subagent_type` and `model` parameter (see table below). Each agent's prompt should include the full branch diff (`git diff [base-branch]...HEAD`) and a description of what to review. Launch all agents in a single message to run them concurrently.
+Dispatch the tier-selected review agents in parallel (see scope-based agent selection above). For each agent in the current tier, use the Task tool with the agent's `subagent_type` and `model` parameter (see table below). Each agent's prompt should include the full branch diff (`git diff [base-branch]...HEAD`) and a description of what to review. Launch all agents in a single message to run them concurrently.
 
-| Agent | Plugin | Role | Fix Mode | Model |
-|-------|--------|------|----------|-------|
-| `pr-review-toolkit:code-simplifier` | pr-review-toolkit | DRY, clarity, maintainability | **Direct** — writes fixes to files | sonnet |
-| `pr-review-toolkit:silent-failure-hunter` | pr-review-toolkit | Silent failures, empty catches, bad fallbacks | **Direct** — auto-fixes common patterns | sonnet |
-| `feature-dev:code-reviewer` | feature-dev | Bugs, logic errors, security, conventions | **Report** → Claude fixes | sonnet |
-| `superpowers:code-reviewer` | superpowers | General quality, plan adherence | **Report** → Claude fixes | sonnet |
-| `pr-review-toolkit:pr-test-analyzer` | pr-review-toolkit | Test coverage quality, missing tests | **Report** → Claude fixes | sonnet |
-| `backend-api-security:backend-security-coder` | backend-api-security | Input validation, auth, OWASP top 10 | **Report** → Claude fixes | opus |
-| `pr-review-toolkit:type-design-analyzer` | pr-review-toolkit | Type encapsulation, invariants, type safety | **Report** → Claude fixes | sonnet |
+| Agent | Plugin | Role | Fix Mode | Model | Tier |
+|-------|--------|------|----------|-------|------|
+| `pr-review-toolkit:code-simplifier` | pr-review-toolkit | DRY, clarity, maintainability | **Direct** — writes fixes to files | sonnet | 2 |
+| `pr-review-toolkit:silent-failure-hunter` | pr-review-toolkit | Silent failures, empty catches, bad fallbacks | **Direct** — auto-fixes common patterns | sonnet | 1 |
+| `feature-dev:code-reviewer` | feature-dev | Bugs, logic errors, security, conventions | **Report** → Claude fixes | sonnet | 2 |
+| `superpowers:code-reviewer` | superpowers | General quality, plan adherence | **Report** → Claude fixes | sonnet | 1 |
+| `pr-review-toolkit:pr-test-analyzer` | pr-review-toolkit | Test coverage quality, missing tests | **Report** → Claude fixes | sonnet | 3 |
+| `backend-api-security:backend-security-coder` | backend-api-security | Input validation, auth, OWASP top 10 | **Report** → Claude fixes | opus | 3 |
+| `pr-review-toolkit:type-design-analyzer` | pr-review-toolkit | Type encapsulation, invariants, type safety | **Report** → Claude fixes | sonnet | 3 |
 
-**Availability check:** Before dispatching, check which plugins are installed by looking for their skills in the loaded skill list. Skip agents whose plugins are missing. Announce: "Running N code review agents in parallel..." (where N is the count of available agents).
+**Availability check:** Before dispatching, filter the table to agents matching the current tier (or lower), then check which of those agents' plugins are installed. Skip agents whose plugins are missing. Announce: "Running N code review agents in parallel (Tier T for [scope])..." (where N is the count of available tier-filtered agents and T is the tier number).
 
 **Agent failure handling:** If an agent fails, crashes, or doesn't return, skip it and continue with available results. Do not stall the pipeline for a single agent failure. Log: "Agent [name] failed — skipping. Continuing with N remaining agents."
 
 #### Phase 2: Review direct fixes
 
-After all agents complete, the two direct-fix agents have already applied their changes to files. Review and summarize what they changed:
+After all agents complete, review the direct-fix agents that were dispatched in this tier. Summarize what they changed:
 
-1. **`code-simplifier`** — Applied structural improvements directly (DRY extraction, clarity rewrites). Summarize what changed.
-2. **`silent-failure-hunter`** — Auto-fixed common patterns (`catch {}` → `catch (e) { console.error(...) }`). Summarize what changed. Flag anything complex it couldn't auto-fix.
+1. **`silent-failure-hunter`** (Tier 1+) — Auto-fixed common patterns (`catch {}` → `catch (e) { console.error(...) }`). Summarize what changed. Flag anything complex it couldn't auto-fix.
+2. **`code-simplifier`** (Tier 2+) — Applied structural improvements directly (DRY extraction, clarity rewrites). Summarize what changed.
+
+If only Tier 1 agents were dispatched, only `silent-failure-hunter` results need review here.
 
 #### Phase 3: Consolidate and fix reported findings
 
-Collect findings from the 5 reporting agents. Consolidate them:
+Collect findings from the reporting agents dispatched in Phase 1. Consolidate them:
 
 1. **Deduplicate by file path + line number** — if two agents flag the same location, keep the higher-severity finding
 2. **If same severity**, prefer the more specific agent: security > type-design > test-analyzer > feature-dev > superpowers
@@ -807,7 +819,7 @@ Output a summary:
 ```
 ## Code Review Pipeline Results
 
-**Agents dispatched:** N/7
+**Agents dispatched:** N (Tier T — [scope])
 **Model override:** [None | user-requested: \<model\>]
 **Iterations:** M/3
 
