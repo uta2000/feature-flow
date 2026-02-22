@@ -18,6 +18,26 @@ from dispatcher.models import Config, ExecutionResult, ReviewedIssue, TriageResu
 from dispatcher.triage import TriageError, triage_issue
 
 
+class _RateLimitTracker:
+    _BACKOFF_SCHEDULE = [300, 900]  # 5 min, 15 min
+
+    def __init__(self) -> None:
+        self._consecutive_failures = 0
+
+    def record_failure(self) -> None:
+        self._consecutive_failures += 1
+
+    def record_success(self) -> None:
+        self._consecutive_failures = 0
+
+    def should_backoff(self) -> bool:
+        return self._consecutive_failures >= 2
+
+    def backoff_seconds(self) -> int:
+        idx = min(self._consecutive_failures - 2, len(self._BACKOFF_SCHEDULE) - 1)
+        return self._BACKOFF_SCHEDULE[max(0, idx)]
+
+
 def run(config: Config) -> int:
     if config.resume:
         return _resume_run(config)
@@ -134,24 +154,44 @@ def _run_execution(
     stashed = stash_if_dirty()
     results = []
     total_turns = 0
+    tracker = _RateLimitTracker()
 
     for r in to_execute:
-        print(f"\n  [#{r.triage.issue_number}] Executing...")
-        try:
-            branch = create_branch(r.triage.issue_number, r.triage.scope, config)
-        except Exception as exc:
-            print(f"  Branch creation failed for #{r.triage.issue_number}: {exc}")
+        if tracker.should_backoff():
+            wait = tracker.backoff_seconds()
+            print(f"  Rate limit backoff: waiting {wait}s before next execution.")
+            time.sleep(wait)
+
+        er = _execute_single_issue(conn, run_id, r, config)
+        if er is None:
+            tracker.record_failure()
             continue
 
-        er = execute_issue(r, branch, config)
-        db.update_issue_execution(conn, run_id, r.triage.issue_number, er)
+        if er.outcome in ("failed", "leash_hit"):
+            tracker.record_failure()
+        else:
+            tracker.record_success()
+
         results.append(er)
         total_turns += er.num_turns
-        _print_execution_result(r.triage.issue_number, branch, er)
 
     if stashed:
         unstash()
     return results, total_turns
+
+
+def _execute_single_issue(conn, run_id: str, r: ReviewedIssue, config: Config) -> ExecutionResult | None:
+    print(f"\n  [#{r.triage.issue_number}] Executing...")
+    try:
+        branch = create_branch(r.triage.issue_number, r.triage.scope, config)
+    except Exception as exc:
+        print(f"  Branch creation failed for #{r.triage.issue_number}: {exc}")
+        return None
+
+    er = execute_issue(r, branch, config)
+    db.update_issue_execution(conn, run_id, r.triage.issue_number, er)
+    _print_execution_result(r.triage.issue_number, branch, er)
+    return er
 
 
 def _post_parked_comments(parked: list[ReviewedIssue], config: Config) -> None:

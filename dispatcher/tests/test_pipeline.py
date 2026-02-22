@@ -292,3 +292,38 @@ def test_resume_max_attempts_skips(mock_stash, mock_db):
     # Should complete without executing (max attempts reached)
     code = run(_cfg(resume="run-1", auto=True, dry_run=False, issues=[]))
     assert code == 3  # All parked/skipped → exit 3
+
+
+# --- Task 14: Rate limit tracker tests ---
+
+from dispatcher.pipeline import _RateLimitTracker
+
+
+def test_rate_limit_tracker_no_backoff():
+    tracker = _RateLimitTracker()
+    assert tracker.should_backoff() is False
+
+
+def test_rate_limit_tracker_backoff_after_consecutive_failures():
+    tracker = _RateLimitTracker()
+    tracker.record_failure()
+    assert tracker.should_backoff() is False  # 1 failure, no backoff yet
+    tracker.record_failure()
+    assert tracker.should_backoff() is True  # 2 consecutive failures
+    assert tracker.backoff_seconds() == 300  # 5 minutes
+
+
+def test_rate_limit_tracker_reset_on_success():
+    tracker = _RateLimitTracker()
+    tracker.record_failure()
+    tracker.record_failure()
+    tracker.record_success()
+    assert tracker.should_backoff() is False
+
+
+def test_rate_limit_tracker_progressive_backoff():
+    tracker = _RateLimitTracker()
+    tracker.record_failure()
+    tracker.record_failure()
+    tracker.record_failure()  # 3 consecutive failures
+    assert tracker.backoff_seconds() == 900  # 15 minutes
