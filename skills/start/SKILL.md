@@ -1198,6 +1198,7 @@ Interactive mode does not produce a decision log — all decisions were made int
 During the lifecycle, the scope may need to change:
 
 - **Upgrade:** Brainstorming reveals more complexity than expected → upgrade from "small enhancement" to "feature" and add missing steps
+- **Fast-track upgrade:** Implementation planning or documentation lookup reveals more complexity than expected for a fast-tracked small enhancement → upgrade to "feature" scope, insert brainstorming, design document, design verification, and verify-plan-criteria steps before the current step, and resume from brainstorming
 - **Downgrade:** Design verification finds no conflicts, spike confirms everything works → keep the steps but move through them quickly
 - **Add spike:** Design verification reveals risky unknowns → insert a spike step before continuing
 
