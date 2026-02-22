@@ -1,6 +1,0 @@
-platform: cli
-stack:
-  - node-js
-context7:
-  node-js: /vercel/next.js
-gotchas: []
