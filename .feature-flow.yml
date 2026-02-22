@@ -1,6 +1,8 @@
 platform: cli
 stack:
   - node-js
+  - python
 context7:
   node-js: /vercel/next.js
+  python: /textualize/textual
 gotchas: []
