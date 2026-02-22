@@ -482,7 +482,7 @@ Or type "continue" to skip compaction and proceed.
 | # | After Step | Before Step | Focus Hint |
 |---|-----------|-------------|------------|
 | 1 | Documentation lookup | Design Document | `focus on brainstorming decisions and documentation patterns` |
-| 2 | Design Verification (or Design Document for small enhancements which skip verification) | Create Issue + Implementation Plan | `focus on the approved design and implementation plan` |
+| 2 | Design Verification (or Design Document for small enhancements, or Documentation Lookup for fast-track small enhancements) | Create Issue + Implementation Plan | `focus on the approved design and implementation plan` |
 | 3 | Commit Planning Artifacts | Worktree Setup + Implementation | `focus on the implementation plan and acceptance criteria` |
 
 **Scope-based filtering:**
