@@ -47,7 +47,9 @@ class TriageError(Exception):
 
 def validate_tier(scope: str, richness_score: int, model_tier: str) -> str:
     key = (scope, richness_score >= 3)
-    return _TIER_MATRIX.get(key, model_tier)
+    if key not in _TIER_MATRIX:
+        raise TriageError(f"Unknown scope '{scope}' not in tier matrix")
+    return _TIER_MATRIX[key]
 
 
 def build_triage_prompt(title: str, body: str, comments: list[str]) -> str:

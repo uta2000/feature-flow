@@ -59,10 +59,12 @@ def stash_if_dirty() -> bool:
 
 
 def unstash() -> None:
-    subprocess.run(
+    result = subprocess.run(
         ["git", "stash", "pop"],
         capture_output=True, text=True, timeout=30,
     )
+    if result.returncode != 0:
+        print(f"  Warning: git stash pop failed: {result.stderr.strip()}")
 
 
 def _run_claude(tr: TriageResult, branch_name: str, config: Config) -> subprocess.CompletedProcess:
@@ -149,6 +151,9 @@ def execute_issue(reviewed: ReviewedIssue, branch_name: str, config: Config) -> 
         result = _run_claude(tr, branch_name, config)
     except Exception as exc:
         return _error_result(tr.issue_number, branch_name, str(exc))
+
+    if result.returncode != 0 and not result.stdout.strip():
+        return _error_result(tr.issue_number, branch_name, f"claude exited {result.returncode}: {result.stderr[:200]}")
 
     parsed = _parse_claude_output(result.stdout, tr.issue_number, branch_name)
     if isinstance(parsed, ExecutionResult):
