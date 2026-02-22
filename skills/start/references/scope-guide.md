@@ -45,6 +45,16 @@
 
 **Why no spike or design verification:** The change is small enough that schema conflicts and technical unknowns are unlikely. The design doc is brief (under 500 words).
 
+**Fast-track conditions:**
+
+When a small enhancement has a linked issue with richness score 3+ (has acceptance criteria, concrete examples, structured content >200 words) or when the user provides equivalent inline detail, the lifecycle fast-tracks by skipping brainstorming, design document, and verify-plan-criteria:
+
+**Fast-track lifecycle:** Doc lookup → Issue → Plan → Worktree → Implement → Review → Verify → PR
+
+**Why safe to skip brainstorming + design doc:** The issue (or inline context) already contains the design decisions and acceptance criteria. Re-deriving them is pure duplication.
+
+**Expected savings:** ~3 minutes and 1-2M tokens per small feature session.
+
 ---
 
 ## Feature

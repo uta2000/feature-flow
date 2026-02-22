@@ -4,6 +4,9 @@ All notable changes to the feature-flow plugin.
 
 ## [Unreleased]
 
+### Added
+- **Fast-track lifecycle for small enhancements** — when a small enhancement has a linked issue with richness score 3+ (or equivalent detailed inline context), the lifecycle skips brainstorming, design document, and verify-plan-criteria, reducing the pipeline from 17 to 14 steps. Includes fast-track detection logic after issue richness scoring, a 14-step step list variant, updated checkpoint 2 trigger for fast-track path, fast-track scope upgrade rule (upgrades to "feature" if complexity is discovered), and decision log rows for YOLO/Express modes. Expected savings: ~3 minutes and 1-2M tokens per small feature session. Closes #59.
+
 ## [1.16.0] - 2026-02-22
 
 ### Added

@@ -178,6 +178,22 @@ A score of 3+ means the issue is "detailed."
 
 If the user's initial message (not the issue) contains detailed design decisions — specific approach descriptions, UX flows, data model specifics, or concrete behavior specifications — treat this as equivalent to a detailed issue for recommendation purposes.
 
+**Fast-track detection (small enhancement only):**
+
+This check runs only after scope has been classified as "small enhancement" in the table below. After scoring issue richness and evaluating inline context, check if the small enhancement qualifies for a fast-track lifecycle:
+
+1. **Condition:** Scope is classified as "small enhancement" AND either:
+   - Issue richness score is 3+ (detailed issue), OR
+   - Inline context provides equivalent detail (specific approach, file references, acceptance criteria)
+2. **If fast-track qualifies:**
+   - Set `fast_track` flag for step list building
+   - Announce activation:
+     - **YOLO/Express:** `"YOLO: start — Small enhancement fast-track → Activated (issue #N richness: [score]/4). Skipping: brainstorming, design document, verify-plan-criteria."` (for Express mode, substitute `Express:` for `YOLO:` in the announcement)
+     - **Interactive:** `"Issue #N has detailed requirements (richness: [score]/4). Fast-tracking: skipping brainstorming, design document, and verify-plan-criteria. The issue content serves as the design."`
+3. **If fast-track does not qualify:** Use the standard 17-step small enhancement list. No announcement needed.
+
+Fast-track detection runs after scope classification and before the combined scope + mode prompt. The step count in the prompt reflects the fast-track status: 14 steps if fast-track qualifies, 17 steps otherwise.
+
 **Scope classification:**
 
 | Scope | Description | Example |
@@ -255,6 +271,10 @@ Based on scope AND platform, determine which steps apply. Create a todo list to 
 ```
 
 **Small enhancement:**
+
+If the small enhancement qualifies for fast-track (issue richness 3+ or equivalent inline detail), use the fast-track step list. Otherwise, use the standard step list.
+
+*Standard (no fast-track):*
 ```
 - [ ] 1. Brainstorm requirements
 - [ ] 2. Documentation lookup (Context7)
@@ -273,6 +293,24 @@ Based on scope AND platform, determine which steps apply. Create a todo list to 
 - [ ] 15. Final verification
 - [ ] 16. Commit and PR
 - [ ] 17. Comment and close issue
+```
+
+*Fast-track (issue richness 3+ or detailed inline context):*
+```
+- [ ] 1. Documentation lookup (Context7)
+- [ ] 2. Create issue
+- [ ] 3. Implementation plan
+- [ ] 4. Commit planning artifacts
+- [ ] 5. Worktree setup
+- [ ] 6. Copy env files
+- [ ] 7. Study existing patterns
+- [ ] 8. Implement (TDD)
+- [ ] 9. Self-review
+- [ ] 10. Code review
+- [ ] 11. Generate CHANGELOG entry
+- [ ] 12. Final verification
+- [ ] 13. Commit and PR
+- [ ] 14. Comment and close issue
 ```
 
 **Feature:**
@@ -444,7 +482,7 @@ Or type "continue" to skip compaction and proceed.
 | # | After Step | Before Step | Focus Hint |
 |---|-----------|-------------|------------|
 | 1 | Documentation lookup | Design Document | `focus on brainstorming decisions and documentation patterns` |
-| 2 | Design Verification (or Design Document for small enhancements which skip verification) | Create Issue + Implementation Plan | `focus on the approved design and implementation plan` |
+| 2 | Design Verification (or Design Document for small enhancements, or Documentation Lookup for fast-track small enhancements) | Create Issue + Implementation Plan | `focus on the approved design and implementation plan` |
 | 3 | Commit Planning Artifacts | Worktree Setup + Implementation | `focus on the implementation plan and acceptance criteria` |
 
 **Scope-based filtering:**
@@ -452,7 +490,7 @@ Or type "continue" to skip compaction and proceed.
 | Scope | Checkpoints shown |
 |-------|------------------|
 | Quick fix | None (too few steps) |
-| Small enhancement | 2 and 3 only |
+| Small enhancement | 2 and 3 only (checkpoint 2 triggers after Design Document, or after Documentation Lookup if fast-track) |
 | Feature | All 3 |
 | Major feature | All 3 |
 
@@ -1133,6 +1171,7 @@ If the lifecycle ran in YOLO or Express mode, append the decision log after the 
 | # | Skill | Decision | Auto-Selected |
 |---|-------|----------|---------------|
 | 1 | start | Scope + mode | [scope], YOLO |
+| N | start | Fast-track detection | Activated (issue richness: [score]/4) — skipped: brainstorming, design document, verify-plan-criteria |
 | ... | ... | ... | ... |
 | N | brainstorming | Design questions (self-answered) | [count decisions auto-answered] |
 | N | writing-plans | Execution choice | Subagent-Driven (auto-selected) |
@@ -1154,6 +1193,7 @@ If the lifecycle ran in YOLO or Express mode, append the decision log after the 
 | # | Skill | Decision | Auto-Selected |
 |---|-------|----------|---------------|
 | 1 | start | Scope + mode | [scope], Express |
+| N | start | Fast-track detection | Activated (issue richness: [score]/4) — skipped: brainstorming, design document, verify-plan-criteria |
 | ... | ... | ... | ... |
 | N | start | Compact checkpoint 1 | /compact (or skipped) |
 | N | start | Compact checkpoint 2 | /compact (or skipped) |
@@ -1178,6 +1218,7 @@ Interactive mode does not produce a decision log — all decisions were made int
 During the lifecycle, the scope may need to change:
 
 - **Upgrade:** Brainstorming reveals more complexity than expected → upgrade from "small enhancement" to "feature" and add missing steps
+- **Fast-track upgrade:** Implementation planning or documentation lookup reveals more complexity than expected for a fast-tracked small enhancement → upgrade to "feature" scope, insert brainstorming, design document, design verification, and verify-plan-criteria steps before the current step, and resume from brainstorming
 - **Downgrade:** Design verification finds no conflicts, spike confirms everything works → keep the steps but move through them quickly
 - **Add spike:** Design verification reveals risky unknowns → insert a spike step before continuing
 
