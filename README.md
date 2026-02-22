@@ -357,6 +357,16 @@ The dispatcher is a Python CLI tool that batch-processes GitHub issues through f
 - [GitHub CLI](https://cli.github.com/) (`gh` on PATH, authenticated)
 - Dependencies: `textual>=0.47`, `pyyaml`
 
+### Setup
+
+Before running the dispatcher, create the label it uses to find issues:
+
+```bash
+gh label create dispatcher-ready --color E99695 --description "Ready for automated feature-flow processing"
+```
+
+The dispatcher filters issues by this label. You can customize the label name via the `default_label` field in `dispatcher.yml`.
+
 ### Installation
 
 ```bash
