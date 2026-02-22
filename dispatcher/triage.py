@@ -78,19 +78,22 @@ Return a JSON object with: scope, richness_score (0-4), richness_signals, triage
 
 
 def _call_claude_triage(prompt: str, issue_number: int, config: Config) -> dict:
+    cmd = [
+        "claude", "-p", prompt,
+        "--model", config.triage_model,
+        "--output-format", "json",
+        "--json-schema", TRIAGE_SCHEMA,
+        "--max-turns", str(config.triage_max_turns),
+    ]
     try:
-        result = subprocess.run(
-            [
-                "claude", "-p", prompt,
-                "--model", config.triage_model,
-                "--output-format", "json",
-                "--json-schema", TRIAGE_SCHEMA,
-                "--max-turns", str(config.triage_max_turns),
-            ],
-            capture_output=True, text=True, timeout=120,
-        )
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
     except subprocess.TimeoutExpired as exc:
         raise TriageError(f"Triage timed out for issue #{issue_number}") from exc
+    if config.verbose:
+        print(f"  [triage #{issue_number}] exit={result.returncode}")
+        print(f"  [triage #{issue_number}] stdout={result.stdout[:500]}")
+        if result.stderr.strip():
+            print(f"  [triage #{issue_number}] stderr={result.stderr[:300]}")
     return _parse_triage_output(result.stdout, issue_number)
 
 
@@ -100,8 +103,8 @@ def _parse_triage_output(stdout: str, issue_number: int) -> dict:
     except (json.JSONDecodeError, TypeError) as exc:
         raise TriageError(f"Invalid JSON from claude -p for issue #{issue_number}: {stdout[:200]}") from exc
 
-    if outer.get("is_error"):
-        raise TriageError(f"claude -p error for issue #{issue_number}: {outer}")
+    if outer.get("is_error") or outer.get("subtype") == "error_max_turns":
+        raise TriageError(f"claude -p error for issue #{issue_number}: {outer.get('subtype', 'unknown')}")
 
     try:
         return json.loads(outer["result"]) if isinstance(outer.get("result"), str) else outer.get("result", outer)

@@ -118,7 +118,7 @@ def _build_config(args: argparse.Namespace, yaml_data: dict, plugin_path: str) -
         base_branch=yaml_data.get("base_branch") or _detect_base_branch(),
         triage_model=yaml_data.get("triage_model", "claude-sonnet-4-20250514"),
         execution_model=yaml_data.get("execution_model", "claude-opus-4-20250514"),
-        triage_max_turns=yaml_data.get("triage_max_turns", 1),
+        triage_max_turns=yaml_data.get("triage_max_turns", 5),
         execution_max_turns=yaml_data.get("execution_max_turns", 200),
         max_resume_attempts=yaml_data.get("max_resume_attempts", 2),
         db_path=yaml_data.get("db_path", "./dispatcher.db"),
