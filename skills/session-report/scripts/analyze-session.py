@@ -672,7 +672,7 @@ def analyze_session(filepath):
             label = None
             if msg_type == "user" and isinstance(m.get("content"), str):
                 content = m["content"]
-                if "start feature" in content:
+                if "start feature" in content or "start:" in content:
                     label = f"User: {content[:60]}"
                 elif "being continued" in content:
                     label = "Context compaction/continuation"
