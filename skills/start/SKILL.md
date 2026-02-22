@@ -4,7 +4,7 @@ description: This skill should be used when the user asks to "start:", "start a 
 tools: Read, Glob, Grep, Write, Edit, Bash, Task, AskUserQuestion, Skill
 ---
 
-# Start Feature — Lifecycle Orchestrator
+# Start — Lifecycle Orchestrator
 
 Guide development work through the correct lifecycle steps, invoking the right skill at each stage. This is the single entry point for any non-trivial work.
 

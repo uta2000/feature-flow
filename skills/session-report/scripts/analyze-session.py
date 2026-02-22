@@ -18,6 +18,11 @@ from datetime import datetime, timedelta
 from collections import defaultdict, Counter
 
 
+# Matches "start: <description>" (the renamed skill trigger) at a word boundary
+# with a space after the colon. Uses \b to exclude "restart:", "kickstart:", etc.
+# and requires trailing whitespace to exclude bare YAML keys and URLs.
+_START_SKILL_RE = re.compile(r"\bstart:\s", re.IGNORECASE)
+
 # =========================================================================
 # PRICING TABLE (USD per 1M tokens) — update when Anthropic changes pricing
 # =========================================================================
@@ -672,7 +677,7 @@ def analyze_session(filepath):
             label = None
             if msg_type == "user" and isinstance(m.get("content"), str):
                 content = m["content"]
-                if "start feature" in content or "start:" in content:
+                if "start feature" in content or _START_SKILL_RE.search(content):
                     label = f"User: {content[:60]}"
                 elif "being continued" in content:
                     label = "Context compaction/continuation"
