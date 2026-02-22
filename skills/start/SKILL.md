@@ -1153,7 +1153,7 @@ If the lifecycle ran in YOLO or Express mode, append the decision log after the 
 | # | Skill | Decision | Auto-Selected |
 |---|-------|----------|---------------|
 | 1 | start | Scope + mode | [scope], YOLO |
-| N | start | Fast-track detection | Activated (richness: [score]/4) — skipped: brainstorming, design-document, verify-plan-criteria |
+| N | start | Fast-track detection | Activated (issue richness: [score]/4) — skipped: brainstorming, design document, verify-plan-criteria |
 | ... | ... | ... | ... |
 | N | brainstorming | Design questions (self-answered) | [count decisions auto-answered] |
 | N | writing-plans | Execution choice | Subagent-Driven (auto-selected) |
@@ -1175,7 +1175,7 @@ If the lifecycle ran in YOLO or Express mode, append the decision log after the 
 | # | Skill | Decision | Auto-Selected |
 |---|-------|----------|---------------|
 | 1 | start | Scope + mode | [scope], Express |
-| N | start | Fast-track detection | Activated (richness: [score]/4) — skipped: brainstorming, design-document, verify-plan-criteria |
+| N | start | Fast-track detection | Activated (issue richness: [score]/4) — skipped: brainstorming, design document, verify-plan-criteria |
 | ... | ... | ... | ... |
 | N | start | Compact checkpoint 1 | /compact (or skipped) |
 | N | start | Compact checkpoint 2 | /compact (or skipped) |
