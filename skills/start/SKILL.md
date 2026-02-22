@@ -180,7 +180,7 @@ If the user's initial message (not the issue) contains detailed design decisions
 
 **Fast-track detection (small enhancement only):**
 
-After scoring issue richness and evaluating inline context, check if the small enhancement qualifies for a fast-track lifecycle:
+This check runs only after scope has been classified as "small enhancement" in the table below. After scoring issue richness and evaluating inline context, check if the small enhancement qualifies for a fast-track lifecycle:
 
 1. **Condition:** Scope is classified as "small enhancement" AND either:
    - Issue richness score is 3+ (detailed issue), OR
@@ -188,11 +188,11 @@ After scoring issue richness and evaluating inline context, check if the small e
 2. **If fast-track qualifies:**
    - Set `fast_track` flag for step list building
    - Announce activation:
-     - **YOLO/Express:** `"YOLO: start — Small enhancement fast-track → Activated (issue #N richness: [score]/4). Skipping: brainstorming, design document, verify-plan-criteria."`
+     - **YOLO/Express:** `"YOLO: start — Small enhancement fast-track → Activated (issue #N richness: [score]/4). Skipping: brainstorming, design document, verify-plan-criteria."` (for Express mode, substitute `Express:` for `YOLO:` in the announcement)
      - **Interactive:** `"Issue #N has detailed requirements (richness: [score]/4). Fast-tracking: skipping brainstorming, design document, and verify-plan-criteria. The issue content serves as the design."`
 3. **If fast-track does not qualify:** Use the standard 17-step small enhancement list. No announcement needed.
 
-Fast-track detection runs after scope classification and mode selection. The step count in the scope + mode prompt reflects the fast-track status: 14 steps if fast-track qualifies, 17 steps otherwise.
+Fast-track detection runs after scope classification and before the combined scope + mode prompt. The step count in the prompt reflects the fast-track status: 14 steps if fast-track qualifies, 17 steps otherwise.
 
 **Scope classification:**
 
@@ -490,7 +490,7 @@ Or type "continue" to skip compaction and proceed.
 | Scope | Checkpoints shown |
 |-------|------------------|
 | Quick fix | None (too few steps) |
-| Small enhancement | 2 and 3 only |
+| Small enhancement | 2 and 3 only (checkpoint 2 triggers after Design Document, or after Documentation Lookup if fast-track) |
 | Feature | All 3 |
 | Major feature | All 3 |
 
