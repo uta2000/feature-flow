@@ -4,6 +4,9 @@ All notable changes to the feature-flow plugin.
 
 ## [Unreleased]
 
+### Changed
+- **Restructured run modes: YOLO / Express / Interactive** — replaced the three confusing mode options (YOLO with graduated checkpoints, YOLO with compaction, Interactive) with three clearly differentiated modes. YOLO is now truly unattended with zero pauses for all scopes (graduated checkpoints removed). Express (`--express`) replaces `--yolo-compact` — auto-selects all decisions but pauses for design approval (Feature/Major Feature) and at phase transitions for optional `/compact`. Interactive highlights the interview aspect in its description. Mode selection UX uses plain English descriptions with a footnote explaining `/compact` behavior. All YOLO override sections updated to also apply to Express mode. Decision log formats consolidated from three variants to two (YOLO and Express). Closes #61.
+
 ### Fixed
 - Removed blank line breaking `### Added` list continuity in CHANGELOG
 
