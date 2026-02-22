@@ -346,6 +346,159 @@ Criteria prefixed with `[MANUAL]` are flagged for human review rather than faili
 Verdict: VERIFIED (2/3 pass, 1 requires manual verification)
 ```
 
+## GitHub Issue Dispatcher
+
+The dispatcher is a Python CLI tool that batch-processes GitHub issues through feature-flow's YOLO mode. It fetches issues by label, triages them with Claude to determine scope and automation tier, presents an interactive TUI for review, then executes each approved issue by spawning headless `claude -p` sessions that create branches and open PRs.
+
+### Requirements
+
+- Python 3.10+
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI (`claude` on PATH)
+- [GitHub CLI](https://cli.github.com/) (`gh` on PATH, authenticated)
+- Dependencies: `textual>=0.47`, `pyyaml`
+
+### Installation
+
+```bash
+cd dispatcher/
+pip install -e ".[dev]"
+```
+
+### Configuration
+
+Create a `dispatcher.yml` in your project root:
+
+```yaml
+plugin_path: /path/to/your/claude/plugins
+repo: owner/repo                    # auto-detected from git remote if omitted
+base_branch: main                   # auto-detected if omitted
+triage_model: claude-sonnet-4-20250514
+execution_model: claude-opus-4-20250514
+execution_max_turns: 200
+default_label: dispatcher-ready
+selection_limit: 50
+db_path: ./dispatcher.db
+```
+
+`plugin_path` is the only required field — it tells Claude where to find your feature-flow plugins during execution.
+
+### Usage
+
+```bash
+# Interactive mode — opens TUI for issue selection and triage review
+python -m dispatcher
+
+# Process specific issues
+python -m dispatcher --issues 42,43,44
+
+# Fully automated — no TUI prompts
+python -m dispatcher --auto
+
+# Triage only — skip execution
+python -m dispatcher --dry-run
+
+# Filter by label
+python -m dispatcher --label needs-automation
+
+# Resume a previous run that hit the turn limit
+python -m dispatcher --resume <run-id>
+```
+
+### Pipeline
+
+The dispatcher runs a five-stage pipeline:
+
+1. **Selection** — Fetches open issues with the configured label via `gh`. In interactive mode, a Textual `SelectionList` TUI lets you pick which issues to process. Previously parked issues are marked.
+2. **Triage** — Each selected issue is sent to `claude -p` with a structured JSON schema. Claude classifies the issue's scope (`quick-fix`, `small-enhancement`, `feature`, `major-feature`), assesses richness (acceptance criteria, resolved discussion, concrete examples, structured content), and assigns a confidence score. A tier matrix maps scope × richness to an automation tier.
+3. **Review** — A Textual `DataTable` TUI displays triage results with tier, confidence, risk flags, and missing info. You can override tiers, edit parked-issue comments, or skip issues before execution.
+4. **Execution** — For each approved issue, the dispatcher creates a git branch, spawns a headless `claude -p` session in YOLO mode, and monitors for PR creation. Rate limiting with exponential backoff protects against API throttling.
+5. **Logging** — Results are persisted to a SQLite database (`dispatcher.db`). Parked issues get a clarification comment posted to the GitHub issue. A summary prints PR count, parked count, duration, and turn budget usage.
+
+### Tier Matrix
+
+| Scope | Richness < 3 | Richness ≥ 3 |
+|-------|-------------|-------------|
+| `quick-fix` | full-yolo | full-yolo |
+| `small-enhancement` | full-yolo | full-yolo |
+| `feature` | parked | full-yolo |
+| `major-feature` | parked | supervised-yolo |
+
+- **full-yolo** — Fully automated: branch, implement, PR.
+- **supervised-yolo** — Automated with a `needs-human-review` label on the PR.
+- **parked** — Posts a clarification comment on the issue and skips execution.
+
+### CLI Options
+
+| Flag | Description |
+|------|-------------|
+| `--issues 1,2,3` | Process specific issue numbers (skips selection TUI) |
+| `--label NAME` | Filter issues by GitHub label |
+| `--repo owner/repo` | Override the GitHub repository |
+| `--auto` | Skip all TUI prompts (fully automated) |
+| `--dry-run` | Triage and review only, no execution |
+| `--resume RUN_ID` | Resume a previous run by its ID |
+| `--limit N` | Max issues shown in selection TUI |
+| `--config PATH` | Config file path (default: `dispatcher.yml`) |
+| `--verbose` | Print full `claude -p` output |
+
+### Database
+
+The dispatcher uses SQLite to track runs and issue state. The database is created automatically at the path specified by `db_path` in your config (default: `./dispatcher.db`).
+
+Tables:
+- **`runs`** — Run ID, timestamps, issue list, status (`running`, `completed`, `failed`, `cancelled`)
+- **`issues`** — Per-issue triage results, execution results, session IDs, branch names, PR numbers, resume counts
+
+This enables `--resume` to pick up where a previous run left off (e.g., if Claude hit the turn limit on a complex issue).
+
+## Session Analysis Script
+
+`skills/session-report/scripts/analyze-session.py` is a standalone Python script that extracts structured metrics from Claude Code session JSON files. It powers the `session-report` skill but can also be run directly.
+
+### Usage
+
+```bash
+python3 skills/session-report/scripts/analyze-session.py <session-file.json>
+```
+
+The script outputs a JSON object with comprehensive session metrics.
+
+### What It Extracts
+
+| Category | Metrics |
+|----------|---------|
+| **Token usage** | Per-model breakdown (input, output, cache read, cache creation), grand totals, cache read percentage |
+| **Cost analysis** | Per-call USD cost using published API pricing, per-model totals, cost per commit, cost per line changed |
+| **Tool usage** | Call counts per tool, success rates, error details |
+| **Subagent metrics** | Per-subagent token usage, duration, tool call count, estimated cost |
+| **Cache economics** | Ephemeral cache breakdown (5m vs 1h), cache efficiency ratio, cold start detection |
+| **Git activity** | Commit count with message previews, push count, branch creations, lines added/removed |
+| **Test progression** | Pass/fail snapshots over time, trajectory assessment (improving/regressing/stable) |
+| **Conversation tree** | Message depth, sidechain count, branch points |
+| **Idle analysis** | Gaps > 60s between assistant and user messages, total idle time, active working time |
+| **Thinking blocks** | Count plus content analysis for signals (alternatives considered, uncertainty, direction changes) |
+| **Friction signals** | User correction patterns ("no,", "wrong", "undo", "revert"), friction rate |
+| **Thrashing detection** | Repeated bash commands, files edited 3+ times |
+| **Startup overhead** | Messages and tokens consumed before first productive tool call |
+| **Model switches** | When the model changed mid-session |
+| **Working directories** | Directory changes during the session |
+| **Permission denials** | Blocked tool calls with affected tools |
+| **Prompt quality** | First message length, correction count, assessment (well-specified / underspecified / verbose but unclear) |
+
+### Pricing
+
+The script includes a pricing table for Claude 3.x and 4.x models. Cost calculations use published per-token API pricing. Subagent costs are estimated when only `total_tokens` is available (assumes ~98% cache reads). Update the `MODEL_PRICING` dict at the top of the script when Anthropic changes pricing.
+
+### Integration with session-report Skill
+
+The `session-report` skill runs this script automatically and enriches the raw metrics with interpretation — model efficiency analysis, bottleneck identification, optimization recommendations, and actionable next steps. Use the skill for the full report:
+
+```
+/session-report
+```
+
+Or run the script directly for raw JSON metrics to feed into your own tooling.
+
 ## Contributing Stack References
 
 To add support for a new tech stack:

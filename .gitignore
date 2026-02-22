@@ -2,3 +2,8 @@
 **/CLAUDE.md
 .DS_Store
 ideation-gh-issue-automation-20260222-103255/
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+dispatcher.db
