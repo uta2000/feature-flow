@@ -212,7 +212,16 @@ Determine the recommended mode using three signals:
 | Quick fix | YOLO | YOLO | YOLO |
 | Small enhancement | YOLO | YOLO | YOLO |
 | Feature | Interactive | YOLO (override) | YOLO (override) |
-| Major feature | Interactive | Neutral | Neutral |
+| Major feature | Interactive | Express | Express |
+
+**Context pressure estimates (scope × mode):**
+
+| Scope | Interactive | Express | YOLO |
+|-------|-------------|---------|------|
+| Quick fix (7 steps) | Low | Low | Low |
+| Small enhancement (14-17 steps) | Medium | Low | Low |
+| Feature (18 steps) | High | Medium | Medium |
+| Major feature (19 steps) | Very High | High | High |
 
 **Combined scope + mode prompt:**
 
@@ -226,6 +235,23 @@ This looks like a **[scope]** ([N] steps).
 Run mode?
 ```
 
+**Context warning (conditional):**
+
+When the recommended mode is Interactive AND the context pressure for Interactive at the current scope is High or Very High, add a context note line to the question text:
+
+```
+This looks like a **[scope]** ([N] steps).
+[If issue linked: "Found issue #N: [title] — [richness summary]."]
+Context note: Interactive mode at this scope typically requires 2-3 /compact pauses. Express auto-selects decisions while preserving those checkpoints.
+
+Run mode?
+```
+
+**When to show the context note:**
+- Feature + sparse context (High pressure in Interactive) → show note
+- Major feature + sparse context (Very High pressure in Interactive) → show note
+- All other cases → no context note (pressure is Low-Medium, or the recommendation is already YOLO/Express)
+
 **Option ordering depends on recommendation:**
 
 *YOLO recommended* (quick fix, small enhancement, or feature with detailed context):
@@ -238,10 +264,10 @@ Run mode?
 - Option 2: "Express — I'll auto-select decisions but pause for design approval and at phase transitions to optionally compact the conversation"
 - Option 3: "YOLO — fully unattended, no pauses"
 
-*Neutral* (major feature with detailed issue or detailed inline context):
-- Option 1: "Interactive — I'll interview you to address outstanding design questions, with pauses at phase transitions to optionally compact the conversation" (no recommendation marker)
-- Option 2: "Express — I'll auto-select decisions but pause for design approval and at phase transitions to optionally compact the conversation" (no recommendation marker)
-- Option 3: "YOLO — fully unattended, no pauses" (no recommendation marker)
+*Express recommended* (major feature with detailed issue or detailed inline context):
+- Option 1: "Express — I'll auto-select decisions but pause for design approval and at phase transitions to optionally compact the conversation" with description: "*Recommended — detailed requirements cover design decisions; Express preserves compaction checkpoints for this 19-step lifecycle.*"
+- Option 2: "Interactive — I'll interview you to address outstanding design questions, with pauses at phase transitions to optionally compact the conversation"
+- Option 3: "YOLO — fully unattended, no pauses"
 
 *Footnote (always shown after the options):* "For Express and Interactive: at each pause you can run `/compact` then type 'continue' to resume, or just type 'continue' to skip compaction."
 
