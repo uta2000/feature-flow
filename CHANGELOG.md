@@ -4,6 +4,17 @@ All notable changes to the feature-flow plugin.
 
 ## [Unreleased]
 
+### Fixed
+- Removed blank line breaking `### Added` list continuity in CHANGELOG
+
+### Maintenance
+- Migrated `context7` config from `.spec-driven.yml` to `.feature-flow.yml` and deleted stale config file
+- Versioned `[Unreleased]` CHANGELOG section as `[1.15.0] - 2026-02-21`
+- Tracked 5 previously-untracked plan docs from PRs 44-55
+- Deleted orphaned `skills/start-feature/` directory, stale `https:` directory, and `superpowers/` worktree artifact
+- Added missing `skills/session-report/CLAUDE.md`
+- Pruned stale git worktrees
+
 ## [1.15.0] - 2026-02-21
 
 ### Added
