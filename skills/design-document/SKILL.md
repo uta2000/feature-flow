@@ -35,7 +35,7 @@ Launch 3-4 Explore agents in a **single message** using the Task tool with `suba
 | Format patterns | Read existing design docs in `docs/plans/` and extract document structure, section patterns, and conventions | Yes |
 | Stack & dependencies | Examine dependency files (`package.json`, config files), project structure, and tech stack conventions | Yes |
 | Relevant code | Search for and read source files related to the feature being designed (e.g., existing components, routes, hooks, models in the affected areas) | Yes |
-| Documentation (Context7) | If `.feature-flow.yml` has a `context7` field, Context7 is available, AND no documentation lookup step was already run in the `start-feature` lifecycle — query relevant Context7 libraries for current patterns the design should follow. Skip this agent if any condition is not met. | Conditional |
+| Documentation (Context7) | If `.feature-flow.yml` has a `context7` field, Context7 is available, AND no documentation lookup step was already run in the `start` lifecycle — query relevant Context7 libraries for current patterns the design should follow. Skip this agent if any condition is not met. | Conditional |
 
 **Context passed to each agent:**
 - Feature description (from brainstorming output or issue body)

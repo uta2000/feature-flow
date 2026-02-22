@@ -1,6 +1,6 @@
 # Project Context Schema
 
-Skills read project context from `.feature-flow.yml` in the project root. This file is optional — when absent, `start-feature` auto-detects the platform and stack from project files and creates it. See `auto-discovery.md` for detection rules.
+Skills read project context from `.feature-flow.yml` in the project root. This file is optional — when absent, `start` auto-detects the platform and stack from project files and creates it. See `auto-discovery.md` for detection rules.
 
 ## Schema
 
@@ -59,7 +59,7 @@ Common stack values with pre-built reference files:
 
 Optional mapping of stack entries to [Context7](https://context7.com/) library IDs. When present, skills query Context7 for up-to-date documentation and code examples before designing or implementing features.
 
-**Auto-populated:** During auto-detection (Step 0 of `start-feature`), known stack entries are mapped to their Context7 library IDs using the table in `auto-discovery.md`. The user is shown the mappings and can adjust.
+**Auto-populated:** During auto-detection (Step 0 of `start`), known stack entries are mapped to their Context7 library IDs using the table in `auto-discovery.md`. The user is shown the mappings and can adjust.
 
 **Manual additions:** Users can add Context7 library IDs for technologies not covered by auto-detection. Use `mcp__plugin_context7_context7__resolve-library-id` to find the correct ID.
 
@@ -77,7 +77,7 @@ context7:
 **Requires:** The Context7 MCP plugin must be installed (`context7@claude-plugins-official`). If Context7 is not available, skills skip documentation lookups and proceed normally.
 
 **How skills use this:**
-- `start-feature` queries relevant libraries during the documentation lookup step
+- `start` queries relevant libraries during the documentation lookup step
 - `design-verification` checks that the design follows current patterns from official docs
 - `design-document` can reference current API patterns during design authoring
 
@@ -115,7 +115,7 @@ types_path: src/types/database.types.ts
 
 ### `default_branch`
 
-Optional PR target branch. When set, overrides the automatic detection cascade used by `start-feature` and `finishing-a-development-branch` to determine where PRs should target.
+Optional PR target branch. When set, overrides the automatic detection cascade used by `start` and `finishing-a-development-branch` to determine where PRs should target.
 
 **Detection cascade (when `default_branch` is absent):**
 1. `git config --get init.defaultBranch` (if set and branch exists locally or on remote)
@@ -132,7 +132,7 @@ default_branch: staging
 
 ## How Skills Use This File
 
-### start-feature (reads + writes)
+### start (reads + writes)
 - **Reads** context at lifecycle start. Adjusts step list based on platform and stack.
 - **Creates** `.feature-flow.yml` via auto-detection if it doesn't exist.
 - **Updates** stack list if new dependencies are detected that aren't declared.

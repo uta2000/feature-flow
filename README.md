@@ -1,6 +1,6 @@
 # feature-flow
 
-A Claude Code plugin that enforces a full feature development lifecycle — from idea to merged PR — so you don't discover schema mismatches, deprecated APIs, or broken assumptions halfway through coding. You say "start feature: add user notifications" and it auto-detects your tech stack, queries live documentation for current patterns, walks you through brainstorming and design, then verifies that design against your actual codebase (columns, types, routes, constraints) before a single line of implementation is written. After implementation (done via TDD in an isolated git worktree), it runs a multi-agent code review pipeline with up to 7 specialized reviewers, auto-fixes findings, generates a CHANGELOG entry, and mechanically verifies every acceptance criterion before opening a PR.
+A Claude Code plugin that enforces a full feature development lifecycle — from idea to merged PR — so you don't discover schema mismatches, deprecated APIs, or broken assumptions halfway through coding. You say "start: add user notifications" and it auto-detects your tech stack, queries live documentation for current patterns, walks you through brainstorming and design, then verifies that design against your actual codebase (columns, types, routes, constraints) before a single line of implementation is written. After implementation (done via TDD in an isolated git worktree), it runs a multi-agent code review pipeline with up to 7 specialized reviewers, auto-fixes findings, generates a CHANGELOG entry, and mechanically verifies every acceptance criterion before opening a PR.
 
 The upfront design adds ~20-30 minutes but typically saves 2-4 hours of mid-implementation debugging per feature. It works with any tech stack — Next.js, Supabase, Django, Rails, Flutter, whatever — and gets smarter over time by writing discovered gotchas (like "PostgREST silently caps queries at 1000 rows") back into your project config so every future feature is checked against past lessons.
 
@@ -58,7 +58,7 @@ Copy the `agents/`, `skills/`, `hooks/`, and `references/` directories into your
 After installing, open any project and tell Claude:
 
 ```
-start feature: add user notifications
+start: add user notifications
 ```
 
 feature-flow will:
@@ -75,7 +75,7 @@ For a quick fix, just say what's broken — the lifecycle is 4 steps: understand
 Add `--yolo` to auto-select recommended options and skip confirmation prompts:
 
 ```
-start feature: add user notifications --yolo
+start: add user notifications --yolo
 ```
 
 ### YOLO Mode
@@ -83,7 +83,7 @@ start feature: add user notifications --yolo
 For experienced users who trust the lifecycle's recommended defaults:
 
 ```
-start feature: add user notifications --yolo
+start: add user notifications --yolo
 ```
 
 YOLO mode auto-selects recommended options at every decision point (scope classification, brainstorming questions, issue confirmation, etc.) and logs each decision inline:
@@ -102,7 +102,7 @@ At completion, a full decision log table is printed so you can review what was d
 
 ## How It Works with Superpowers and Context7
 
-feature-flow owns the design and verification phases. superpowers owns implementation and delivery. Context7 provides live documentation lookups. The `start-feature` orchestrator coordinates all three:
+feature-flow owns the design and verification phases. superpowers owns implementation and delivery. Context7 provides live documentation lookups. The `start` orchestrator coordinates all three:
 
 | Lifecycle Step | Plugin | Skill / Tool |
 |---------------|--------|-------------|
@@ -129,7 +129,7 @@ feature-flow owns the design and verification phases. superpowers owns implement
 
 | Skill | Purpose |
 |-------|---------|
-| `start-feature` | Orchestrates the full lifecycle from idea to PR — classifies scope, loads project context, builds the platform-aware step list, and invokes the right skill at each stage |
+| `start` | Orchestrates the full lifecycle from idea to PR — classifies scope, loads project context, builds the platform-aware step list, and invokes the right skill at each stage |
 
 ### Pre-Implementation (Design Phase)
 
@@ -155,7 +155,7 @@ feature-flow owns the design and verification phases. superpowers owns implement
 
 ## Using Skills Standalone
 
-While `start-feature` is the recommended entry point, you can invoke any skill directly:
+While `start` is the recommended entry point, you can invoke any skill directly:
 
 ```
 run design-verification on docs/plans/2024-03-15-notifications-design.md
@@ -165,7 +165,7 @@ run design-verification on docs/plans/2024-03-15-notifications-design.md
 run verify-acceptance-criteria against the plan in docs/plans/
 ```
 
-Skills that need project context (`design-verification`, `spike`) will auto-create `.feature-flow.yml` if it doesn't exist (same auto-discovery flow as `start-feature`). Other skills like `verify-plan-criteria` and `verify-acceptance-criteria` work without it.
+Skills that need project context (`design-verification`, `spike`) will auto-create `.feature-flow.yml` if it doesn't exist (same auto-discovery flow as `start`). Other skills like `verify-plan-criteria` and `verify-acceptance-criteria` work without it.
 
 ## Where These Fit in the Lifecycle
 
@@ -206,7 +206,7 @@ Skills that need project context (`design-verification`, `spike`) will auto-crea
 
 ## Project Context
 
-feature-flow uses a `.feature-flow.yml` file in your project root for platform and stack-specific behavior. **You don't need to create this manually** — `start-feature` auto-detects your platform and stack from project files (package.json, Gemfile, go.mod, config files, directory structure, etc.) and creates it for you on first run.
+feature-flow uses a `.feature-flow.yml` file in your project root for platform and stack-specific behavior. **You don't need to create this manually** — `start` auto-detects your platform and stack from project files (package.json, Gemfile, go.mod, config files, directory structure, etc.) and creates it for you on first run.
 
 ```yaml
 # .feature-flow.yml (auto-generated, then curated)
@@ -234,7 +234,7 @@ gotchas:
 - `context7` maps each stack to Context7 library IDs — skills query these for current patterns before designing and implementing
 - `gotchas` are injected into every verification — project-specific pitfalls learned from past bugs
 
-**Auto-discovery:** On first run, `start-feature` scans your project files, detects the stack, and resolves Context7 library IDs for each detected technology. It presents the full context for confirmation. On subsequent runs, it cross-checks for new dependencies and suggests additions.
+**Auto-discovery:** On first run, `start` scans your project files, detects the stack, and resolves Context7 library IDs for each detected technology. It presents the full context for confirmation. On subsequent runs, it cross-checks for new dependencies and suggests additions.
 
 **Context7 resolution:** For every detected stack entry, feature-flow calls Context7's `resolve-library-id` to find the best documentation library. Well-known stacks (Next.js, Supabase, Vercel) use pre-verified mappings. All other stacks are resolved dynamically — this means feature-flow works with **any technology** Context7 has documentation for (Django, Rails, FastAPI, Vue, Angular, Stripe, Prisma, etc.).
 

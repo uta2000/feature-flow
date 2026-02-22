@@ -1,10 +1,10 @@
 ---
-name: start-feature
-description: This skill should be used when the user asks to "start a feature", "build a feature", "implement a feature", "new feature", "start working on", "I want to build", "let's build", "add a feature", or at the beginning of any non-trivial development work. It orchestrates the full lifecycle from idea to PR, invoking the right skills at each step.
+name: start
+description: This skill should be used when the user asks to "start:", "start a feature", "build a feature", "implement a feature", "new feature", "start working on", "I want to build", "let's build", "add a feature", or at the beginning of any non-trivial development work. It orchestrates the full lifecycle from idea to PR, invoking the right skills at each step.
 tools: Read, Glob, Grep, Write, Edit, Bash, Task, AskUserQuestion, Skill
 ---
 
-# Start Feature — Lifecycle Orchestrator
+# Start — Lifecycle Orchestrator
 
 Guide development work through the correct lifecycle steps, invoking the right skill at each stage. This is the single entry point for any non-trivial work.
 
@@ -21,7 +21,7 @@ Check for its presence by looking for superpowers skills in the loaded skill lis
 ```
 The superpowers plugin is required but doesn't appear to be installed.
 Install it first: claude plugins add superpowers
-Then re-run start-feature.
+Then re-run start.
 ```
 
 Do not proceed with the lifecycle if superpowers is missing — most steps depend on it.
@@ -94,7 +94,7 @@ Before any other processing, check if the user requested YOLO mode via a trigger
    - Otherwise (standard YOLO triggers):
      - Set YOLO mode active for the remainder of the lifecycle
      - Announce: "YOLO mode active. Auto-selecting recommended options. Decision log will be printed at completion."
-     - Strip the trigger phrase from the arguments before further processing (so `start feature: add CSV export --yolo` becomes `start feature: add CSV export` for scope classification)
+     - Strip the trigger phrase from the arguments before further processing (so `start: add CSV export --yolo` becomes `start: add CSV export` for scope classification)
 3. If no trigger is found:
    - Do nothing here — the YOLO/Interactive mode prompt is presented in Step 1 after scope classification, where the system can make a smart recommendation based on scope and issue context.
 
@@ -110,7 +110,7 @@ Check for a `.feature-flow.yml` file in the project root.
    ```
 3. If user approves additions, update the file with `Edit`
 
-**YOLO behavior:** If YOLO mode is active, skip this question. Auto-accept all detected dependency additions and announce: `YOLO: start-feature — Stack cross-check → Auto-added: [list of new dependencies]`
+**YOLO behavior:** If YOLO mode is active, skip this question. Auto-accept all detected dependency additions and announce: `YOLO: start — Stack cross-check → Auto-added: [list of new dependencies]`
 
 **If not found — auto-detect and create:**
 1. Detect platform from project structure (ios/, android/, Podfile, build.gradle, etc.)
@@ -128,7 +128,7 @@ Check for a `.feature-flow.yml` file in the project root.
    ```
 4. Use `AskUserQuestion` with options: "Looks correct", "Let me adjust"
 
-**YOLO behavior:** If YOLO mode is active, skip this question. Accept the detected context as-is and announce: `YOLO: start-feature — Platform/stack detection → Accepted: [platform], [stack list]`
+**YOLO behavior:** If YOLO mode is active, skip this question. Accept the detected context as-is and announce: `YOLO: start — Platform/stack detection → Accepted: [platform], [stack list]`
 
 5. Write `.feature-flow.yml` with confirmed values (gotchas starts empty — skills will populate it as they discover issues)
 
@@ -147,7 +147,7 @@ Detection cascade:
 
 Announce: `"Detected base branch: [branch]. All PR targets and branch diffs will use this."`
 
-**YOLO behavior:** No prompt — always auto-detected. Announce: `YOLO: start-feature — Base branch detection → [branch]`
+**YOLO behavior:** No prompt — always auto-detected. Announce: `YOLO: start — Base branch detection → [branch]`
 
 ### Step 1: Determine Scope
 
@@ -231,7 +231,7 @@ The recommended option always appears first in the list. Each option's descripti
 
 **Scope correction:** If the user believes the scope is misclassified, they can select "Other" on the `AskUserQuestion` and state their preferred scope. The lifecycle will adjust the step list and checkpoint rules accordingly.
 
-**YOLO behavior (trigger phrase activated):** If YOLO was already activated by a trigger phrase in Step 0, skip this question entirely. Auto-classify scope and announce: `YOLO: start-feature — Scope + mode → [scope], YOLO (trigger phrase)`
+**YOLO behavior (trigger phrase activated):** If YOLO was already activated by a trigger phrase in Step 0, skip this question entirely. Auto-classify scope and announce: `YOLO: start — Scope + mode → [scope], YOLO (trigger phrase)`
 
 **YOLO with compaction behavior:** If the user selects "YOLO with compaction prompts", set both YOLO mode and `compact_prompts` flag active. All YOLO overrides apply, but context window checkpoints are shown instead of suppressed.
 
@@ -892,7 +892,7 @@ If a version is detected, present it alongside `[Unreleased]` via `AskUserQuesti
 
 If no version detected, use `[Unreleased]` without asking.
 
-**YOLO behavior:** If YOLO mode is active, skip this question. Auto-select `[Unreleased]` and announce: `YOLO: start-feature — CHANGELOG version heading → [Unreleased]`
+**YOLO behavior:** If YOLO mode is active, skip this question. Auto-select `[Unreleased]` and announce: `YOLO: start — CHANGELOG version heading → [Unreleased]`
 
 #### Phase 4: Generate entry
 
@@ -922,7 +922,7 @@ Present the generated entry to the user via `AskUserQuestion`:
 - **Option 2:** "Let me edit" — user provides corrections in freeform text, entry is revised
 - **Option 3:** "Skip CHANGELOG" — announce risk: "No CHANGELOG entry will be included in this PR. You may want to add one manually." Proceed to next lifecycle step.
 
-**YOLO behavior:** If YOLO mode is active, skip this question. Auto-select "Looks good — write it" and announce: `YOLO: start-feature — CHANGELOG entry → Accepted`
+**YOLO behavior:** If YOLO mode is active, skip this question. Auto-select "Looks good — write it" and announce: `YOLO: start — CHANGELOG entry → Accepted`
 
 #### Phase 6: Write to CHANGELOG.md
 
@@ -1130,7 +1130,7 @@ If the lifecycle ran in YOLO mode, append the decision log after the standard co
 
 | # | Skill | Decision | Auto-Selected |
 |---|-------|----------|---------------|
-| 1 | start-feature | Scope + mode | [scope], YOLO recommended |
+| 1 | start | Scope + mode | [scope], YOLO recommended |
 | ... | ... | ... | ... |
 | N | brainstorming | Design questions (self-answered) | [count decisions auto-answered] |
 | N | writing-plans | Execution choice | Subagent-Driven (auto-selected) |
@@ -1173,11 +1173,11 @@ If the lifecycle ran in YOLO mode, append the decision log after the standard co
 
 | # | Skill | Decision | Auto-Selected |
 |---|-------|----------|---------------|
-| 1 | start-feature | Scope + mode | [scope], YOLO with compaction |
+| 1 | start | Scope + mode | [scope], YOLO with compaction |
 | ... | ... | ... | ... |
-| N | start-feature | Compact checkpoint 1 | /compact (or skipped) |
-| N | start-feature | Compact checkpoint 2 | /compact (or skipped) |
-| N | start-feature | Compact checkpoint 3 | /compact (or skipped) |
+| N | start | Compact checkpoint 1 | /compact (or skipped) |
+| N | start | Compact checkpoint 2 | /compact (or skipped) |
+| N | start | Compact checkpoint 3 | /compact (or skipped) |
 | N | design-document | Document approval | ✋ User reviewed (if Feature/Major scope) |
 | N | brainstorming | Design questions (self-answered) | [count decisions auto-answered] |
 | N | writing-plans | Execution choice | Subagent-Driven (auto-selected) |
