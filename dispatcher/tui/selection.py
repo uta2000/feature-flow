@@ -24,6 +24,7 @@ class SelectionApp(App[list[int]]):
         yield Header()
         if not self._issues:
             yield Static(f"No open issues with label '{self._label}' found.")
+            yield Static("Press any key to close.")
         else:
             items = []
             for issue in self._issues:
@@ -35,9 +36,9 @@ class SelectionApp(App[list[int]]):
             yield SelectionList(*items)
         yield Footer()
 
-    def on_mount(self) -> None:
+    def on_key(self, _event) -> None:
         if not self._issues:
-            self.set_timer(0.1, self.action_quit_app)
+            self.exit([])
 
     def action_confirm(self) -> None:
         sl = self.query_one(SelectionList)

@@ -44,6 +44,47 @@ def _load_yaml(config_path: Path) -> dict:
         return yaml.safe_load(f) or {}
 
 
+def _detect_plugin_path() -> str:
+    claude_dir = Path.home() / ".claude" / "plugins" / "cache"
+    if not claude_dir.exists():
+        return ""
+    for candidate in claude_dir.iterdir():
+        if candidate.is_dir() and "feature-flow" in candidate.name:
+            versions = sorted(candidate.glob("*/*/"), reverse=True)
+            if versions:
+                return str(versions[0])
+    return ""
+
+
+def _generate_config(config_path: Path) -> dict:
+    plugin_path = _detect_plugin_path()
+    repo = _detect_repo()
+    base_branch = _detect_base_branch()
+
+    data = {
+        "plugin_path": plugin_path,
+        "repo": repo,
+        "base_branch": base_branch,
+        "triage_model": "claude-sonnet-4-20250514",
+        "execution_model": "claude-opus-4-20250514",
+        "execution_max_turns": 200,
+        "default_label": "dispatcher-ready",
+        "selection_limit": 50,
+        "db_path": "./dispatcher.db",
+    }
+
+    with open(config_path, "w") as f:
+        yaml.dump(data, f, default_flow_style=False, sort_keys=False)
+
+    print(f"Generated {config_path} with detected settings:")
+    print(f"  repo: {repo}")
+    print(f"  base_branch: {base_branch}")
+    print(f"  plugin_path: {plugin_path}")
+    if not plugin_path:
+        print("  Warning: could not auto-detect plugin_path. Edit dispatcher.yml to set it.", file=sys.stderr)
+    return data
+
+
 def _parse_issues(raw: str | None) -> list[int]:
     if not raw:
         return []
@@ -55,7 +96,11 @@ def _parse_issues(raw: str | None) -> list[int]:
 
 
 def load_config(args: argparse.Namespace) -> Config:
-    yaml_data = _load_yaml(Path(args.config))
+    config_path = Path(args.config)
+    yaml_data = _load_yaml(config_path)
+
+    if not yaml_data:
+        yaml_data = _generate_config(config_path)
 
     plugin_path = yaml_data.get("plugin_path", "")
     if not plugin_path:

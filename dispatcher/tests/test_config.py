@@ -34,10 +34,22 @@ def test_cli_overrides_yaml(tmp_path):
     assert cfg.default_label == "cli-label"
 
 
-def test_missing_yaml_uses_defaults():
+def test_missing_yaml_generates_config(tmp_path):
+    cfg_file = tmp_path / "dispatcher.yml"
     with patch("dispatcher.config._detect_repo", return_value="owner/repo"):
-        with pytest.raises(SystemExit):
-            load_config(_args(config="nonexistent.yml"))
+        with patch("dispatcher.config._detect_plugin_path", return_value="/detected/plugins"):
+            cfg = load_config(_args(config=str(cfg_file)))
+    assert cfg.plugin_path == "/detected/plugins"
+    assert cfg.repo == "owner/repo"
+    assert cfg_file.exists()
+
+
+def test_missing_yaml_no_plugin_path_exits(tmp_path):
+    cfg_file = tmp_path / "dispatcher.yml"
+    with patch("dispatcher.config._detect_repo", return_value="owner/repo"):
+        with patch("dispatcher.config._detect_plugin_path", return_value=""):
+            with pytest.raises(SystemExit):
+                load_config(_args(config=str(cfg_file)))
 
 
 def test_missing_plugin_path_exits(tmp_path):
