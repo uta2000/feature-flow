@@ -737,6 +737,7 @@ This step runs after self-review and before final verification. It dispatches mu
 
 | Scope | Tier | Agents to Dispatch |
 |-------|------|--------------------|
+| Quick fix | — | Code review step not included for this scope |
 | Small enhancement | 1 | `superpowers:code-reviewer`, `pr-review-toolkit:silent-failure-hunter` |
 | Feature | 2 | Tier 1 + `pr-review-toolkit:code-simplifier`, `feature-dev:code-reviewer` |
 | Major feature | 3 | All agents in the table below |
@@ -745,7 +746,7 @@ Only dispatch agents that belong to the current tier (or lower). The availabilit
 
 #### Phase 1: Dispatch review agents
 
-Dispatch the tier-selected review agents in parallel (see scope-based agent selection above). For each agent in the current tier, use the Task tool with the agent's `subagent_type` and `model` parameter (see table below). Each agent's prompt should include the full branch diff (`git diff [base-branch]...HEAD`) and a description of what to review. Launch all agents in a single message to run them concurrently.
+Dispatch the tier-selected review agents in parallel (see scope-based agent selection above). For each agent at or below the current tier, use the Task tool with the agent's `subagent_type` and `model` parameter (see table below). Each agent's prompt should include the full branch diff (`git diff [base-branch]...HEAD`) and a description of what to review. Launch all agents in a single message to run them concurrently.
 
 | Agent | Plugin | Role | Fix Mode | Model | Tier |
 |-------|--------|------|----------|-------|------|
@@ -757,7 +758,7 @@ Dispatch the tier-selected review agents in parallel (see scope-based agent sele
 | `backend-api-security:backend-security-coder` | backend-api-security | Input validation, auth, OWASP top 10 | **Report** → Claude fixes | opus | 3 |
 | `pr-review-toolkit:type-design-analyzer` | pr-review-toolkit | Type encapsulation, invariants, type safety | **Report** → Claude fixes | sonnet | 3 |
 
-**Availability check:** Before dispatching, filter the table to agents matching the current tier (or lower), then check which of those agents' plugins are installed. Skip agents whose plugins are missing. Announce: "Running N code review agents in parallel (Tier T for [scope])..." (where N is the count of available tier-filtered agents and T is the tier number).
+**Availability check:** Before dispatching, filter the table to agents matching the current tier (or lower), then check which of those agents' plugins are installed. Skip agents whose plugins are missing. Announce: "Running N code review agents in parallel (Tier T — [scope])..." (where N is the count of available tier-filtered agents and T is the tier number).
 
 **Agent failure handling:** If an agent fails, crashes, or doesn't return, skip it and continue with available results. Do not stall the pipeline for a single agent failure. Log: "Agent [name] failed — skipping. Continuing with N remaining agents."
 
@@ -768,7 +769,7 @@ After all agents complete, review the direct-fix agents that were dispatched in 
 1. **`silent-failure-hunter`** (Tier 1+) — Auto-fixed common patterns (`catch {}` → `catch (e) { console.error(...) }`). Summarize what changed. Flag anything complex it couldn't auto-fix.
 2. **`code-simplifier`** (Tier 2+) — Applied structural improvements directly (DRY extraction, clarity rewrites). Summarize what changed.
 
-If only Tier 1 agents were dispatched, only `silent-failure-hunter` results need review here.
+At Tier 1, only item 1 applies — `code-simplifier` was not dispatched.
 
 #### Phase 3: Consolidate and fix reported findings
 
@@ -780,10 +781,11 @@ Collect findings from the reporting agents dispatched in Phase 1. Consolidate th
 4. **Fix in order:** Critical → Important. Minor issues are logged as informational but not blocking.
 
 For each Critical and Important finding, read the agent's recommendation and apply the fix. Specific agent fix patterns:
-- **`pr-test-analyzer`:** Add missing test cases, strengthen weak assertions, add edge case coverage
-- **`backend-security-coder`:** Fix injection, validation, and auth issues. Critical security issues are always fixed.
-- **`type-design-analyzer`:** Improve type definitions based on encapsulation and invariant feedback
-- **`feature-dev:code-reviewer` + `superpowers:code-reviewer`:** Fix bugs, logic errors, and convention violations
+- **`superpowers:code-reviewer`** (Tier 1+): Fix bugs, logic errors, and convention violations
+- **`feature-dev:code-reviewer`** (Tier 2+): Fix bugs, logic errors, and convention violations
+- **`pr-test-analyzer`** (Tier 3 only): Add missing test cases, strengthen weak assertions, add edge case coverage
+- **`backend-security-coder`** (Tier 3 only): Fix injection, validation, and auth issues. Critical security issues are always fixed.
+- **`type-design-analyzer`** (Tier 3 only): Improve type definitions based on encapsulation and invariant feedback
 
 #### Phase 4: Re-verify (fix-verify loop)
 
