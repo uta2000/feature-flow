@@ -33,6 +33,7 @@ def create_branch(issue_number: int, scope: str, config: Config) -> str:
             )
         except subprocess.CalledProcessError:
             branch_name = f"{branch_name}-2"
+            print(f"  Warning: branch conflict, using fallback name: {branch_name}")
             subprocess.run(
                 ["git", "checkout", "-b", branch_name, config.base_branch],
                 capture_output=True, text=True, timeout=30, check=True,
@@ -46,13 +47,15 @@ def stash_if_dirty() -> bool:
         ["git", "status", "--porcelain"],
         capture_output=True, text=True, timeout=30,
     )
-    if result.stdout.strip():
-        subprocess.run(
-            ["git", "stash", "push", "-m", "dispatcher-auto-stash"],
-            capture_output=True, text=True, timeout=30,
-        )
-        return True
-    return False
+    if not result.stdout.strip():
+        return False
+    push_result = subprocess.run(
+        ["git", "stash", "push", "-m", "dispatcher-auto-stash"],
+        capture_output=True, text=True, timeout=30,
+    )
+    if push_result.returncode != 0:
+        raise RuntimeError(f"git stash push failed: {push_result.stderr.strip()}")
+    return True
 
 
 def unstash() -> None:
@@ -154,15 +157,19 @@ def execute_issue(reviewed: ReviewedIssue, branch_name: str, config: Config) -> 
 
 
 def resume_issue(session_id: str, config: Config) -> dict:
-    result = subprocess.run(
-        [
-            "claude", "--plugin-dir", config.plugin_path,
-            "-p", "--resume", session_id,
-            "--model", config.execution_model,
-            "--output-format", "json",
-        ],
-        capture_output=True, text=True,
-    )
+    try:
+        result = subprocess.run(
+            [
+                "claude", "--plugin-dir", config.plugin_path,
+                "--resume", session_id,
+                "--model", config.execution_model,
+                "--output-format", "json",
+            ],
+            capture_output=True, text=True,
+            timeout=config.execution_max_turns * 120,
+        )
+    except subprocess.TimeoutExpired:
+        return {"is_error": True, "error": "resume timed out"}
     try:
         return json.loads(result.stdout)
     except (json.JSONDecodeError, TypeError):

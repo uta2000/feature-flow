@@ -111,21 +111,26 @@ def triage_issue(issue_data: dict, issue_number: int, issue_url: str, config: Co
     comments = [c["body"] for c in issue_data.get("comments", [])]
     prompt = build_triage_prompt(issue_data["title"], issue_data["body"] or "", comments)
     triage_data = _call_claude_triage(prompt, issue_number, config)
+    return _build_triage_result(triage_data, issue_data, issue_number, issue_url)
 
-    validated_tier = validate_tier(
-        triage_data["scope"], triage_data["richness_score"], triage_data["triage_tier"],
-    )
 
-    return TriageResult(
-        issue_number=issue_number,
-        issue_title=issue_data["title"],
-        issue_url=issue_url,
-        scope=triage_data["scope"],
-        richness_score=triage_data["richness_score"],
-        richness_signals=triage_data["richness_signals"],
-        triage_tier=validated_tier,
-        confidence=triage_data["confidence"],
-        risk_flags=triage_data["risk_flags"],
-        missing_info=triage_data["missing_info"],
-        reasoning=triage_data["reasoning"],
-    )
+def _build_triage_result(triage_data: dict, issue_data: dict, issue_number: int, issue_url: str) -> TriageResult:
+    try:
+        validated_tier = validate_tier(
+            triage_data["scope"], triage_data["richness_score"], triage_data["triage_tier"],
+        )
+        return TriageResult(
+            issue_number=issue_number,
+            issue_title=issue_data["title"],
+            issue_url=issue_url,
+            scope=triage_data["scope"],
+            richness_score=triage_data["richness_score"],
+            richness_signals=triage_data["richness_signals"],
+            triage_tier=validated_tier,
+            confidence=triage_data["confidence"],
+            risk_flags=triage_data["risk_flags"],
+            missing_info=triage_data["missing_info"],
+            reasoning=triage_data["reasoning"],
+        )
+    except KeyError as exc:
+        raise TriageError(f"Missing required key in triage response for issue #{issue_number}: {exc}") from exc

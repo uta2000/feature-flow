@@ -164,10 +164,6 @@ def _run_execution(
             time.sleep(wait)
 
         er = _execute_single_issue(conn, run_id, r, config)
-        if er is None:
-            tracker.record_failure()
-            continue
-
         if er.outcome in ("failed", "leash_hit"):
             tracker.record_failure()
         else:
@@ -181,13 +177,20 @@ def _run_execution(
     return results, total_turns
 
 
-def _execute_single_issue(conn, run_id: str, r: ReviewedIssue, config: Config) -> ExecutionResult | None:
+def _execute_single_issue(conn, run_id: str, r: ReviewedIssue, config: Config) -> ExecutionResult:
     print(f"\n  [#{r.triage.issue_number}] Executing...")
     try:
         branch = create_branch(r.triage.issue_number, r.triage.scope, config)
     except Exception as exc:
         print(f"  Branch creation failed for #{r.triage.issue_number}: {exc}")
-        return None
+        er = ExecutionResult(
+            issue_number=r.triage.issue_number, branch_name="",
+            session_id=None, num_turns=0, is_error=True,
+            pr_number=None, pr_url=None,
+            error_message=f"Branch creation failed: {exc}", outcome="failed",
+        )
+        db.update_issue_execution(conn, run_id, r.triage.issue_number, er)
+        return er
 
     er = execute_issue(r, branch, config)
     db.update_issue_execution(conn, run_id, r.triage.issue_number, er)
@@ -329,9 +332,12 @@ def _parse_resume_result(issue_number: int, branch: str, raw: dict, config: Conf
             pr_number=None, pr_url=None, error_message="resume failed", outcome="failed",
         )
 
-    outcome = "leash_hit" if num_turns >= config.execution_max_turns else "pr_created"
+    from dispatcher.execute import _classify_outcome, _find_pr
+
+    pr_number, pr_url = _find_pr(branch, config)
+    outcome = _classify_outcome(pr_number, num_turns, "full-yolo", config)
     return ExecutionResult(
         issue_number=issue_number, branch_name=branch,
         session_id=session_id, num_turns=num_turns, is_error=False,
-        pr_number=None, pr_url=None, error_message=None, outcome=outcome,
+        pr_number=pr_number, pr_url=pr_url, error_message=None, outcome=outcome,
     )

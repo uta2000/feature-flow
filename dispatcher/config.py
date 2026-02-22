@@ -21,7 +21,7 @@ def _detect_repo() -> str:
         if "github.com" in url:
             parts = url.split("github.com")[-1].strip("/:")
             return parts
-    except Exception:
+    except (subprocess.SubprocessError, OSError):
         pass
     return ""
 
@@ -33,7 +33,7 @@ def _detect_base_branch() -> str:
             capture_output=True, text=True, timeout=30,
         ).stdout.strip()
         return ref.split("/")[-1] if ref else "main"
-    except Exception:
+    except (subprocess.SubprocessError, OSError):
         return "main"
 
 
@@ -47,7 +47,11 @@ def _load_yaml(config_path: Path) -> dict:
 def _parse_issues(raw: str | None) -> list[int]:
     if not raw:
         return []
-    return [int(n.strip()) for n in raw.split(",")]
+    try:
+        return [int(n.strip()) for n in raw.split(",")]
+    except ValueError:
+        print("Error: --issues must be a comma-separated list of integers (e.g. 1,2,3)", file=sys.stderr)
+        sys.exit(2)
 
 
 def load_config(args: argparse.Namespace) -> Config:
