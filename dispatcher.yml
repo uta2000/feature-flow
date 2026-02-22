@@ -1,0 +1,9 @@
+plugin_path: /Users/paulholstein/.claude/plugins/cache/feature-flow/feature-flow/1.18.0
+repo: uta2000/feature-flow
+base_branch: main
+triage_model: claude-sonnet-4-20250514
+execution_model: claude-opus-4-20250514
+execution_max_turns: 200
+default_label: dispatcher-ready
+selection_limit: 50
+db_path: ./dispatcher.db

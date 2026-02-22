@@ -13,6 +13,10 @@ All notable changes to the feature-flow plugin.
 ### Testing
 - 71 tests covering all dispatcher modules including integration tests for full dry-run pipeline and async Textual TUI tests
 
+### Documentation
+- Add dispatcher label setup instructions to README
+- Add design and implementation plan for dispatcher label setup documentation
+
 ## [1.18.0] - 2026-02-22
 
 ### Added
