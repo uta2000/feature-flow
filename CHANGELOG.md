@@ -4,6 +4,15 @@ All notable changes to the feature-flow plugin.
 
 ## [Unreleased]
 
+### Added
+- **GitHub Issue Dispatcher** (`dispatcher/` package) — a Python CLI tool that batch-processes GitHub issues through feature-flow's YOLO mode. Five-stage pipeline: issue selection (Textual TUI with SelectionList), AI-powered triage (claude -p with JSON schema validation and tier routing matrix), human review (DataTable TUI with tier cycling), automated execution (branch creation, claude -p headless mode, PR detection), and SQLite logging. Supports `--auto` mode for fully unattended operation, `--dry-run` for triage-only previews, `--resume` for recovering failed/leash-hit sessions, and progressive rate-limit backoff. Configurable via `dispatcher.yml` with CLI overrides. Installable as `pip install -e ".[dev]"` with `dispatcher` entry point. Closes #69.
+
+### Fixed
+- Dispatcher code review fixes: resume_issue arg ordering bug (made resume non-functional), bare KeyError/ValueError escapes, stash returncode ignored, overly broad exception catches, missing PR lookup on resume, branch-creation failures silently dropped from exit code
+
+### Testing
+- 71 tests covering all dispatcher modules including integration tests for full dry-run pipeline and async Textual TUI tests
+
 ## [1.18.0] - 2026-02-22
 
 ### Added
