@@ -61,7 +61,10 @@ def run(config: Config) -> int:
         return 1
 
     triage_results.sort(key=lambda t: t.confidence, reverse=True)
+    return _review_and_execute(conn, run_id, triage_results, start_time, config)
 
+
+def _review_and_execute(conn, run_id: str, triage_results: list[TriageResult], start_time: float, config: Config) -> int:
     reviewed = _run_review(triage_results, config)
     if reviewed is None:
         db.update_run_status(conn, run_id, "cancelled")
@@ -82,12 +85,10 @@ def run(config: Config) -> int:
 
     results, total_turns = _run_execution(conn, run_id, to_execute, config)
     _post_parked_comments(parked, config)
-
     _print_summary(results, parked, to_execute, total_turns, start_time, config)
-    failed_count = sum(1 for er in results if er.outcome in ("failed", "leash_hit"))
-    status = "completed" if failed_count == 0 else "failed"
-    db.update_run_status(conn, run_id, status)
 
+    failed_count = sum(1 for er in results if er.outcome in ("failed", "leash_hit"))
+    db.update_run_status(conn, run_id, "completed" if failed_count == 0 else "failed")
     return 0 if failed_count == 0 else 1
 
 

@@ -75,10 +75,7 @@ Richness signals to check:
 Return a JSON object with: scope, richness_score (0-4), richness_signals, triage_tier, confidence (0-1), risk_flags, missing_info, reasoning."""
 
 
-def triage_issue(issue_data: dict, issue_number: int, issue_url: str, config: Config) -> TriageResult:
-    comments = [c["body"] for c in issue_data.get("comments", [])]
-    prompt = build_triage_prompt(issue_data["title"], issue_data["body"] or "", comments)
-
+def _call_claude_triage(prompt: str, issue_number: int, config: Config) -> dict:
     try:
         result = subprocess.run(
             [
@@ -92,24 +89,31 @@ def triage_issue(issue_data: dict, issue_number: int, issue_url: str, config: Co
         )
     except subprocess.TimeoutExpired as exc:
         raise TriageError(f"Triage timed out for issue #{issue_number}") from exc
+    return _parse_triage_output(result.stdout, issue_number)
 
+
+def _parse_triage_output(stdout: str, issue_number: int) -> dict:
     try:
-        outer = json.loads(result.stdout)
+        outer = json.loads(stdout)
     except (json.JSONDecodeError, TypeError) as exc:
-        raise TriageError(f"Invalid JSON from claude -p for issue #{issue_number}: {result.stdout[:200]}") from exc
+        raise TriageError(f"Invalid JSON from claude -p for issue #{issue_number}: {stdout[:200]}") from exc
 
     if outer.get("is_error"):
         raise TriageError(f"claude -p error for issue #{issue_number}: {outer}")
 
     try:
-        triage_data = json.loads(outer["result"]) if isinstance(outer.get("result"), str) else outer.get("result", outer)
+        return json.loads(outer["result"]) if isinstance(outer.get("result"), str) else outer.get("result", outer)
     except (json.JSONDecodeError, TypeError) as exc:
         raise TriageError(f"Invalid triage result JSON for issue #{issue_number}") from exc
 
+
+def triage_issue(issue_data: dict, issue_number: int, issue_url: str, config: Config) -> TriageResult:
+    comments = [c["body"] for c in issue_data.get("comments", [])]
+    prompt = build_triage_prompt(issue_data["title"], issue_data["body"] or "", comments)
+    triage_data = _call_claude_triage(prompt, issue_number, config)
+
     validated_tier = validate_tier(
-        triage_data["scope"],
-        triage_data["richness_score"],
-        triage_data["triage_tier"],
+        triage_data["scope"], triage_data["richness_score"], triage_data["triage_tier"],
     )
 
     return TriageResult(

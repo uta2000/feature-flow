@@ -62,80 +62,95 @@ def unstash() -> None:
     )
 
 
-def execute_issue(reviewed: ReviewedIssue, branch_name: str, config: Config) -> ExecutionResult:
-    tr = reviewed.triage
+def _run_claude(tr: TriageResult, branch_name: str, config: Config) -> subprocess.CompletedProcess:
     prompt = f"Start a feature for GitHub issue #{tr.issue_number} in YOLO mode. Issue title: {tr.issue_title}. Work on branch {branch_name}."
+    return subprocess.run(
+        [
+            "claude", "--plugin-dir", config.plugin_path,
+            "-p", prompt,
+            "--model", config.execution_model,
+            "--allowedTools", _ALLOWED_TOOLS,
+            "--max-turns", str(config.execution_max_turns),
+            "--output-format", "json",
+        ],
+        capture_output=True, text=True,
+    )
 
-    try:
-        result = subprocess.run(
-            [
-                "claude", "--plugin-dir", config.plugin_path,
-                "-p", prompt,
-                "--model", config.execution_model,
-                "--allowedTools", _ALLOWED_TOOLS,
-                "--max-turns", str(config.execution_max_turns),
-                "--output-format", "json",
-            ],
-            capture_output=True, text=True,
-        )
-    except Exception as exc:
-        return ExecutionResult(
-            issue_number=tr.issue_number, branch_name=branch_name,
-            session_id=None, num_turns=0, is_error=True,
-            pr_number=None, pr_url=None, error_message=str(exc), outcome="failed",
-        )
 
+def _error_result(issue_number: int, branch_name: str, message: str, **kw) -> ExecutionResult:
+    defaults = {"session_id": None, "num_turns": 0, "pr_number": None, "pr_url": None}
+    defaults.update(kw)
+    return ExecutionResult(
+        issue_number=issue_number, branch_name=branch_name,
+        is_error=True, error_message=message, outcome="failed", **defaults,
+    )
+
+
+def _parse_claude_output(stdout: str, issue_number: int, branch_name: str) -> dict | ExecutionResult:
     try:
-        outer = json.loads(result.stdout)
+        outer = json.loads(stdout)
     except (json.JSONDecodeError, TypeError):
-        return ExecutionResult(
-            issue_number=tr.issue_number, branch_name=branch_name,
-            session_id=None, num_turns=0, is_error=True,
-            pr_number=None, pr_url=None,
-            error_message=f"Invalid JSON: {result.stdout[:200]}", outcome="failed",
-        )
+        return _error_result(issue_number, branch_name, f"Invalid JSON: {stdout[:200]}")
 
-    is_error = outer.get("is_error", False)
+    if outer.get("is_error", False):
+        return _error_result(
+            issue_number, branch_name, "claude -p reported error",
+            session_id=outer.get("session_id"), num_turns=outer.get("num_turns", 0),
+        )
+    return outer
+
+
+def _determine_outcome(reviewed: ReviewedIssue, branch_name: str, outer: dict, config: Config) -> ExecutionResult:
+    tr = reviewed.triage
     num_turns = outer.get("num_turns", 0)
     session_id = outer.get("session_id")
-
-    if is_error:
-        return ExecutionResult(
-            issue_number=tr.issue_number, branch_name=branch_name,
-            session_id=session_id, num_turns=num_turns, is_error=True,
-            pr_number=None, pr_url=None, error_message="claude -p reported error",
-            outcome="failed",
-        )
-
-    pr_number = None
-    pr_url = None
-    try:
-        prs = github.list_prs(branch_name, config.repo)
-        if prs:
-            pr_number = prs[0]["number"]
-            pr_url = prs[0]["url"]
-    except github.GithubError:
-        pass  # PR verification is non-fatal
-
-    if pr_number:
-        if reviewed.final_tier == "supervised-yolo":
-            try:
-                github.add_label(pr_number, "needs-human-review", config.repo)
-            except github.GithubError:
-                pass  # Label is non-fatal
-            outcome = "pr_created_review"
-        else:
-            outcome = "pr_created"
-    elif num_turns >= config.execution_max_turns:
-        outcome = "leash_hit"
-    else:
-        outcome = "failed"
+    pr_number, pr_url = _find_pr(branch_name, config)
+    outcome = _classify_outcome(pr_number, num_turns, reviewed.final_tier, config)
 
     return ExecutionResult(
         issue_number=tr.issue_number, branch_name=branch_name,
         session_id=session_id, num_turns=num_turns, is_error=False,
         pr_number=pr_number, pr_url=pr_url, error_message=None, outcome=outcome,
     )
+
+
+def _find_pr(branch_name: str, config: Config) -> tuple[int | None, str | None]:
+    try:
+        prs = github.list_prs(branch_name, config.repo)
+        if prs:
+            return prs[0]["number"], prs[0]["url"]
+    except github.GithubError as exc:
+        print(f"  Warning: PR lookup failed: {exc}")
+    return None, None
+
+
+def _classify_outcome(pr_number: int | None, num_turns: int, final_tier: str, config: Config) -> str:
+    if not pr_number:
+        return "leash_hit" if num_turns >= config.execution_max_turns else "failed"
+    if final_tier == "supervised-yolo":
+        _try_add_review_label(pr_number, config)
+        return "pr_created_review"
+    return "pr_created"
+
+
+def _try_add_review_label(pr_number: int, config: Config) -> None:
+    try:
+        github.add_label(pr_number, "needs-human-review", config.repo)
+    except github.GithubError as exc:
+        print(f"  Warning: Failed to add review label to PR #{pr_number}: {exc}")
+
+
+def execute_issue(reviewed: ReviewedIssue, branch_name: str, config: Config) -> ExecutionResult:
+    tr = reviewed.triage
+    try:
+        result = _run_claude(tr, branch_name, config)
+    except Exception as exc:
+        return _error_result(tr.issue_number, branch_name, str(exc))
+
+    parsed = _parse_claude_output(result.stdout, tr.issue_number, branch_name)
+    if isinstance(parsed, ExecutionResult):
+        return parsed
+    return _determine_outcome(reviewed, branch_name, parsed, config)
 
 
 def resume_issue(session_id: str, config: Config) -> dict:
