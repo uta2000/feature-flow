@@ -729,6 +729,8 @@ This step runs after self-review and before final verification. It dispatches mu
 
 **Process:**
 
+**Quick fix guard:** If the current scope is Quick fix, skip this entire step. Announce: "Scope is Quick fix — code review pipeline skipped." Proceed to the next lifecycle step.
+
 **Model override:** If the user has requested a specific model for the entire lifecycle (e.g., "use opus for everything" or "use sonnet for everything"), apply that model to all agent dispatches in this code review pipeline, overriding the per-agent defaults in the table.
 
 **Large file handling:** If the branch diff includes files >200KB, instruct review agents to use `git diff [base-branch]...HEAD -- <file>` (where `[base-branch]` is the branch detected in Step 0) for those files instead of reading the full file. The diff contains only the changed sections, which is what reviewers need.
@@ -760,23 +762,23 @@ Dispatch the tier-selected review agents in parallel (see scope-based agent sele
 
 **Availability check:** Before dispatching, filter the table to agents matching the current tier (or lower), then check which of those agents' plugins are installed. Skip agents whose plugins are missing. Announce: "Running N code review agents in parallel (Tier T — [scope])..." (where N is the count of available tier-filtered agents and T is the tier number).
 
-**Agent failure handling:** If an agent fails, crashes, or doesn't return, skip it and continue with available results. Do not stall the pipeline for a single agent failure. Log: "Agent [name] failed — skipping. Continuing with N remaining agents."
+**Agent failure handling:** If an agent fails, crashes, or doesn't return, skip it and continue with available results. Do not stall the pipeline for a single agent failure. Log: "Agent [name] failed — skipping. Continuing with N remaining agents (Tier T — [scope])."
 
 #### Phase 2: Review direct fixes
 
 After all agents complete, review the direct-fix agents that were dispatched in this tier. Summarize what they changed:
 
-1. **`silent-failure-hunter`** (Tier 1+) — Auto-fixed common patterns (`catch {}` → `catch (e) { console.error(...) }`). Summarize what changed. Flag anything complex it couldn't auto-fix.
-2. **`code-simplifier`** (Tier 2+) — Applied structural improvements directly (DRY extraction, clarity rewrites). Summarize what changed.
+1. **`silent-failure-hunter`** (Tier 1+) — If dispatched: auto-fixed common patterns (`catch {}` → `catch (e) { console.error(...) }`). Summarize what changed. Flag anything complex it couldn't auto-fix. If skipped (plugin unavailable): announce "silent-failure-hunter was unavailable — silent failure patterns were not automatically reviewed."
+2. **`code-simplifier`** (Tier 2+) — If dispatched: applied structural improvements directly (DRY extraction, clarity rewrites). Summarize what changed. If skipped (plugin unavailable): announce "code-simplifier was unavailable — DRY/clarity improvements were not automatically applied."
 
-At Tier 1, only item 1 applies — `code-simplifier` was not dispatched.
+At Tier 1, only `silent-failure-hunter` (item 1) applies — `code-simplifier` was not dispatched at this tier.
 
 #### Phase 3: Consolidate and fix reported findings
 
 Collect findings from the reporting agents dispatched in Phase 1. Consolidate them:
 
 1. **Deduplicate by file path + line number** — if two agents flag the same location, keep the higher-severity finding
-2. **If same severity**, prefer the more specific agent: security > type-design > test-analyzer > feature-dev > superpowers
+2. **If same severity**, prefer the more specific agent (among those dispatched): security > type-design > test-analyzer > feature-dev > superpowers
 3. **Classify by severity:** Critical, Important, Minor
 4. **Fix in order:** Critical → Important. Minor issues are logged as informational but not blocking.
 
@@ -815,6 +817,8 @@ If either fails → collect the failures as new findings and loop. **Maximum 3 i
 If still failing after 3 iterations → report remaining issues to the developer with context for manual resolution. Proceed to the next lifecycle step — the developer decides whether to fix manually.
 
 #### Phase 5: Report
+
+**Zero-agent guard:** If all tier-selected agents were skipped (plugins unavailable), do not proceed through Phases 2–4. Announce: "All tier-selected agents for [scope] (Tier T) were unavailable. Code review pipeline could not run — manual review recommended." Skip to Phase 5 and include a warning in the report.
 
 Output a summary:
 
