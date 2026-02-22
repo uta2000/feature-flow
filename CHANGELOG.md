@@ -4,6 +4,15 @@ All notable changes to the feature-flow plugin.
 
 ## [Unreleased]
 
+## [1.18.0] - 2026-02-22
+
+### Added
+- **Context pressure signal in mode recommendation** — added estimated context pressure as a third signal alongside scope complexity and issue richness. Major Feature + Detailed Context now recommends Express instead of showing no recommendation (Neutral). Interactive recommendations at Feature or Major Feature scope with sparse context display a context warning about `/compact` pauses. Includes context pressure estimates table (scope × mode matrix) and Express-recommended option ordering. Closes #67.
+
+### Fixed
+- Clarified "all other cases" context note suppression reasoning to avoid implying pressure is always Low-Medium
+- Replaced hardcoded "19-step lifecycle" in Express recommendation with platform-agnostic phrasing
+
 ## [1.17.0] - 2026-02-22
 
 ### Added
