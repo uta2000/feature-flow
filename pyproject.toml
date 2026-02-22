@@ -18,5 +18,8 @@ dev = [
     "pytest-asyncio",
 ]
 
+[project.scripts]
+dispatcher = "dispatcher.cli:main"
+
 [tool.setuptools.packages.find]
 include = ["dispatcher*"]
