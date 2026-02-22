@@ -8,7 +8,7 @@ from textual.widgets import Footer, Header, SelectionList, Static
 class SelectionApp(App[list[int]]):
     TITLE = "Issue Dispatcher — Select Issues"
     BINDINGS = [
-        Binding("enter", "confirm", "Confirm"),
+        Binding("p", "process", "Process"),
         Binding("a", "select_all", "Select All"),
         Binding("q", "quit_app", "Quit"),
     ]
@@ -40,7 +40,7 @@ class SelectionApp(App[list[int]]):
         if not self._issues:
             self.exit([])
 
-    def action_confirm(self) -> None:
+    def action_process(self) -> None:
         sl = self.query_one(SelectionList)
         self.selected = list(sl.selected)
         self.exit(self.selected)
