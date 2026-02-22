@@ -250,7 +250,7 @@ Run mode?
 **When to show the context note:**
 - Feature + sparse context (High pressure in Interactive) → show note
 - Major feature + sparse context (Very High pressure in Interactive) → show note
-- All other cases → no context note (pressure is Low-Medium, or the recommendation is already YOLO/Express)
+- All other cases → no context note (either pressure is Low-Medium, or the recommended mode already accounts for context pressure)
 
 **Option ordering depends on recommendation:**
 
@@ -265,7 +265,7 @@ Run mode?
 - Option 3: "YOLO — fully unattended, no pauses"
 
 *Express recommended* (major feature with detailed issue or detailed inline context):
-- Option 1: "Express — I'll auto-select decisions but pause for design approval and at phase transitions to optionally compact the conversation" with description: "*Recommended — detailed requirements cover design decisions; Express preserves compaction checkpoints for this 19-step lifecycle.*"
+- Option 1: "Express — I'll auto-select decisions but pause for design approval and at phase transitions to optionally compact the conversation" with description: "*Recommended — detailed requirements cover design decisions; Express preserves compaction checkpoints at each phase transition.*"
 - Option 2: "Interactive — I'll interview you to address outstanding design questions, with pauses at phase transitions to optionally compact the conversation"
 - Option 3: "YOLO — fully unattended, no pauses"
 
