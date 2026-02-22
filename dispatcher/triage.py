@@ -74,7 +74,15 @@ Richness signals to check:
 3. concrete_examples: Has specific examples, mockups, or specs
 4. structured_content: Body >200 words with headings/lists/tables
 
-Return a JSON object with: scope, richness_score (0-4), richness_signals, triage_tier, confidence (0-1), risk_flags, missing_info, reasoning."""
+Return ONLY a raw JSON object (no markdown fencing, no explanation) with these exact keys:
+- scope: one of "quick-fix", "small-enhancement", "feature", "major-feature"
+- richness_score: integer 0-4
+- richness_signals: object with boolean keys acceptance_criteria, resolved_discussion, concrete_examples, structured_content
+- triage_tier: one of "full-yolo", "supervised-yolo", "parked"
+- confidence: number 0-1
+- risk_flags: array of strings
+- missing_info: array of strings
+- reasoning: string"""
 
 
 def _call_claude_triage(prompt: str, issue_number: int, config: Config) -> dict:
@@ -82,7 +90,6 @@ def _call_claude_triage(prompt: str, issue_number: int, config: Config) -> dict:
         "claude", "-p", prompt,
         "--model", config.triage_model,
         "--output-format", "json",
-        "--json-schema", TRIAGE_SCHEMA,
         "--max-turns", str(config.triage_max_turns),
     ]
     try:
@@ -106,10 +113,24 @@ def _parse_triage_output(stdout: str, issue_number: int) -> dict:
     if outer.get("is_error") or outer.get("subtype") == "error_max_turns":
         raise TriageError(f"claude -p error for issue #{issue_number}: {outer.get('subtype', 'unknown')}")
 
+    result = outer.get("result", "")
+    if isinstance(result, dict):
+        return result
+    if not isinstance(result, str) or not result.strip():
+        raise TriageError(f"Empty triage result for issue #{issue_number}")
+    return _extract_json(result, issue_number)
+
+
+def _extract_json(text: str, issue_number: int) -> dict:
+    text = text.strip()
+    if text.startswith("```"):
+        lines = text.split("\n")
+        lines = [l for l in lines if not l.strip().startswith("```")]
+        text = "\n".join(lines).strip()
     try:
-        return json.loads(outer["result"]) if isinstance(outer.get("result"), str) else outer.get("result", outer)
+        return json.loads(text)
     except (json.JSONDecodeError, TypeError) as exc:
-        raise TriageError(f"Invalid triage result JSON for issue #{issue_number}") from exc
+        raise TriageError(f"Invalid triage JSON for issue #{issue_number}: {text[:200]}") from exc
 
 
 def triage_issue(issue_data: dict, issue_number: int, issue_url: str, config: Config) -> TriageResult:

@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 
 from dispatcher.models import Config
-from dispatcher.triage import TRIAGE_SCHEMA, TriageError, build_triage_prompt, triage_issue, validate_tier
+from dispatcher.triage import TriageError, build_triage_prompt, triage_issue, validate_tier
 
 
 class TestValidateTier:
