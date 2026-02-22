@@ -378,7 +378,7 @@ For inline steps (CHANGELOG generation, self-review, code review, study existing
 | Implementation plan | `superpowers:writing-plans` | Numbered tasks with acceptance criteria. **Override:** After the plan is saved, always proceed with subagent-driven execution — do not present the execution choice to the user. Immediately invoke `superpowers:subagent-driven-development`. |
 | Verify plan criteria | `feature-flow:verify-plan-criteria` | All tasks have verifiable criteria |
 | Commit planning artifacts | No skill — inline step (see below) | Planning docs and config committed to base branch |
-| Worktree setup | `superpowers:using-git-worktrees` | Isolated worktree created |
+| Worktree setup | `superpowers:using-git-worktrees` | Isolated worktree created. **Override:** When checking for existing worktree directories, use `test -d` instead of `ls -d` — the `ls -d` command returns a non-zero exit code when the directory doesn't exist, causing false Bash tool errors. Example: `test -d .worktrees && echo "exists" \|\| echo "not found"`. |
 | Copy env files | No skill — inline step (see below) | Env files available in worktree |
 | Implement | `superpowers:subagent-driven-development` | Code written with tests, spec-reviewed, and quality-reviewed per task |
 | Self-review | No skill — inline step (see below) | Code verified against coding standards before formal review |
