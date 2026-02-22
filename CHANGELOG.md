@@ -4,6 +4,8 @@ All notable changes to the feature-flow plugin.
 
 ## [Unreleased]
 
+## [1.16.0] - 2026-02-22
+
 ### Added
 - **Scope-based code review pipeline tiering** — the code review pipeline now dispatches agents based on the lifecycle scope classification instead of always dispatching all available agents. Small enhancements use Tier 1 (2 agents: `superpowers:code-reviewer` + `silent-failure-hunter`), features use Tier 2 (4 agents: Tier 1 + `code-simplifier` + `feature-dev:code-reviewer`), and major features use Tier 3 (all 7 agents). Includes Quick fix guard (skips pipeline entirely), zero-agent guard (warns when all plugins unavailable), plugin unavailability handling in Phase 2, scoped deduplication priority chain, and tier context in all announcements and reports. Closes #58.
 
