@@ -270,6 +270,7 @@ def _resume_single(row, session_id, branch, run_id, conn, config: Config) -> Exe
             return None
         er = execute_issue(reviewed, branch, config)
 
+    db.increment_resume_count(conn, run_id, issue_number)
     db.update_issue_execution(conn, run_id, issue_number, er)
     _print_execution_result(issue_number, branch, er)
     return er

@@ -129,3 +129,11 @@ def get_previous_triage(conn: sqlite3.Connection, issue_number: int) -> sqlite3.
         "SELECT * FROM issues WHERE issue_number = ? ORDER BY triage_finished_at DESC LIMIT 1",
         (issue_number,),
     ).fetchone()
+
+
+def increment_resume_count(conn: sqlite3.Connection, run_id: str, issue_number: int) -> None:
+    conn.execute(
+        "UPDATE issues SET resume_count = COALESCE(resume_count, 0) + 1 WHERE run_id = ? AND issue_number = ?",
+        (run_id, issue_number),
+    )
+    conn.commit()

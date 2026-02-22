@@ -3,6 +3,7 @@ import json
 from dispatcher.db import (
     get_previous_triage,
     get_resumable_issues,
+    increment_resume_count,
     init_db,
     insert_issue,
     insert_run,
@@ -99,3 +100,18 @@ def test_get_previous_triage(db):
 def test_get_previous_triage_none(db):
     prev = get_previous_triage(db, 999)
     assert prev is None
+
+
+def test_increment_resume_count(db):
+    insert_run(db, "run-1", [42], "{}")
+    insert_issue(db, "run-1", _make_triage(42))
+    row = db.execute("SELECT resume_count FROM issues WHERE issue_number = 42").fetchone()
+    assert row["resume_count"] == 0
+
+    increment_resume_count(db, "run-1", 42)
+    row = db.execute("SELECT resume_count FROM issues WHERE issue_number = 42").fetchone()
+    assert row["resume_count"] == 1
+
+    increment_resume_count(db, "run-1", 42)
+    row = db.execute("SELECT resume_count FROM issues WHERE issue_number = 42").fetchone()
+    assert row["resume_count"] == 2
