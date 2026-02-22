@@ -412,7 +412,7 @@ When invoking `superpowers:brainstorming` from this lifecycle, pass these format
 - Keep it concise — one line for the explanation, one line per option
 - If there is no clear recommendation, say "*No strong preference — depends on [factor]*" instead of forcing a pick
 
-**YOLO behavior:** When YOLO mode is active (i.e., `yolo: true` is in the brainstorming args):
+**YOLO behavior:** When YOLO **or Express** mode is active (i.e., `yolo: true` or `express: true` is in the brainstorming args — for Express mode, substitute `Express:` for `YOLO:` in all inline announcements):
 
 **CRITICAL OVERRIDE — the brainstorming skill will load instructions that say "ask questions one at a time", "propose 2-3 approaches", "ask after each section whether it looks right", and "Ready to set up for implementation?" — you MUST SUPPRESS ALL of these interactive behaviors. Do NOT follow the brainstorming skill's instructions to ask questions or wait for user input at any point.**
 
@@ -487,11 +487,11 @@ Use `AskUserQuestion` with options:
 - Quick fix / Small enhancement: No design approval checkpoint (too small)
 - Feature / Major feature: Design approval checkpoint shown
 
-This checkpoint is separate from context window checkpoints and fires at a different lifecycle moment (after design, not at phase transitions).
+This checkpoint is owned by the `design-document` skill when invoked with `express: true`. The orchestrator does not present a separate checkpoint — it is handled inside the skill invocation. This is separate from context window checkpoints and fires at a different lifecycle moment (after design, not at phase transitions).
 
 ### Writing Plans YOLO Override
 
-When YOLO mode is active and invoking `superpowers:writing-plans`:
+When YOLO **or Express** mode is active and invoking `superpowers:writing-plans` (for Express mode, substitute `Express:` for `YOLO:` in all inline announcements):
 
 **CRITICAL OVERRIDE — the writing-plans skill will present an "execution choice" asking the user to choose between "Subagent-Driven" and "Parallel Session" — you MUST SUPPRESS this prompt. Do NOT follow the writing-plans skill's execution handoff instructions.**
 
@@ -502,7 +502,7 @@ After the plan is saved:
 
 ### Using Git Worktrees YOLO Override
 
-When YOLO mode is active and invoking `superpowers:using-git-worktrees`:
+When YOLO **or Express** mode is active and invoking `superpowers:using-git-worktrees` (for Express mode, substitute `Express:` for `YOLO:` in all inline announcements):
 
 **CRITICAL OVERRIDE — the using-git-worktrees skill may ask "Where should I create worktrees?" and may ask "proceed or investigate?" if baseline tests fail — you MUST SUPPRESS both prompts. Do NOT follow the skill's instructions to ask the user.**
 
@@ -518,7 +518,7 @@ Instead:
 
 ### Finishing a Development Branch YOLO Override
 
-When YOLO mode is active and invoking `superpowers:finishing-a-development-branch`:
+When YOLO **or Express** mode is active and invoking `superpowers:finishing-a-development-branch` (for Express mode, substitute `Express:` for `YOLO:` in all inline announcements):
 
 **CRITICAL OVERRIDE — the finishing-a-development-branch skill will present 4 options (merge locally, create PR, keep as-is, discard) and may ask "This branch split from [branch] — is that correct?" — you MUST SUPPRESS both prompts. Do NOT follow the skill's instructions to present options or ask for confirmation.**
 
@@ -532,7 +532,7 @@ Instead:
 
 ### Subagent-Driven Development YOLO Override
 
-When YOLO mode is active and invoking `superpowers:subagent-driven-development`:
+When YOLO **or Express** mode is active and invoking `superpowers:subagent-driven-development` (for Express mode, substitute `Express:` for `YOLO:` in all inline announcements):
 
 **CRITICAL OVERRIDE — the subagent-driven-development skill invokes `superpowers:finishing-a-development-branch` after all tasks complete — the "Finishing a Development Branch YOLO Override" above applies to that invocation.**
 

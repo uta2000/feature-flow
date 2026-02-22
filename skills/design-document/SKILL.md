@@ -60,6 +60,8 @@ If the conversation does not contain enough decisions, ask the user to clarify. 
 
 **YOLO behavior:** If `yolo: true` is in the skill's `ARGUMENTS`, do not call `AskUserQuestion` for clarification. Instead, answer the questions from available context (brainstorming output, issue body, codebase analysis) and announce each: `YOLO: design-document — [question] → [answer]`. If critical information is genuinely missing (not inferable from any source), note it as `[TBD]` in the design document rather than guessing.
 
+**Express behavior:** If `express: true` is in the skill's `ARGUMENTS`, apply the same clarification suppression as YOLO. Do not call `AskUserQuestion` for clarification. Answer questions from available context and announce each: `Express: design-document — [question] → [answer]`. Note `[TBD]` for genuinely missing information.
+
 ### Step 2: Determine Sections
 
 Select sections based on what the feature requires. Not every feature needs every section.
