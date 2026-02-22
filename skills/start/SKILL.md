@@ -84,16 +84,16 @@ Before any other processing, check if the user requested YOLO mode via a trigger
    - `--yolo` (flag style — match as a standalone token)
    - `yolo mode` (natural language phrase)
    - `run unattended` (natural language phrase)
-   - `--yolo-compact` (flag style — match as a standalone token)
-   - `yolo compact mode` (natural language phrase)
+   - `--express` (flag style — match as a standalone token)
+   - `express mode` (natural language phrase)
 2. If a trigger is found:
-   - If the trigger is `--yolo-compact` or `yolo compact mode`:
-     - Set YOLO mode active AND set `compact_prompts` flag for the remainder of the lifecycle
-     - Announce: "YOLO mode active (with compaction prompts). Auto-selecting recommended options but pausing at phase transitions. Decision log will be printed at completion."
+   - If the trigger is `--express` or `express mode`:
+     - Set Express mode active for the remainder of the lifecycle
+     - Announce: "Express mode active. Auto-selecting decisions but pausing for design approval and at phase transitions for optional `/compact`. Decision log will be printed at completion."
      - Strip the trigger phrase from the arguments before further processing
    - Otherwise (standard YOLO triggers):
      - Set YOLO mode active for the remainder of the lifecycle
-     - Announce: "YOLO mode active. Auto-selecting recommended options. Decision log will be printed at completion."
+     - Announce: "YOLO mode active. Auto-selecting all decisions, no pauses. Decision log will be printed at completion."
      - Strip the trigger phrase from the arguments before further processing (so `start: add CSV export --yolo` becomes `start: add CSV export` for scope classification)
 3. If no trigger is found:
    - Do nothing here — the YOLO/Interactive mode prompt is presented in Step 1 after scope classification, where the system can make a smart recommendation based on scope and issue context.
@@ -213,19 +213,21 @@ Run mode?
 **Option ordering depends on recommendation:**
 
 *YOLO recommended* (quick fix, small enhancement, or feature with detailed context):
-- Option 1: "YOLO — auto-select recommended options" with description: "*Recommended — [reasoning]*"
-- Option 2: "YOLO with compaction prompts — auto-select all decisions, but pause at phase transitions for optional `/compact`"
-- Option 3: "Interactive — all questions asked normally"
+- Option 1: "YOLO — fully unattended, no pauses" with description: "*Recommended — [reasoning]*"
+- Option 2: "Express — I'll auto-select decisions but pause for design approval and at phase transitions to optionally compact the conversation"
+- Option 3: "Interactive — I'll interview you to address outstanding design questions, with pauses at phase transitions to optionally compact the conversation"
 
 *Interactive recommended* (feature/major without detailed context):
-- Option 1: "Interactive — all questions asked normally" with description: "*Recommended — [reasoning]*"
-- Option 2: "YOLO with compaction prompts — auto-select all decisions, but pause at phase transitions for optional `/compact`"
-- Option 3: "YOLO — auto-select recommended options"
+- Option 1: "Interactive — I'll interview you to address outstanding design questions, with pauses at phase transitions to optionally compact the conversation" with description: "*Recommended — [reasoning]*"
+- Option 2: "Express — I'll auto-select decisions but pause for design approval and at phase transitions to optionally compact the conversation"
+- Option 3: "YOLO — fully unattended, no pauses"
 
 *Neutral* (major feature with detailed issue or detailed inline context):
-- Option 1: "Interactive — all questions asked normally" (no recommendation marker)
-- Option 2: "YOLO with compaction prompts — auto-select all decisions, but pause at phase transitions for optional `/compact`"
-- Option 3: "YOLO — auto-select recommended options" (no recommendation marker)
+- Option 1: "Interactive — I'll interview you to address outstanding design questions, with pauses at phase transitions to optionally compact the conversation" (no recommendation marker)
+- Option 2: "Express — I'll auto-select decisions but pause for design approval and at phase transitions to optionally compact the conversation" (no recommendation marker)
+- Option 3: "YOLO — fully unattended, no pauses" (no recommendation marker)
+
+*Footnote (always shown after the options):* "For Express and Interactive: at each pause you can run `/compact` then type 'continue' to resume, or just type 'continue' to skip compaction."
 
 The recommended option always appears first in the list. Each option's description includes italicized reasoning when a recommendation is made.
 
@@ -233,7 +235,9 @@ The recommended option always appears first in the list. Each option's descripti
 
 **YOLO behavior (trigger phrase activated):** If YOLO was already activated by a trigger phrase in Step 0, skip this question entirely. Auto-classify scope and announce: `YOLO: start — Scope + mode → [scope], YOLO (trigger phrase)`
 
-**YOLO with compaction behavior:** If the user selects "YOLO with compaction prompts", set both YOLO mode and `compact_prompts` flag active. All YOLO overrides apply, but context window checkpoints are shown instead of suppressed.
+**Express behavior (trigger phrase activated):** If Express was already activated by a trigger phrase in Step 0, skip this question entirely. Auto-classify scope and announce: `Express: start — Scope + mode → [scope], Express (trigger phrase)`
+
+**Express behavior:** If the user selects "Express", set Express mode active. All YOLO auto-selection overrides apply for skill invocations, but context window checkpoints and design approval checkpoints are shown instead of suppressed.
 
 ### Step 2: Build the Step List
 
@@ -339,19 +343,24 @@ For each step, follow this pattern:
 3. **Invoke the skill** using the Skill tool (see mapping below)
 4. **Confirm completion:** Verify the step produced its expected output
 5. **Mark complete:** Update the todo item to `completed`
-6. **Check for context checkpoint:** If the just-completed step is a checkpoint trigger (see Context Window Checkpoints section), and the current mode is not YOLO-without-compaction, and the current scope includes this checkpoint — output the checkpoint block and wait for the user to respond before announcing the next step.
+6. **Check for context checkpoint:** If the just-completed step is a checkpoint trigger (see Context Window Checkpoints section), and the current mode is not YOLO, and the current scope includes this checkpoint — output the checkpoint block and wait for the user to respond before announcing the next step.
 7. **Announce next step:** "Step N complete. Next: Step N+1 — [name]."
 
-**YOLO Propagation:** When YOLO mode is active, prepend `yolo: true. scope: [scope].` to the `args` parameter of every `Skill` invocation. Scope context is required for graduated YOLO behavior — design-document uses it to determine whether a mandatory checkpoint is needed. For example:
+**YOLO Propagation:** When YOLO mode is active, prepend `yolo: true. scope: [scope].` to the `args` parameter of every `Skill` invocation. Scope context is required because design-document uses it to determine checkpoint behavior. For example:
 
 ```
 Skill(skill: "superpowers:brainstorming", args: "yolo: true. scope: [scope]. [original args]")
 Skill(skill: "feature-flow:design-document", args: "yolo: true. scope: [scope]. [original args]")
 ```
 
-For inline steps (CHANGELOG generation, self-review, code review, study existing patterns), the YOLO flag is already in the conversation context — no explicit propagation is needed.
+**Express Propagation:** When Express mode is active, prepend `express: true. scope: [scope].` to the `args` parameter of every `Skill` invocation. Express inherits all YOLO auto-selection overrides — skills that check for `yolo: true` should also check for `express: true` and behave the same way (auto-select decisions). The only difference is at the orchestrator level where checkpoints are shown instead of suppressed. For example:
 
-**YOLO with compaction propagation:** When "YOLO with compaction prompts" mode is active, prepend `yolo: true. compact_prompts: true. scope: [scope].` to the `args` parameter of every `Skill` invocation. Skills receive the `compact_prompts` flag but do not act on it — checkpoints are centralized in the orchestrator between skill invocations.
+```
+Skill(skill: "superpowers:brainstorming", args: "express: true. scope: [scope]. [original args]")
+Skill(skill: "feature-flow:design-document", args: "express: true. scope: [scope]. [original args]")
+```
+
+For inline steps (CHANGELOG generation, self-review, code review, study existing patterns), the mode flag is already in the conversation context — no explicit propagation is needed.
 
 **Do not skip steps.** If the user asks to skip a step, explain why it matters and confirm they want to skip. If they insist, mark it as skipped and note the risk.
 
@@ -417,52 +426,6 @@ Instead:
 
 This is the most complex YOLO interaction — the LLM makes design-level decisions. The user reviews these via the design document output rather than each micro-decision.
 
-**Graduated YOLO checkpoint (Major Feature only):**
-
-After all brainstorming questions have been self-answered, if the scope is **Major Feature**, present a mandatory checkpoint summarizing all auto-answered decisions:
-
-```
-YOLO checkpoint: Brainstorming complete. Here are the design decisions I made:
-
-| # | Question | Decision |
-|---|----------|----------|
-| 1 | [question] | [selected option with reasoning] |
-| ... | ... | ... |
-
-Continue or adjust?
-```
-
-Use `AskUserQuestion` with options:
-- "Continue" — proceed to design document with these decisions
-- "Let me adjust" — user provides corrections to specific decisions, then YOLO resumes
-
-For Quick fix, Small enhancement, and Feature scopes, skip this checkpoint — proceed directly from brainstorming to the next step.
-
-### Graduated YOLO Behavior
-
-When YOLO mode is active (whether from trigger phrase or user selection), the number of mandatory checkpoints scales with scope complexity:
-
-| Scope | Checkpoints | Where |
-|-------|------------|-------|
-| Quick fix | 0 | Full autonomy — zero interactive prompts |
-| Small enhancement | 0 | Full autonomy — zero interactive prompts |
-| Feature | 1 | Design document approval (before implementation) |
-| Major feature | 2 | Brainstorming output summary + Design document approval |
-
-**Checkpoint UX:** Mandatory checkpoints are presented via `AskUserQuestion`:
-
-```
-YOLO checkpoint: [artifact summary]. Continue or adjust?
-```
-
-Options:
-- "Continue" — resume YOLO mode for remaining steps
-- "Let me adjust" — user provides corrections, then YOLO resumes (does NOT switch to interactive for remaining steps)
-
-**Scope upgrade rule:** If scope is upgraded during the lifecycle (e.g., Small Enhancement → Feature via Scope Adjustment Rules), adopt the checkpoint rules of the new scope for all remaining steps.
-
-**What checkpoints do NOT affect:** All other YOLO decisions (platform detection, CHANGELOG heading, gotcha additions, issue creation, plan criteria approval, superpowers overrides) remain fully auto-selected regardless of scope.
-
 ### Context Window Checkpoints
 
 At specific phase transitions, output a checkpoint prompt suggesting the user run `/compact` to free context window space. The lifecycle pauses — the user must respond before the next step begins. `/compact` is a client-side Claude Code command that cannot be invoked programmatically — the skill can only suggest it.
@@ -493,9 +456,9 @@ Or type "continue" to skip compaction and proceed.
 | Feature | All 3 |
 | Major feature | All 3 |
 
-**Suppression rules** (determined by whether `compact_prompts` flag is set):
-- **YOLO mode (no compaction):** Checkpoints are suppressed — do not output the checkpoint block
-- **YOLO with compaction prompts:** Checkpoints are shown — output the checkpoint block and wait
+**Suppression rules:**
+- **YOLO mode:** All checkpoints suppressed — do not output the checkpoint block
+- **Express mode:** Checkpoints are shown — output the checkpoint block and wait
 - **Interactive mode:** Checkpoints are shown — output the checkpoint block and wait
 - **Quick fix scope:** No checkpoints regardless of mode
 
@@ -504,6 +467,27 @@ When the user responds after a checkpoint:
 - If the user types "continue", "skip", "next", or "proceed" → resume the lifecycle at the next step
 - If the user ran `/compact` and then sends any message → the context has been compressed. Check the todo list to determine the current step and announce: "Resuming lifecycle. Last completed step: [N]. Next: [N+1] — [name]."
 - Any other response → treat as "continue" and resume
+
+### Express Design Approval Checkpoint
+
+When Express mode is active and the scope is **Feature** or **Major Feature**, present a design approval checkpoint after the design document step (or design verification step if present). This checkpoint pauses Express mode for the user to review the design before implementation begins.
+
+**Checkpoint format:**
+
+```
+Express checkpoint: Design document complete. Review the design before implementation begins.
+Continue or adjust?
+```
+
+Use `AskUserQuestion` with options:
+- "Continue" — approve the design and resume Express mode
+- "Let me adjust" — user provides corrections, document is updated, then Express resumes
+
+**Scope filtering:**
+- Quick fix / Small enhancement: No design approval checkpoint (too small)
+- Feature / Major feature: Design approval checkpoint shown
+
+This checkpoint is separate from context window checkpoints and fires at a different lifecycle moment (after design, not at phase transitions).
 
 ### Writing Plans YOLO Override
 
@@ -1117,20 +1101,20 @@ What to do next:
 [List any platform-specific notes (e.g., "App store submission pending")]
 ```
 
-**YOLO Decision Log (if YOLO mode was active):**
+**Decision Log (if YOLO or Express mode was active):**
 
-If the lifecycle ran in YOLO mode, append the decision log after the standard completion summary. The format varies by whether checkpoints were used:
+If the lifecycle ran in YOLO or Express mode, append the decision log after the standard completion summary:
 
-**Full YOLO (quick fix / small enhancement — no checkpoints):**
+**YOLO (all scopes):**
 
 ```
 ## YOLO Decision Log
 
-**Mode:** YOLO (system recommended — [scope] scope, low complexity)
+**Mode:** YOLO ([scope] scope)
 
 | # | Skill | Decision | Auto-Selected |
 |---|-------|----------|---------------|
-| 1 | start | Scope + mode | [scope], YOLO recommended |
+| 1 | start | Scope + mode | [scope], YOLO |
 | ... | ... | ... | ... |
 | N | brainstorming | Design questions (self-answered) | [count decisions auto-answered] |
 | N | writing-plans | Execution choice | Subagent-Driven (auto-selected) |
@@ -1141,55 +1125,35 @@ If the lifecycle ran in YOLO mode, append the decision log after the standard co
 **Quality gates preserved:** hooks, tests, verification, code review
 ```
 
-**Graduated YOLO (feature / major feature — with checkpoints):**
+**Express (all scopes):**
 
 ```
-## YOLO Decision Log
+## Express Decision Log
 
-**Mode:** YOLO with checkpoints (system recommended — [scope] scope, [reasoning])
-**Checkpoints presented:** M
+**Mode:** Express ([scope] scope)
+**Checkpoints:** N presented (M design approval, K compaction)
 
 | # | Skill | Decision | Auto-Selected |
 |---|-------|----------|---------------|
-| ... | ... | ... | ... |
-| N | design-document | Document approval | ✋ User reviewed (approved / adjusted) |
-| ... | ... | ... | ... |
-| N | brainstorming | Design questions (self-answered) | [count decisions auto-answered] |
-| N | writing-plans | Execution choice | Subagent-Driven (auto-selected) |
-| N | using-git-worktrees | Worktree directory | .worktrees/ (auto-selected) |
-| N | finishing-a-dev-branch | Completion strategy | Push and create PR (auto-selected) |
-
-**Total decisions auto-selected:** N (includes feature-flow decisions + superpowers overrides)
-**Checkpoints presented:** M of M approved [with/without changes]
-```
-
-**YOLO with compaction prompts (any scope):**
-
-```
-## YOLO Decision Log
-
-**Mode:** YOLO with compaction prompts ([scope] scope)
-**Compaction checkpoints:** N shown, M compacted, K skipped
-
-| # | Skill | Decision | Auto-Selected |
-|---|-------|----------|---------------|
-| 1 | start | Scope + mode | [scope], YOLO with compaction |
+| 1 | start | Scope + mode | [scope], Express |
 | ... | ... | ... | ... |
 | N | start | Compact checkpoint 1 | /compact (or skipped) |
 | N | start | Compact checkpoint 2 | /compact (or skipped) |
 | N | start | Compact checkpoint 3 | /compact (or skipped) |
-| N | design-document | Document approval | ✋ User reviewed (if Feature/Major scope) |
+| N | design-document | Design approval | ✋ User reviewed (approved / adjusted) |
 | N | brainstorming | Design questions (self-answered) | [count decisions auto-answered] |
 | N | writing-plans | Execution choice | Subagent-Driven (auto-selected) |
 | N | using-git-worktrees | Worktree directory | .worktrees/ (auto-selected) |
 | N | finishing-a-dev-branch | Completion strategy | Push and create PR (auto-selected) |
 
 **Total decisions auto-selected:** N (includes feature-flow decisions + superpowers overrides)
-**Compaction checkpoints:** M of N shown (K skipped by scope filter)
+**Checkpoints presented:** M (K compaction, J design approval)
 **Quality gates preserved:** hooks, tests, verification, code review
 ```
 
-**Cancellation:** There is no formal YOLO cancellation mechanism. Inline announcements (`YOLO: [skill] — [decision] → [option]`) serve as an "emergency brake" — the user sees each decision as it's made and can interrupt the lifecycle at any point by sending a message. The lifecycle will pause at the current step, and the user can redirect from there.
+Interactive mode does not produce a decision log — all decisions were made interactively.
+
+**Cancellation:** There is no formal YOLO/Express cancellation mechanism. Inline announcements (`YOLO: [skill] — [decision] → [option]` or `Express: [skill] — [decision] → [option]`) serve as an "emergency brake" — the user sees each decision as it's made and can interrupt the lifecycle at any point by sending a message. The lifecycle will pause at the current step, and the user can redirect from there.
 
 ## Scope Adjustment Rules
 
