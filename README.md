@@ -362,8 +362,12 @@ The dispatcher is a Python CLI tool that batch-processes GitHub issues through f
 Before running the dispatcher, create the label it uses to find issues:
 
 ```bash
-gh label create dispatcher-ready --color E99695 --description "Ready for automated feature-flow processing"
+gh label create dispatcher-ready --color E99695 \
+  --description "Ready for automated feature-flow processing" \
+  --force
 ```
+
+`--force` makes this idempotent — safe to re-run if the label already exists. The command requires `gh` to be authenticated (`gh auth status`) and must be run from inside the target repository, or with `--repo owner/repo` appended.
 
 The dispatcher filters issues by this label. You can customize the label name via the `default_label` field in `dispatcher.yml`.
 
