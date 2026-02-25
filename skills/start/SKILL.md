@@ -111,7 +111,7 @@ After reading `.feature-flow.yml`, check for version drift:
 3. If `plugin_version` is present and differs from the running version:
    - Compare semver components (major.minor.patch)
    - Classify drift as major, minor, or patch
-   - Announce: `"Version drift detected: config stamped by v[stored], running v[running] ([drift level] update). Review CHANGELOG.md for what changed."`
+   - Announce: `"UPGRADE NOTICE: [Drift level] version drift detected — config was stamped by v[stored], now running v[running]. Review CHANGELOG.md for what changed."`
 4. If `plugin_version` is absent: no notice (first-time upgrade path — the SessionStart hook will stamp it)
 
 **YOLO behavior:** No prompt — always auto-detected. Announce: `YOLO: start — Version drift check → [no drift | drift level from vX.Y.Z to vA.B.C]`

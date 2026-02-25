@@ -55,12 +55,19 @@ function notifyDrift(storedVersion, runningVersion) {
 }
 
 function main() {
-  if (!fs.existsSync(CONFIG_FILE)) return;
-
   const runningVersion = getRunningVersion();
   if (!runningVersion || !parseSemver(runningVersion)) return;
 
-  const content = fs.readFileSync(CONFIG_FILE, 'utf8');
+  let content;
+  try {
+    content = fs.readFileSync(CONFIG_FILE, 'utf8');
+  } catch (e) {
+    // Config file does not exist — first-time user, nothing to do.
+    if (e.code === 'ENOENT') return;
+    // Any other read error (EACCES, EISDIR, etc.) is unexpected — re-throw so
+    // the outer catch can log it with full context.
+    throw e;
+  }
   const storedVersion = readPluginVersion(content);
 
   if (storedVersion && storedVersion !== runningVersion) {
@@ -76,6 +83,11 @@ function main() {
 try {
   main();
 } catch (e) {
-  console.error(`[feature-flow] version-check hook error: ${e?.message || 'unknown'}`);
+  // Non-fatal: version drift detection must never block a session. Log the error
+  // so it is visible in the session transcript, then exit 0 so Claude continues.
+  const detail = e instanceof Error ? e.message : String(e);
+  console.error(`[feature-flow] version-check hook error: ${detail}`);
 }
+// Always exit 0 — this hook is advisory only. A failure here must not prevent
+// the session from starting or the user's prompt from being processed.
 process.exit(0);
