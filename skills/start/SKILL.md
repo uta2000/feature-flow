@@ -684,7 +684,7 @@ This step runs after copy env files and before implementation. It forces reading
    **Expected return format per agent:**
 
    ```
-   { area: string, patterns: [{ aspect: string, pattern: string }], antiPatterns: [{ file: string, issue: string, recommendation: string }] }
+   { area: string, patterns: [{ aspect: string, pattern: string }], antiPatterns: [{ file: string, issue: string, recommendation: string }], referenceExamples: [{ file: string, aspects: string }] }
    ```
 
    **Failure handling:** If an agent fails or crashes, retry it once. If it fails again, skip that area and log a warning: "[Area] pattern study failed — skipping. Continuing with available results."
@@ -830,6 +830,7 @@ Run deterministic tools before dispatching agents to catch issues that linters c
    If no tools are detected, skip Phase 0 entirely: "No deterministic tools detected — skipping pre-filter."
 
 2. **Run detected tools in parallel:**
+   Before running any tool, verify the binary exists in `node_modules/.bin/` (e.g., `node_modules/.bin/tsc` for TypeScript). If the binary is not present, skip that tool with: "[tool] not found in node_modules/.bin/ — skipping. Run npm install first."
    - TypeScript: `npx tsc --noEmit 2>&1`
    - ESLint: `npx eslint --no-error-on-unmatched-pattern . 2>&1`
    - Biome: `npx biome check . 2>&1`
@@ -866,7 +867,7 @@ Dispatch the tier-selected review agents in parallel (see scope-based agent sele
 6. **Anti-patterns and reference examples:** From the Study Existing Patterns output (carried through lifecycle context), so agents know what NOT to accept and what "known good" code looks like
 7. **Pre-filter exclusion context:** From Phase 0, so agents skip issues already caught by deterministic tools
 
-**Structured output requirement:** Instruct each agent to return findings in this format. Findings that do not follow this format will be discarded in Phase 3:
+**Structured output requirement:** Instruct each **reporting** agent (Fix Mode = "Report") to return findings in this format. Direct-fix agents should summarize what they changed in free-form text (their output is consumed in Phase 2, not Phase 3). Findings that do not follow this format will be discarded in Phase 3:
 
 ```
 - file: [exact file path]
@@ -908,7 +909,7 @@ At Tier 1, only `silent-failure-hunter` (item 1) applies — `code-simplifier` w
 Collect findings from the reporting agents dispatched in Phase 1. Consolidate them:
 
 0. **Reject non-compliant findings** — before any other processing, filter out findings that do not meet the structured output requirement from Phase 1:
-   - Discard findings missing any required field (`file`, `line`, `rule`, `severity`, `fix`)
+   - Discard findings missing any required field (`file`, `line`, `rule`, `severity`, `description`, `fix`)
    - Discard findings where `fix` contains only commentary ("consider simplifying", "could be improved", "might want to") without concrete code changes
    - Announce: "Rejected N findings (M missing required fields, K vague fixes). Proceeding with R valid findings."
 
