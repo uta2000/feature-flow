@@ -396,15 +396,15 @@ When the platform is mobile, modify the step list:
 
 Announce the platform-specific additions: "Mobile platform detected. Adding: device matrix testing, beta testing, app store review, and comment and close issue steps."
 
-Use the `TaskCreate` tool to create a todo item for each step. **Important:** `TaskCreate` is a deferred tool — you must load it via `ToolSearch(query: "select:TaskCreate")` before first use. Do NOT use the `Task` tool with `subagent_type: "TodoWrite"` — that is not a valid agent type.
+Use the `TaskCreate` tool to create a todo item for each step (see `../../references/tool-api.md` — Deferred Tools section for loading instructions and correct usage).
 
 ### Step 3: Execute Steps in Order
 
 For each step, follow this pattern:
 
 1. **Announce the step:** "Step N: [name]. Invoking [skill name]."
-2. **Mark in progress:** Update the todo item to `in_progress` using `TaskUpdate` (deferred tool — load via `ToolSearch(query: "select:TaskUpdate")` before first use)
-3. **Invoke the skill** using the Skill tool (see mapping below). **Correct Skill tool parameter names:** `skill` (not `skill_name`) and `args` (not `arguments`). Example: `Skill(skill: "feature-flow:design-document", args: "context here")`
+2. **Mark in progress:** Update the todo item to `in_progress` using `TaskUpdate` (see `../../references/tool-api.md` — Deferred Tools)
+3. **Invoke the skill** using the Skill tool (see mapping below and `../../references/tool-api.md` — Skill Tool for correct parameter names)
 4. **Confirm completion:** Verify the step produced its expected output
 5. **Mark complete:** Update the todo item to `completed` — **always call `TaskUpdate` here.** This tool call is the bridge that keeps your turn alive between steps. If you output only text without a tool call, your turn ends and the user must type "continue" to resume.
 6. **Check for context checkpoint:** If the just-completed step is a checkpoint trigger (see Context Window Checkpoints section), and the current mode is not YOLO, and the current scope includes this checkpoint — output the checkpoint block and wait for the user to respond before announcing the next step.
@@ -743,7 +743,7 @@ This step runs after copy env files and before implementation. It forces reading
 2. Identify the areas of the codebase that will be modified or extended (from the implementation plan)
 3. **Parallel dispatch** — For each identified area, dispatch one Explore agent to read 2-3 example files and extract patterns. Each agent also flags anti-patterns (files >300 lines, mixed concerns, circular dependencies, duplicated logic).
 
-   Use the Task tool with `subagent_type=Explore` and `model: haiku`. Launch all agents in a **single message** to run them concurrently. Announce: "Dispatching N pattern study agents in parallel..."
+   Use the Task tool with `subagent_type: "Explore"` and `model: "haiku"` (see `../../references/tool-api.md` — Task Tool for correct parameter syntax). Launch all agents in a **single message** to run them concurrently. Announce: "Dispatching N pattern study agents in parallel..."
 
    **Context passed to each agent:**
    - Area name and file paths/directories to examine
@@ -928,7 +928,7 @@ Run deterministic tools before dispatching agents to catch issues that linters c
 
 #### Phase 1: Dispatch review agents
 
-Dispatch the tier-selected review agents in parallel (see scope-based agent selection above). For each agent at or below the current tier, use the Task tool with the agent's `subagent_type` and `model` parameter (see table below). Launch all agents in a single message to run them concurrently.
+Dispatch the tier-selected review agents in parallel (see scope-based agent selection above). For each agent at or below the current tier, use the Task tool with the agent's `subagent_type` and `model` parameter (see table below and `../../references/tool-api.md` — Task Tool for correct syntax). Launch all agents in a single message to run them concurrently.
 
 **Each agent's prompt MUST include all of the following:**
 

@@ -63,7 +63,7 @@ If a specific task was requested, only extract criteria for that task.
 
 ### Step 3: Delegate to Task Verifier
 
-Use the Task tool to launch the `task-verifier` agent with:
+Use the Task tool with `subagent_type: "feature-flow:task-verifier"` (see `../../references/tool-api.md` — Task Tool for correct parameter syntax) to launch the task-verifier agent with:
 
 ```
 Verify the following acceptance criteria against the codebase.

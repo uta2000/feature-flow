@@ -53,7 +53,7 @@ See `../../references/project-context-schema.md` for the full schema documentati
 
 ### Step 3: Explore the Codebase
 
-Launch exploration agents to understand the areas of the codebase affected by the design. Use the Task tool with `subagent_type=Explore` and `model: haiku` for thorough analysis.
+Launch exploration agents to understand the areas of the codebase affected by the design. Use the Task tool with `subagent_type: "Explore"` and `model: "haiku"` (see `../../references/tool-api.md` — Task Tool) for thorough analysis.
 
 Key areas to explore:
 - Database schema (migrations, ORM models, type definitions)
@@ -82,7 +82,7 @@ Dispatch parallel verification agents to check the design against the codebase. 
 
 #### Dispatch
 
-Use the Task tool with `subagent_type=Explore` and `model: sonnet` for Batches 1-5 and Batch 7. Launch all applicable batch agents in a **single message** to run them concurrently. Announce: "Dispatching N verification agents in parallel..."
+Use the Task tool with `subagent_type: "Explore"` and `model: "sonnet"` for Batches 1-5 and Batch 7 (see `../../references/tool-api.md` — Task Tool for correct parameter syntax). Launch all applicable batch agents in a **single message** to run them concurrently. Announce: "Dispatching N verification agents in parallel..."
 
 **Context passed to each agent:**
 - The full design document content
@@ -100,7 +100,7 @@ Each agent returns a list of results, one per category checked:
 
 #### Batch 6 — Conditional Dispatch
 
-Batch 6 (Stack/Platform/Docs) is only dispatched if `.feature-flow.yml` exists with a non-empty `stack`, `platform`, or `gotchas` field, or if Context7 is available. If none of these conditions are met, skip Batch 6 entirely. When the conditions are met, use the Task tool with `subagent_type=Explore` and `model: sonnet` for Batch 6 and include it in the same single-message launch as Batches 1-5 and 7 so all agents run concurrently.
+Batch 6 (Stack/Platform/Docs) is only dispatched if `.feature-flow.yml` exists with a non-empty `stack`, `platform`, or `gotchas` field, or if Context7 is available (see `../../references/tool-api.md` — Context7 MCP Tools for availability check). If none of these conditions are met, skip Batch 6 entirely. When the conditions are met, use the Task tool with `subagent_type: "Explore"` and `model: "sonnet"` for Batch 6 and include it in the same single-message launch as Batches 1-5 and 7 so all agents run concurrently.
 
 **Context passed to the Batch 6 agent:**
 - The full design document content
@@ -124,7 +124,7 @@ Batch 6 sources its check instructions from this SKILL.md (not from checklist.md
 
 #### Batch 7 — Implementation Quality
 
-Batch 7 checks whether the design's proposed implementation can meet the coding standards in `references/coding-standards.md`. It is always dispatched (universally applicable to all design scopes). Use the Task tool with `subagent_type=Explore` and `model: sonnet`. Include it in the same single-message launch as Batches 1-6 so all agents run concurrently.
+Batch 7 checks whether the design's proposed implementation can meet the coding standards in `references/coding-standards.md`. It is always dispatched (universally applicable to all design scopes). Use the Task tool with `subagent_type: "Explore"` and `model: "sonnet"`. Include it in the same single-message launch as Batches 1-6 so all agents run concurrently.
 
 **Context passed to the Batch 7 agent:**
 - The full design document content
