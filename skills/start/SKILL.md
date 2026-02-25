@@ -564,6 +564,42 @@ After the plan is saved:
 2. Announce: `YOLO: writing-plans — Execution choice → Subagent-Driven (auto-selected)`
 3. Immediately proceed to the next lifecycle step
 
+### Writing Plans Quality Context Injection
+
+This section applies unconditionally in all modes (YOLO, Express, Interactive). When invoking `superpowers:writing-plans`, prepend the following quality requirements to the planning instructions so that every task in the implementation plan includes quality constraints alongside acceptance criteria. `verify-plan-criteria` enforces these requirements — tasks without Quality Constraints will be flagged.
+
+**Prepend to the planning instructions:**
+
+1. **Quality Constraints section required per task.** Every non-trivial task must include a `**Quality Constraints:**` section after its acceptance criteria. The section specifies:
+   - **Error handling pattern:** Which pattern to use (typed errors, discriminated unions, Result<T, E>) and which existing file to follow as reference
+   - **Type narrowness:** Which types must use literal unions instead of string/number, and which types should be generated vs hand-maintained
+   - **Function length/extraction:** Whether the task's main function can fit in ≤30 lines, and what helpers to extract if not
+   - **Pattern reference:** Which existing file in the codebase to follow as a structural pattern
+
+2. **Edge case criteria required in acceptance criteria.** For tasks that handle input, make external calls, or process data, acceptance criteria must include at least one edge case test:
+   - Empty/null input handling
+   - Timeout/error path handling
+   - Boundary value testing (e.g., pagination limits, max lengths)
+   - Special character/injection prevention (where applicable)
+
+**Example task with quality constraints:**
+
+```markdown
+### Task 3: Build search handler
+
+**Acceptance Criteria:**
+- [ ] Returns paginated results matching query
+- [ ] Returns empty array for no matches
+- [ ] Handles API timeout (30s) with typed error
+- [ ] Returns validation error for empty string input
+
+**Quality Constraints:**
+- Error handling: typed errors with discriminated union (match `src/handlers/users.ts`)
+- Types: `SearchResult.status` uses literal union `'available' | 'taken' | 'error'`, not string
+- Function length: handler ≤30 lines; extract validation and transformation helpers
+- Pattern: follow existing handler in `src/handlers/users.ts`
+```
+
 ### Using Git Worktrees YOLO Override
 
 When YOLO **or Express** mode is active and invoking `superpowers:using-git-worktrees` (for Express mode, substitute `Express:` for `YOLO:` in all inline announcements):
@@ -606,6 +642,38 @@ Additional YOLO behavior:
 3. When dispatching implementation subagents, use `model: sonnet` unless the task description contains keywords indicating architectural complexity: "architect", "migration", "schema change", "new data model". For these, use `model: opus`. Announce: `YOLO: subagent-driven-development — Model selection → sonnet (or opus for [keyword])`
 4. When dispatching spec review or consumer verification subagents, use `model: sonnet`. These agents compare implementation against acceptance criteria or verify existing code is unchanged — checklist work that does not require deep reasoning.
 5. When dispatching Explore agents during implementation, use `model: haiku`. These agents do read-only file exploration and pattern extraction.
+
+### Implementer Quality Context Injection
+
+This section applies unconditionally in all modes (YOLO, Express, Interactive). When `subagent-driven-development` dispatches implementer subagents, prepend quality context to each implementer's prompt so they write code that follows standards from the start.
+
+**Context injected per implementer subagent:**
+
+1. **Relevant coding standards sections.** Extract the sections from `../../references/coding-standards.md` that apply to the task being implemented, using `<!-- section: slug -->` markers. For example, a task building an API handler gets: `functions`, `error-handling`, `types`, and `naming-conventions`. A task building a UI component gets: `functions`, `types`, `separation-of-concerns`, and `naming-conventions`. Always include `functions` and `types` — they apply universally.
+
+2. **"How to Code This" notes.** Include the per-task notes generated during the Study Existing Patterns step. These map each task to the specific patterns found in the codebase (e.g., "Follow pattern from `src/handlers/users.ts`; error handling uses discriminated union return type").
+
+3. **Anti-patterns found.** Include any anti-patterns flagged during Study Existing Patterns with an explicit instruction: "Do NOT replicate these patterns in new code." This prevents implementers from copying existing bad patterns for consistency.
+
+4. **Quality Constraints from the plan task.** Include the `**Quality Constraints:**` section from the specific plan task being implemented. This gives the implementer concrete constraints: which error handling pattern, which types must be narrow, what function length target, and which file to follow.
+
+**Injection format:**
+
+```
+## Quality Context for This Task
+
+### Coding Standards (from ../../references/coding-standards.md)
+[Extracted sections relevant to this task]
+
+### How to Code This
+[Per-task notes from Study Existing Patterns]
+
+### Anti-Patterns (do NOT replicate)
+[Flagged anti-patterns from Study Existing Patterns]
+
+### Quality Constraints (from implementation plan)
+[Quality Constraints section from this specific task]
+```
 
 ### Commit Planning Artifacts Step (inline — no separate skill)
 

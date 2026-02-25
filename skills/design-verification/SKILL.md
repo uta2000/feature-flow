@@ -76,12 +76,13 @@ Dispatch parallel verification agents to check the design against the codebase. 
 | 4 | Patterns & Build | 9. Internal Consistency, 10. Pattern Adherence, 11. Dependencies, 12. Build Compatibility |
 | 5 | Structure & Layout | 13. Route & Layout Chain, 14. Structural Anti-Patterns |
 | 6 | Stack/Platform/Docs | 15. Stack-Specific, 16. Platform-Specific, 17. Project Gotchas, 18. Documentation Compliance |
+| 7 | Implementation Quality | 19. Type Narrowness, 20. Error Strategy Completeness, 21. Function Complexity Forecast, 22. Edge Case Enumeration, 23. Stack Pattern Compliance |
 
 **Verification depth filtering:** Before dispatching, consult the Verification Depth table below. Only dispatch batches containing at least one applicable category for the design's scope. Pass the list of applicable categories to each agent so it skips non-applicable categories within its batch.
 
 #### Dispatch
 
-Use the Task tool with `subagent_type=Explore` and `model: sonnet` for Batches 1-5. Launch all applicable batch agents in a **single message** to run them concurrently. Announce: "Dispatching N verification agents in parallel..."
+Use the Task tool with `subagent_type=Explore` and `model: sonnet` for Batches 1-5 and Batch 7. Launch all applicable batch agents in a **single message** to run them concurrently. Announce: "Dispatching N verification agents in parallel..."
 
 **Context passed to each agent:**
 - The full design document content
@@ -99,7 +100,7 @@ Each agent returns a list of results, one per category checked:
 
 #### Batch 6 — Conditional Dispatch
 
-Batch 6 (Stack/Platform/Docs) is only dispatched if `.feature-flow.yml` exists with a non-empty `stack`, `platform`, or `gotchas` field, or if Context7 is available. If none of these conditions are met, skip Batch 6 entirely. When the conditions are met, use the Task tool with `subagent_type=Explore` and `model: sonnet` for Batch 6 and include it in the same single-message launch as Batches 1-5 so all agents run concurrently.
+Batch 6 (Stack/Platform/Docs) is only dispatched if `.feature-flow.yml` exists with a non-empty `stack`, `platform`, or `gotchas` field, or if Context7 is available. If none of these conditions are met, skip Batch 6 entirely. When the conditions are met, use the Task tool with `subagent_type=Explore` and `model: sonnet` for Batch 6 and include it in the same single-message launch as Batches 1-5 and 7 so all agents run concurrently.
 
 **Context passed to the Batch 6 agent:**
 - The full design document content
@@ -120,6 +121,45 @@ Batch 6 sources its check instructions from this SKILL.md (not from checklist.md
     - [ ] **No deprecated APIs:** Design doesn't rely on APIs marked as deprecated in current docs
 
     If Context7 is not available, skip category 18 and note: "Context7 not available — documentation compliance check skipped."
+
+#### Batch 7 — Implementation Quality
+
+Batch 7 checks whether the design's proposed implementation can meet the coding standards in `references/coding-standards.md`. It is always dispatched (universally applicable to all design scopes). Use the Task tool with `subagent_type=Explore` and `model: sonnet`. Include it in the same single-message launch as Batches 1-6 so all agents run concurrently.
+
+**Context passed to the Batch 7 agent:**
+- The full design document content
+- The check instructions for categories 19-23 (defined inline below)
+- The codebase exploration results from Step 3
+- The relevant sections from `references/coding-standards.md` (extracted using `<!-- section: slug -->` markers)
+
+Batch 7 categories:
+
+19. **Type Narrowness Audit** — Check every type mentioned or implied in the design:
+    - [ ] **Literal unions over primitives:** Types use `'active' | 'inactive'` not `string` where the value set is known
+    - [ ] **No implicit any:** All data shapes are explicitly typed in the design
+    - [ ] **Generated types for external data:** Design specifies using generated types (not hand-maintained) for database rows, API responses
+
+20. **Error Strategy Completeness** — Check every external call and user input point:
+    - [ ] **Typed errors:** Error handling uses discriminated unions or custom error classes, not generic Error
+    - [ ] **Boundary validation:** Every system boundary (API routes, form handlers, external data) has input validation specified
+    - [ ] **Timeout/retry strategy:** External API calls specify timeout duration and retry policy
+    - [ ] **User vs system errors:** Design distinguishes user-facing messages from system error logging
+
+21. **Function Complexity Forecast** — Check proposed operations for complexity:
+    - [ ] **Decomposition planned:** Operations that would exceed 30 lines are decomposed into named sub-operations in the design
+    - [ ] **Max 3 parameters:** No proposed function signature exceeds 3 parameters
+    - [ ] **Single responsibility:** Each proposed component/function has one clear purpose
+
+22. **Edge Case Enumeration** — Check for completeness of edge case handling:
+    - [ ] **Empty/null inputs:** Design addresses what happens with empty strings, null values, missing data
+    - [ ] **Boundary values:** Design addresses pagination limits, max lengths, rate limits
+    - [ ] **Error paths:** Design specifies behavior for network failures, timeouts, invalid data
+    - [ ] **Concurrent access:** If applicable, design addresses race conditions or concurrent modifications
+
+23. **Stack Pattern Compliance** — Check against loaded stack reference files:
+    - [ ] **Current patterns:** Design uses patterns matching `references/stacks/*.md` recommendations
+    - [ ] **No anti-patterns:** Design doesn't propose approaches flagged as anti-patterns in stack references
+    - [ ] **Framework conventions:** Design follows framework-specific conventions (e.g., Server Components vs Client Components for Next.js)
 
 #### Failure Handling
 
@@ -211,10 +251,10 @@ Adjust depth based on the design's scope:
 
 | Design Scope | Depth |
 |-------------|-------|
-| New page with new data model | Full checklist (all 14 base categories + stack/platform/gotchas + doc compliance) |
-| New API route, existing data model | Categories 1-3, 5, 7-8, 10-12, 14, 18 + stack/platform/gotchas |
-| UI-only change, no schema changes | Categories 4-6, 9-10, 12-14 + platform/gotchas |
-| Configuration or env change | Categories 7, 10-12, 14 + stack/gotchas |
+| New page with new data model | Full checklist (all 14 base categories + stack/platform/gotchas + doc compliance + implementation quality 19-23) |
+| New API route, existing data model | Categories 1-3, 5, 7-8, 10-12, 14, 18-23 + stack/platform/gotchas |
+| UI-only change, no schema changes | Categories 4-6, 9-10, 12-14, 19-23 + platform/gotchas |
+| Configuration or env change | Categories 7, 10-12, 14, 19-23 + stack/gotchas |
 
 ## Quality Rules
 

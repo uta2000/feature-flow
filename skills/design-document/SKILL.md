@@ -69,6 +69,7 @@ Select sections based on what the feature requires. Not every feature needs ever
 **Required sections:**
 - **Overview** — What the feature does, in 2-3 sentences
 - **User Flow** — Step-by-step from the user's perspective
+- **Patterns & Constraints** — Error handling strategy, type narrowness, performance constraints, and stack-specific patterns that implementation must follow
 - **Scope** — What is included and what is explicitly excluded
 
 **Include when applicable:**
@@ -126,6 +127,23 @@ Write each section following these principles (see `references/section-templates
 ### Step 3 — [Name]
 
 ## [Technical sections as needed]
+
+## Patterns & Constraints
+
+### Error Handling
+- [Strategy for each external call type — typed Result<T, E>, retry, timeout]
+- [User-facing vs system error distinction]
+
+### Types
+- [Key types with narrowness specified — literal unions, not string]
+- [Generated vs hand-maintained types]
+
+### Performance
+- [Debounce, pagination, parallel constraints]
+- [N+1 prevention strategy]
+
+### Stack-Specific
+- [Patterns from references/stacks/*.md and Context7 docs that apply]
 
 ## Migration Requirements
 [Numbered list of all schema/type changes]

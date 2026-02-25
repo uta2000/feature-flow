@@ -6,6 +6,7 @@ These standards are loaded during the implementation phase. Every piece of code 
 
 **Code should read like well-written prose.** A senior engineer reading your code for the first time should understand what it does, why it does it, and how it fits into the system — without needing comments to explain the obvious.
 
+<!-- section: functions -->
 ## Functions
 
 - **Single responsibility:** Each function does one thing. If you need "and" to describe it, split it.
@@ -36,6 +37,9 @@ function processUser(user) {
 }
 ```
 
+<!-- /section: functions -->
+
+<!-- section: error-handling -->
 ## Error Handling
 
 - **Never swallow errors:** Empty catch blocks are bugs. Either handle the error, re-throw it, or log it with context.
@@ -61,6 +65,9 @@ if (error) {
 }
 ```
 
+<!-- /section: error-handling -->
+
+<!-- section: dry -->
 ## DRY (Don't Repeat Yourself)
 
 - **Extract at 2 repetitions:** If you write the same logic twice, extract it into a shared function.
@@ -68,6 +75,9 @@ if (error) {
 - **Shared utilities go in `lib/` or `utils/`:** Not scattered across components.
 - **Constants, not magic values:** `const MAX_RETRY_COUNT = 3` not `3` scattered through code.
 
+<!-- /section: dry -->
+
+<!-- section: types -->
 ## Types (TypeScript)
 
 - **No `any`:** Every `any` is a bug waiting to happen. Use `unknown` if you truly don't know the type, then narrow it.
@@ -92,6 +102,9 @@ interface SearchResult {
 }
 ```
 
+<!-- /section: types -->
+
+<!-- section: separation-of-concerns -->
 ## Separation of Concerns
 
 - **Data fetching separate from rendering:** Server components fetch, client components render. Don't mix.
@@ -99,6 +112,9 @@ interface SearchResult {
 - **UI state separate from server state:** Use React Query / SWR for server state, useState for UI state. Don't mix.
 - **Configuration separate from code:** API keys, URLs, thresholds go in environment variables or config objects, not inline.
 
+<!-- /section: separation-of-concerns -->
+
+<!-- section: structural-quality -->
 ## Structural Quality
 
 - **No god objects:** A file, class, or component should have 2-3 responsibilities at most. If you need "and" more than twice to describe what it does, split it.
@@ -107,6 +123,9 @@ interface SearchResult {
 - **Explicit boundaries:** Features should be self-contained directories. Cross-feature imports go through public APIs (barrel exports), not deep file paths.
 - **Colocation over centralization:** Put code where it's used. A utility used by one feature lives in that feature's directory, not in a global utils/ folder. Promote to shared only when a second consumer appears.
 
+<!-- /section: structural-quality -->
+
+<!-- section: naming-conventions -->
 ## Naming Conventions
 
 - **Files:** Match the primary export. `UserProfile.tsx` exports `UserProfile`. `search-utils.ts` exports search utilities.
@@ -116,6 +135,9 @@ interface SearchResult {
 - **Boolean variables:** Prefix with `is`, `has`, `should`, `can`. `isLoading` not `loading`. `hasPermission` not `permission`.
 - **Event handlers:** Prefix with `handle`. `handleSubmit`, `handleClick`, `handleSearchComplete`.
 
+<!-- /section: naming-conventions -->
+
+<!-- section: code-organization -->
 ## Code Organization
 
 - **Imports at the top:** Organized by: external libraries, internal modules, relative imports, types.
@@ -123,6 +145,9 @@ interface SearchResult {
 - **Export from index:** Use barrel exports (`index.ts`) for directories that export multiple related items.
 - **Co-locate tests:** Test files next to the code they test, not in a separate tree.
 
+<!-- /section: code-organization -->
+
+<!-- section: comments -->
 ## Comments
 
 - **Code explains what and how. Comments explain why.**
@@ -130,6 +155,9 @@ interface SearchResult {
 - **Do comment non-obvious decisions:** `// Using bulk endpoint (not single) because single-domain has 4s/req due to 429s`
 - **TODO with context:** `// TODO(#42): Extract this when we add the second search type` — not just `// TODO: fix this`.
 
+<!-- /section: comments -->
+
+<!-- section: performance -->
 ## Performance
 
 - **Parallel when independent:** Use `Promise.all()` for independent async operations, not sequential `await`.
@@ -138,6 +166,9 @@ interface SearchResult {
 - **Memoize expensive computations:** Use `useMemo` for expensive calculations, `useCallback` for stable function references.
 - **Don't optimize prematurely:** Write clear code first. Profile before optimizing. Readable > fast unless you have evidence.
 
+<!-- /section: performance -->
+
+<!-- section: testing -->
 ## Testing
 
 - **Test behavior, not implementation:** Test what the function does, not how it does it.
@@ -146,6 +177,9 @@ interface SearchResult {
 - **AAA pattern:** Arrange (set up), Act (execute), Assert (verify). Keep them visually separated.
 - **Test edge cases:** Empty arrays, null inputs, boundary values, error paths. Not just the happy path.
 
+<!-- /section: testing -->
+
+<!-- section: stack-specific-standards -->
 ## Stack-Specific Standards
 
 These are loaded from Context7 and the stack reference files. When implementing, query Context7 for the current recommended patterns for your stack.
@@ -168,12 +202,17 @@ These are loaded from Context7 and the stack reference files. When implementing,
 - Loading/error/empty states for every async operation.
 - Avoid prop drilling > 2 levels. Use context or composition instead.
 
+<!-- /section: stack-specific-standards -->
+
+<!-- section: tool-usage-patterns -->
 ## Tool Usage Patterns
 
 - **Check file size before `Read` on unfamiliar files:** `wc -c <file>`. Files >200KB will exceed the 256KB tool limit.
 - **Large files (>200KB):** Use Grep to find relevant sections, or Read with offset/limit targeting specific functions.
 - **Code review:** `git diff` contains only the changed sections — prefer it over reading full files for reviewing changes.
 - **Never read generated files whole:** Build artifacts, minified bundles, lock files, and generated types can be megabytes. Always use targeted reads.
+
+<!-- /section: tool-usage-patterns -->
 
 ## How This File Is Used
 
