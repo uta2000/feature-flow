@@ -82,7 +82,7 @@ Dispatch parallel verification agents to check the design against the codebase. 
 
 #### Dispatch
 
-Use the Task tool with `subagent_type=Explore` and `model: sonnet` for Batches 1-5. Launch all applicable batch agents in a **single message** to run them concurrently. Announce: "Dispatching N verification agents in parallel..."
+Use the Task tool with `subagent_type=Explore` and `model: sonnet` for Batches 1-5 and Batch 7. Launch all applicable batch agents in a **single message** to run them concurrently. Announce: "Dispatching N verification agents in parallel..."
 
 **Context passed to each agent:**
 - The full design document content
@@ -100,7 +100,7 @@ Each agent returns a list of results, one per category checked:
 
 #### Batch 6 — Conditional Dispatch
 
-Batch 6 (Stack/Platform/Docs) is only dispatched if `.feature-flow.yml` exists with a non-empty `stack`, `platform`, or `gotchas` field, or if Context7 is available. If none of these conditions are met, skip Batch 6 entirely. When the conditions are met, use the Task tool with `subagent_type=Explore` and `model: sonnet` for Batch 6 and include it in the same single-message launch as Batches 1-5 so all agents run concurrently.
+Batch 6 (Stack/Platform/Docs) is only dispatched if `.feature-flow.yml` exists with a non-empty `stack`, `platform`, or `gotchas` field, or if Context7 is available. If none of these conditions are met, skip Batch 6 entirely. When the conditions are met, use the Task tool with `subagent_type=Explore` and `model: sonnet` for Batch 6 and include it in the same single-message launch as Batches 1-5 and 7 so all agents run concurrently.
 
 **Context passed to the Batch 6 agent:**
 - The full design document content
@@ -231,7 +231,7 @@ Adjust depth based on the design's scope:
 | Design Scope | Depth |
 |-------------|-------|
 | New page with new data model | Full checklist (all 14 base categories + stack/platform/gotchas + doc compliance + implementation quality 19-23) |
-| New API route, existing data model | Categories 1-3, 5, 7-8, 10-12, 14, 18-23 + stack/platform/gotchas |
+| New API route, existing data model | Categories 1-3, 5, 7-8, 10-12, 14, 18, 19-23 + stack/platform/gotchas |
 | UI-only change, no schema changes | Categories 4-6, 9-10, 12-14, 19-23 + platform/gotchas |
 | Configuration or env change | Categories 7, 10-12, 14, 19-23 + stack/gotchas |
 

@@ -111,6 +111,56 @@ Rules:
 - **[Route]** — new route at `/path` with sidebar nav entry
 ```
 
+## Patterns & Constraints Template
+
+```markdown
+## Patterns & Constraints
+
+### Error Handling
+- [Strategy for each external call type — typed Result<T, E>, retry, timeout]
+- [User-facing vs system error distinction]
+
+### Types
+- [Key types with narrowness specified — literal unions, not string]
+- [Generated vs hand-maintained types]
+
+### Performance
+- [Debounce, pagination, parallel constraints]
+- [N+1 prevention strategy]
+
+### Stack-Specific
+- [Patterns from references/stacks/*.md and Context7 docs that apply]
+```
+
+Rules:
+- Error Handling must cover every external call type in the design (API, database, file system, LLM)
+- Types must specify literal unions for known domains (status fields, categories, modes) — never use `string` when the domain is bounded
+- Performance is optional when there are no async operations or large datasets
+- Stack-Specific references the actual patterns from stack reference files, not generic advice
+
+**Example:**
+```markdown
+## Patterns & Constraints
+
+### Error Handling
+- API calls: typed errors with discriminated union `{ data: T } | { error: SearchError }` (match `src/handlers/users.ts`)
+- Database: Supabase returns `{ data, error }` — check error before using data, typed by generated types
+- User-facing: friendly messages only. System errors logged with full context.
+
+### Types
+- `SearchResult.status`: literal union `'available' | 'taken' | 'error'`, not string
+- Database types: generated via `supabase gen types` — never hand-maintained
+
+### Performance
+- Search input: 300ms debounce
+- Results: paginate at 25 per page using `.range()`
+- Independent API calls: `Promise.all()`, not sequential
+
+### Stack-Specific
+- Next.js: Search handler is a Server Action (not Route Handler) per App Router conventions
+- Supabase: Use `@supabase/ssr` for server-side client, RLS on search results table
+```
+
 ## Scope Template
 
 ```markdown

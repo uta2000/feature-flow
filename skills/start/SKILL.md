@@ -566,7 +566,7 @@ After the plan is saved:
 
 ### Writing Plans Quality Context Injection
 
-This section applies unconditionally in all modes (YOLO, Express, Interactive). When invoking `superpowers:writing-plans`, inject the following quality requirements into the planning context so that every task in the implementation plan includes quality constraints alongside acceptance criteria.
+This section applies unconditionally in all modes (YOLO, Express, Interactive). When invoking `superpowers:writing-plans`, inject the following quality requirements into the planning context so that every task in the implementation plan includes quality constraints alongside acceptance criteria. `verify-plan-criteria` enforces these requirements — tasks without Quality Constraints will be flagged.
 
 **Inject into the planner's context:**
 
@@ -649,7 +649,7 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
 
 **Context injected per implementer subagent:**
 
-1. **Relevant coding standards sections.** Extract the sections from `references/coding-standards.md` that apply to the task being implemented, using `<!-- section: slug -->` markers. For example, a task building an API handler gets: `functions`, `error-handling`, `types`, and `naming-conventions`. A task building a UI component gets: `functions`, `types`, `separation-of-concerns`, and `naming-conventions`. Always include `functions` and `types` — they apply universally.
+1. **Relevant coding standards sections.** Extract the sections from `../../references/coding-standards.md` that apply to the task being implemented, using `<!-- section: slug -->` markers. For example, a task building an API handler gets: `functions`, `error-handling`, `types`, and `naming-conventions`. A task building a UI component gets: `functions`, `types`, `separation-of-concerns`, and `naming-conventions`. Always include `functions` and `types` — they apply universally.
 
 2. **"How to Code This" notes.** Include the per-task notes generated during the Study Existing Patterns step. These map each task to the specific patterns found in the codebase (e.g., "Follow pattern from `src/handlers/users.ts`; error handling uses discriminated union return type").
 
@@ -662,7 +662,7 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
 ```
 ## Quality Context for This Task
 
-### Coding Standards (from references/coding-standards.md)
+### Coding Standards (from ../../references/coding-standards.md)
 [Extracted sections relevant to this task]
 
 ### How to Code This

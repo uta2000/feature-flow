@@ -156,14 +156,14 @@ After processing all tasks:
 
 **Plan:** [path to plan file]
 
-| Task | Status | Criteria Count |
-|------|--------|----------------|
-| Task 1: Setup schema | Has criteria | 4 |
-| Task 2: API endpoint | Drafted + approved | 5 |
-| Task 3: UI component | Drafted + approved | 3 |
-| Task 4: Documentation | Skipped | 0 |
+| Task | Criteria Status | Criteria Count | Quality Constraints |
+|------|----------------|----------------|---------------------|
+| Task 1: Setup schema | Has criteria | 4 | Present |
+| Task 2: API endpoint | Drafted + approved | 5 | Drafted |
+| Task 3: UI component | Drafted + approved | 3 | Drafted |
+| Task 4: Documentation | Skipped | 0 | Exempt |
 
-**Result:** X/Y tasks have acceptance criteria. Plan is ready for review.
+**Result:** X/Y tasks have acceptance criteria. Z/Y tasks have Quality Constraints. Plan is ready for review.
 ```
 
 ## Quality Rules for Criteria
