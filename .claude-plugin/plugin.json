@@ -1,7 +1,7 @@
 {
   "name": "feature-flow",
   "description": "Full feature development lifecycle — design docs, verification, acceptance criteria, and automated checks. Requires superpowers plugin.",
-  "version": "1.19.0",
+  "version": "1.19.1",
   "author": {
     "name": "uta2000"
   },
