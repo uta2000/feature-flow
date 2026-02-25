@@ -817,6 +817,41 @@ This step runs after self-review and before final verification. It dispatches mu
 
 Only dispatch agents that belong to the current tier (or lower). The availability check still applies — if a tier-selected agent's plugin is missing, skip it as before.
 
+#### Phase 0: Deterministic pre-filter
+
+Run deterministic tools before dispatching agents to catch issues that linters can find. Fix those issues first, then pass results as exclusion context to agents so they focus on what linters cannot catch.
+
+**Detection and execution:**
+
+1. **Detect available tools:**
+   - TypeScript: check if `tsconfig.json` exists in the project root
+   - ESLint: check if `.eslintrc*` or `eslint.config.*` exists, or `eslintConfig` in `package.json`
+   - Biome: check if `biome.json` or `biome.jsonc` exists
+   If no tools are detected, skip Phase 0 entirely: "No deterministic tools detected — skipping pre-filter."
+
+2. **Run detected tools in parallel:**
+   - TypeScript: `npx tsc --noEmit 2>&1`
+   - ESLint: `npx eslint --no-error-on-unmatched-pattern . 2>&1`
+   - Biome: `npx biome check . 2>&1`
+   Timeout: 60 seconds per tool. If a tool times out, log a warning and skip it.
+
+3. **Collect and summarize results:**
+   Parse output for file paths and line numbers. Categorize as type errors, lint violations, or anti-pattern violations.
+
+4. **Fix pre-filter findings:**
+   Before proceeding to Phase 1, fix the deterministic findings directly (type errors → fix types, lint errors → auto-fix with `--fix` flag or manual fix). This runs sequentially before agent dispatch to avoid race conditions.
+
+5. **Build exclusion context for Phase 1:**
+   Generate a "Pre-Filter Results" summary to include in each agent's prompt:
+   ```
+   ## Pre-Filter Results (already caught and fixed — skip these areas)
+   - [file:line] [category]: [description]
+
+   Focus your review on issues these tools CANNOT catch:
+   logic errors, architectural mismatches, missing edge cases, security vulnerabilities.
+   ```
+   If no issues were found in the pre-filter, include: "Pre-filter ran clean — no deterministic issues found. Proceed with full review."
+
 #### Phase 1: Dispatch review agents
 
 Dispatch the tier-selected review agents in parallel (see scope-based agent selection above). For each agent at or below the current tier, use the Task tool with the agent's `subagent_type` and `model` parameter (see table below). Each agent's prompt should include the full branch diff (`git diff [base-branch]...HEAD`) and a description of what to review. Launch all agents in a single message to run them concurrently.
