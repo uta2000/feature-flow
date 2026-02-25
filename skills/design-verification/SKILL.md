@@ -76,6 +76,7 @@ Dispatch parallel verification agents to check the design against the codebase. 
 | 4 | Patterns & Build | 9. Internal Consistency, 10. Pattern Adherence, 11. Dependencies, 12. Build Compatibility |
 | 5 | Structure & Layout | 13. Route & Layout Chain, 14. Structural Anti-Patterns |
 | 6 | Stack/Platform/Docs | 15. Stack-Specific, 16. Platform-Specific, 17. Project Gotchas, 18. Documentation Compliance |
+| 7 | Implementation Quality | 19. Type Narrowness, 20. Error Strategy Completeness, 21. Function Complexity Forecast, 22. Edge Case Enumeration, 23. Stack Pattern Compliance |
 
 **Verification depth filtering:** Before dispatching, consult the Verification Depth table below. Only dispatch batches containing at least one applicable category for the design's scope. Pass the list of applicable categories to each agent so it skips non-applicable categories within its batch.
 
@@ -120,6 +121,24 @@ Batch 6 sources its check instructions from this SKILL.md (not from checklist.md
     - [ ] **No deprecated APIs:** Design doesn't rely on APIs marked as deprecated in current docs
 
     If Context7 is not available, skip category 18 and note: "Context7 not available — documentation compliance check skipped."
+
+#### Batch 7 — Implementation Quality
+
+Batch 7 checks whether the design's proposed implementation can meet the coding standards in `references/coding-standards.md`. It is always dispatched (universally applicable to all design scopes). Use the Task tool with `subagent_type=Explore` and `model: sonnet`. Include it in the same single-message launch as Batches 1-6 so all agents run concurrently.
+
+**Context passed to the Batch 7 agent:**
+- The full design document content
+- The check instructions for categories 19-23 (defined inline below)
+- The codebase exploration results from Step 3
+- The relevant sections from `references/coding-standards.md` (extracted using `<!-- section: slug -->` markers)
+
+Batch 7 categories:
+
+19. **Type Narrowness Audit** — Check that every type proposed in the design uses the narrowest possible type. Flag `string` where a literal union (`'active' | 'inactive'`) was intended. Flag `number` where a specific range or enum is appropriate. Reference the Types section of `coding-standards.md`.
+20. **Error Strategy Completeness** — Verify every external call (API, database, file system, LLM) in the design has a defined error handling strategy: typed errors, retry policy, timeout, and user-facing vs system error distinction. Flag missing error typing or missing timeout/retry for external calls. Reference the Error Handling section of `coding-standards.md`.
+21. **Function Complexity Forecast** — Assess whether proposed functions can reasonably fit within 30 lines. Flag "god functions" designed into the plan — handlers that combine validation, transformation, API calls, and response formatting in a single function. Recommend extraction points. Reference the Functions section of `coding-standards.md`.
+22. **Edge Case Enumeration** — Check that the design addresses edge cases: empty input, null values, boundary values, timeout scenarios, concurrent access, and malformed data. Flag missing edge case handling for each proposed component.
+23. **Stack Pattern Compliance** — Verify the design uses patterns from the loaded stack reference files (`references/stacks/*.md`). Check that framework-specific patterns (server/client boundaries, auth patterns, data fetching conventions) match current best practices.
 
 #### Failure Handling
 
@@ -211,10 +230,10 @@ Adjust depth based on the design's scope:
 
 | Design Scope | Depth |
 |-------------|-------|
-| New page with new data model | Full checklist (all 14 base categories + stack/platform/gotchas + doc compliance) |
-| New API route, existing data model | Categories 1-3, 5, 7-8, 10-12, 14, 18 + stack/platform/gotchas |
-| UI-only change, no schema changes | Categories 4-6, 9-10, 12-14 + platform/gotchas |
-| Configuration or env change | Categories 7, 10-12, 14 + stack/gotchas |
+| New page with new data model | Full checklist (all 14 base categories + stack/platform/gotchas + doc compliance + implementation quality 19-23) |
+| New API route, existing data model | Categories 1-3, 5, 7-8, 10-12, 14, 18-23 + stack/platform/gotchas |
+| UI-only change, no schema changes | Categories 4-6, 9-10, 12-14, 19-23 + platform/gotchas |
+| Configuration or env change | Categories 7, 10-12, 14, 19-23 + stack/gotchas |
 
 ## Quality Rules
 
