@@ -564,6 +564,42 @@ After the plan is saved:
 2. Announce: `YOLO: writing-plans — Execution choice → Subagent-Driven (auto-selected)`
 3. Immediately proceed to the next lifecycle step
 
+### Writing Plans Quality Context Injection
+
+This section applies unconditionally in all modes (YOLO, Express, Interactive). When invoking `superpowers:writing-plans`, inject the following quality requirements into the planning context so that every task in the implementation plan includes quality constraints alongside acceptance criteria.
+
+**Inject into the planner's context:**
+
+1. **Quality Constraints section required per task.** Every non-trivial task must include a `**Quality Constraints:**` section after its acceptance criteria. The section specifies:
+   - **Error handling pattern:** Which pattern to use (typed errors, discriminated unions, Result<T, E>) and which existing file to follow as reference
+   - **Type narrowness:** Which types must use literal unions instead of string/number, and which types should be generated vs hand-maintained
+   - **Function length/extraction:** Whether the task's main function can fit in ≤30 lines, and what helpers to extract if not
+   - **Pattern reference:** Which existing file in the codebase to follow as a structural pattern
+
+2. **Edge case criteria required in acceptance criteria.** For tasks that handle input, make external calls, or process data, acceptance criteria must include at least one edge case test:
+   - Empty/null input handling
+   - Timeout/error path handling
+   - Boundary value testing (e.g., pagination limits, max lengths)
+   - Special character/injection prevention (where applicable)
+
+**Example task with quality constraints:**
+
+```markdown
+### Task 3: Build search handler
+
+**Acceptance Criteria:**
+- [ ] Returns paginated results matching query
+- [ ] Returns empty array for no matches
+- [ ] Handles API timeout (30s) with typed error
+- [ ] Returns validation error for empty string input
+
+**Quality Constraints:**
+- Error handling: typed errors with discriminated union (match `src/handlers/users.ts`)
+- Types: `SearchResult.status` uses literal union `'available' | 'taken' | 'error'`, not string
+- Function length: handler ≤30 lines; extract validation and transformation helpers
+- Pattern: follow existing handler in `src/handlers/users.ts`
+```
+
 ### Using Git Worktrees YOLO Override
 
 When YOLO **or Express** mode is active and invoking `superpowers:using-git-worktrees` (for Express mode, substitute `Express:` for `YOLO:` in all inline announcements):
