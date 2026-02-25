@@ -220,6 +220,9 @@ These are loaded from Context7 and the stack reference files. When implementing,
 2. **Implementation:** These standards guide every line of code written
 3. **Self-review:** After implementation, code is reviewed against these standards before formal code review
 4. **Anti-pattern hook:** PostToolUse hook checks for violations of these standards
+5. **Design verification (Batch 7):** Design verification extracts relevant sections using `<!-- section: slug -->` markers to check whether proposed designs can meet these standards
+6. **Writing Plans Quality Context Injection:** The planning step references these standards when generating per-task Quality Constraints
+7. **Implementer Quality Context Injection:** Each implementer subagent receives relevant sections (extracted via section markers) as part of its prompt context
 
 ## Agent-Section Mapping
 

@@ -66,7 +66,7 @@ Key areas to explore:
 
 Dispatch parallel verification agents to check the design against the codebase. Each agent handles a thematic batch of checklist categories.
 
-**Read `references/checklist.md` for the full detailed checklist.** The checklist is partitioned into 6 batches using `<!-- batch: N -->` markers:
+**Read `references/checklist.md` for the full detailed checklist.** The checklist is partitioned into 7 batches (6 using `<!-- batch: N -->` markers in checklist.md, plus Batch 7 defined inline below):
 
 | Batch | Agent | Categories |
 |-------|-------|------------|
@@ -268,7 +268,7 @@ Adjust depth based on the design's scope:
 ### Reference Files
 
 For the full detailed verification checklist with specific checks per category:
-- **`references/checklist.md`** — Base verification checklist with 14 categories, specific checks, and examples of common findings
+- **`references/checklist.md`** — Base verification checklist with 14 categories (Batches 1-5), specific checks, and examples of common findings. Batches 6 (categories 15-18) and 7 (categories 19-23) are defined inline in this SKILL.md.
 
 For project context and stack/platform-specific checks:
 - **`../../references/project-context-schema.md`** — Schema for `.feature-flow.yml`

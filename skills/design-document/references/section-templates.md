@@ -182,16 +182,16 @@ Rules:
 ## Feature Type Examples
 
 ### API Integration Feature
-Typical sections: Overview, Example, Data Model Changes, API Integration, Migration Requirements, Scope
+Typical sections: Overview, Example, Data Model Changes, API Integration, Migration Requirements, Patterns & Constraints, Scope
 
 ### UI-Only Feature
-Typical sections: Overview, User Flow, New Components, UI Adaptations, Scope
+Typical sections: Overview, User Flow, New Components, UI Adaptations, Patterns & Constraints, Scope
 
 ### Data Migration Feature
-Typical sections: Overview, Data Model Changes, Migration Requirements, Rollback Plan, Scope
+Typical sections: Overview, Data Model Changes, Migration Requirements, Rollback Plan, Patterns & Constraints, Scope
 
 ### Mobile Feature (iOS / Android / Cross-Platform)
-Typical sections: Overview, User Flow, Feature Flag Strategy, Rollback Plan, API Versioning, Device Compatibility, Data Model Changes, New Components, Migration Requirements, Scope
+Typical sections: Overview, User Flow, Feature Flag Strategy, Rollback Plan, API Versioning, Device Compatibility, Data Model Changes, New Components, Migration Requirements, Patterns & Constraints, Scope
 
 ### Full-Stack Feature
 Typical sections: All sections as applicable

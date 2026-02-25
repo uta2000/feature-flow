@@ -336,7 +336,7 @@ git commit -m "feat: add structured output rejection filter to Phase 3"
 
 **Acceptance Criteria:**
 - [ ] Phase 3 in `skills/start/SKILL.md` contains a step numbered `0` titled "Reject non-compliant findings" that appears before the deduplication step
-- [ ] The rejection step discards findings missing required fields: `file`, `line`, `rule`, `severity`, `fix`
+- [ ] The rejection step discards findings missing required fields: `file`, `line`, `rule`, `severity`, `description`, `fix`
 - [ ] The rejection step discards findings where `fix` contains only commentary without concrete code
 - [ ] The rejection step includes an announcement format with counts of rejected findings
 - [ ] The existing deduplication, severity classification, and fix-in-order steps are preserved unchanged
