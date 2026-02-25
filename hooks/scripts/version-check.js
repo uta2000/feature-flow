@@ -37,6 +37,23 @@ function stampVersion(content, version) {
   return `plugin_version: ${version}\n${content}`;
 }
 
+function notifyDrift(storedVersion, runningVersion) {
+  const stored = parseSemver(storedVersion);
+  const running = parseSemver(runningVersion);
+  if (!stored || !running) return;
+
+  const drift = classifyDrift(stored, running);
+  if (!drift) return;
+
+  const label = { major: 'Major', minor: 'Minor', patch: 'Patch' }[drift];
+  console.log('');
+  console.log(
+    `UPGRADE NOTICE: ${label} version drift detected — ` +
+    `config was stamped by v${storedVersion}, now running v${runningVersion}. ` +
+    `Review CHANGELOG.md for what changed.`
+  );
+}
+
 function main() {
   if (!fs.existsSync(CONFIG_FILE)) return;
 
@@ -47,21 +64,7 @@ function main() {
   const storedVersion = readPluginVersion(content);
 
   if (storedVersion && storedVersion !== runningVersion) {
-    const stored = parseSemver(storedVersion);
-    const running = parseSemver(runningVersion);
-
-    if (stored && running) {
-      const drift = classifyDrift(stored, running);
-      if (drift) {
-        const label = { major: 'Major', minor: 'Minor', patch: 'Patch' }[drift];
-        console.log('');
-        console.log(
-          `UPGRADE NOTICE: ${label} version drift detected — ` +
-          `config was stamped by v${storedVersion}, now running v${runningVersion}. ` +
-          `Review CHANGELOG.md for what changed.`
-        );
-      }
-    }
+    notifyDrift(storedVersion, runningVersion);
   }
 
   const updated = stampVersion(content, runningVersion);
