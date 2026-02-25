@@ -643,6 +643,38 @@ Additional YOLO behavior:
 4. When dispatching spec review or consumer verification subagents, use `model: sonnet`. These agents compare implementation against acceptance criteria or verify existing code is unchanged — checklist work that does not require deep reasoning.
 5. When dispatching Explore agents during implementation, use `model: haiku`. These agents do read-only file exploration and pattern extraction.
 
+### Implementer Quality Context Injection
+
+This section applies unconditionally in all modes (YOLO, Express, Interactive). When `subagent-driven-development` dispatches implementer subagents, prepend quality context to each implementer's prompt so they write code that follows standards from the start.
+
+**Context injected per implementer subagent:**
+
+1. **Relevant coding standards sections.** Extract the sections from `references/coding-standards.md` that apply to the task being implemented, using `<!-- section: slug -->` markers. For example, a task building an API handler gets: `functions`, `error-handling`, `types`, and `naming-conventions`. A task building a UI component gets: `functions`, `types`, `separation-of-concerns`, and `naming-conventions`. Always include `functions` and `types` — they apply universally.
+
+2. **"How to Code This" notes.** Include the per-task notes generated during the Study Existing Patterns step. These map each task to the specific patterns found in the codebase (e.g., "Follow pattern from `src/handlers/users.ts`; error handling uses discriminated union return type").
+
+3. **Anti-patterns found.** Include any anti-patterns flagged during Study Existing Patterns with an explicit instruction: "Do NOT replicate these patterns in new code." This prevents implementers from copying existing bad patterns for consistency.
+
+4. **Quality Constraints from the plan task.** Include the `**Quality Constraints:**` section from the specific plan task being implemented. This gives the implementer concrete constraints: which error handling pattern, which types must be narrow, what function length target, and which file to follow.
+
+**Injection format:**
+
+```
+## Quality Context for This Task
+
+### Coding Standards (from references/coding-standards.md)
+[Extracted sections relevant to this task]
+
+### How to Code This
+[Per-task notes from Study Existing Patterns]
+
+### Anti-Patterns (do NOT replicate)
+[Flagged anti-patterns from Study Existing Patterns]
+
+### Quality Constraints (from implementation plan)
+[Quality Constraints section from this specific task]
+```
+
 ### Commit Planning Artifacts Step (inline — no separate skill)
 
 This step runs after verify-plan-criteria and before worktree setup. It commits design documents and project config to the base branch so the worktree inherits them via git history, preventing untracked file clutter.
