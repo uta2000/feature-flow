@@ -396,15 +396,15 @@ When the platform is mobile, modify the step list:
 
 Announce the platform-specific additions: "Mobile platform detected. Adding: device matrix testing, beta testing, app store review, and comment and close issue steps."
 
-Use `TaskCreate` to create a todo item for each step.
+Use the `TaskCreate` tool to create a todo item for each step. **Important:** `TaskCreate` is a deferred tool — you must load it via `ToolSearch(query: "select:TaskCreate")` before first use. Do NOT use the `Task` tool with `subagent_type: "TodoWrite"` — that is not a valid agent type.
 
 ### Step 3: Execute Steps in Order
 
 For each step, follow this pattern:
 
 1. **Announce the step:** "Step N: [name]. Invoking [skill name]."
-2. **Mark in progress:** Update the todo item to `in_progress`
-3. **Invoke the skill** using the Skill tool (see mapping below)
+2. **Mark in progress:** Update the todo item to `in_progress` using `TaskUpdate` (deferred tool — load via `ToolSearch(query: "select:TaskUpdate")` before first use)
+3. **Invoke the skill** using the Skill tool (see mapping below). **Correct Skill tool parameter names:** `skill` (not `skill_name`) and `args` (not `arguments`). Example: `Skill(skill: "feature-flow:design-document", args: "context here")`
 4. **Confirm completion:** Verify the step produced its expected output
 5. **Mark complete:** Update the todo item to `completed` — **always call `TaskUpdate` here.** This tool call is the bridge that keeps your turn alive between steps. If you output only text without a tool call, your turn ends and the user must type "continue" to resume.
 6. **Check for context checkpoint:** If the just-completed step is a checkpoint trigger (see Context Window Checkpoints section), and the current mode is not YOLO, and the current scope includes this checkpoint — output the checkpoint block and wait for the user to respond before announcing the next step.
