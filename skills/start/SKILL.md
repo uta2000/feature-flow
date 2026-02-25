@@ -142,7 +142,10 @@ After loading project context, detect the base branch that will be used as the P
 Detection cascade:
 1. `.feature-flow.yml` → `default_branch` field (if present and non-empty)
 2. `git config --get init.defaultBranch` (if set and branch exists locally or on remote)
-3. Check if `staging` branch exists: `git rev-parse --verify staging 2>/dev/null`
+3. Check for common integration branches (local first, then remote):
+   a. `develop`: `git rev-parse --verify develop 2>/dev/null || git rev-parse --verify origin/develop 2>/dev/null`
+   b. `staging`: `git rev-parse --verify staging 2>/dev/null || git rev-parse --verify origin/staging 2>/dev/null`
+   `develop` is checked before `staging` because it is the Git Flow standard integration branch, while `staging` is typically an environment branch. If both exist, announce a warning: `"Both develop and staging branches detected. Using develop — set default_branch in .feature-flow.yml to override."`
 4. Fall back to `main` (or `master` if `main` doesn't exist)
 
 Announce: `"Detected base branch: [branch]. All PR targets and branch diffs will use this."`
