@@ -566,9 +566,9 @@ After the plan is saved:
 
 ### Writing Plans Quality Context Injection
 
-This section applies unconditionally in all modes (YOLO, Express, Interactive). When invoking `superpowers:writing-plans`, inject the following quality requirements into the planning context so that every task in the implementation plan includes quality constraints alongside acceptance criteria. `verify-plan-criteria` enforces these requirements — tasks without Quality Constraints will be flagged.
+This section applies unconditionally in all modes (YOLO, Express, Interactive). When invoking `superpowers:writing-plans`, prepend the following quality requirements to the planning instructions so that every task in the implementation plan includes quality constraints alongside acceptance criteria. `verify-plan-criteria` enforces these requirements — tasks without Quality Constraints will be flagged.
 
-**Inject into the planner's context:**
+**Prepend to the planning instructions:**
 
 1. **Quality Constraints section required per task.** Every non-trivial task must include a `**Quality Constraints:**` section after its acceptance criteria. The section specifies:
    - **Error handling pattern:** Which pattern to use (typed errors, discriminated unions, Result<T, E>) and which existing file to follow as reference

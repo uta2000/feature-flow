@@ -143,6 +143,12 @@ For each task where criteria were approved:
 - [ ] Criterion 2
 - [ ] Criterion 3
 
+**Quality Constraints:**
+- Error handling: [pattern and reference file]
+- Types: [narrowness requirements]
+- Function length: [extraction guidance]
+- Pattern: [reference file to follow]
+
 **Files:**
 ...
 ```

@@ -134,11 +134,32 @@ Batch 7 checks whether the design's proposed implementation can meet the coding 
 
 Batch 7 categories:
 
-19. **Type Narrowness Audit** — Check that every type proposed in the design uses the narrowest possible type. Flag `string` where a literal union (`'active' | 'inactive'`) was intended. Flag `number` where a specific range or enum is appropriate. Reference the Types section of `coding-standards.md`.
-20. **Error Strategy Completeness** — Verify every external call (API, database, file system, LLM) in the design has a defined error handling strategy: typed errors, retry policy, timeout, and user-facing vs system error distinction. Flag missing error typing or missing timeout/retry for external calls. Reference the Error Handling section of `coding-standards.md`.
-21. **Function Complexity Forecast** — Assess whether proposed functions can reasonably fit within 30 lines. Flag "god functions" designed into the plan — handlers that combine validation, transformation, API calls, and response formatting in a single function. Recommend extraction points. Reference the Functions section of `coding-standards.md`.
-22. **Edge Case Enumeration** — Check that the design addresses edge cases: empty input, null values, boundary values, timeout scenarios, concurrent access, and malformed data. Flag missing edge case handling for each proposed component.
-23. **Stack Pattern Compliance** — Verify the design uses patterns from the loaded stack reference files (`references/stacks/*.md`). Check that framework-specific patterns (server/client boundaries, auth patterns, data fetching conventions) match current best practices.
+19. **Type Narrowness Audit** — Check every type mentioned or implied in the design:
+    - [ ] **Literal unions over primitives:** Types use `'active' | 'inactive'` not `string` where the value set is known
+    - [ ] **No implicit any:** All data shapes are explicitly typed in the design
+    - [ ] **Generated types for external data:** Design specifies using generated types (not hand-maintained) for database rows, API responses
+
+20. **Error Strategy Completeness** — Check every external call and user input point:
+    - [ ] **Typed errors:** Error handling uses discriminated unions or custom error classes, not generic Error
+    - [ ] **Boundary validation:** Every system boundary (API routes, form handlers, external data) has input validation specified
+    - [ ] **Timeout/retry strategy:** External API calls specify timeout duration and retry policy
+    - [ ] **User vs system errors:** Design distinguishes user-facing messages from system error logging
+
+21. **Function Complexity Forecast** — Check proposed operations for complexity:
+    - [ ] **Decomposition planned:** Operations that would exceed 30 lines are decomposed into named sub-operations in the design
+    - [ ] **Max 3 parameters:** No proposed function signature exceeds 3 parameters
+    - [ ] **Single responsibility:** Each proposed component/function has one clear purpose
+
+22. **Edge Case Enumeration** — Check for completeness of edge case handling:
+    - [ ] **Empty/null inputs:** Design addresses what happens with empty strings, null values, missing data
+    - [ ] **Boundary values:** Design addresses pagination limits, max lengths, rate limits
+    - [ ] **Error paths:** Design specifies behavior for network failures, timeouts, invalid data
+    - [ ] **Concurrent access:** If applicable, design addresses race conditions or concurrent modifications
+
+23. **Stack Pattern Compliance** — Check against loaded stack reference files:
+    - [ ] **Current patterns:** Design uses patterns matching `references/stacks/*.md` recommendations
+    - [ ] **No anti-patterns:** Design doesn't propose approaches flagged as anti-patterns in stack references
+    - [ ] **Framework conventions:** Design follows framework-specific conventions (e.g., Server Components vs Client Components for Next.js)
 
 #### Failure Handling
 
@@ -231,7 +252,7 @@ Adjust depth based on the design's scope:
 | Design Scope | Depth |
 |-------------|-------|
 | New page with new data model | Full checklist (all 14 base categories + stack/platform/gotchas + doc compliance + implementation quality 19-23) |
-| New API route, existing data model | Categories 1-3, 5, 7-8, 10-12, 14, 18, 19-23 + stack/platform/gotchas |
+| New API route, existing data model | Categories 1-3, 5, 7-8, 10-12, 14, 18-23 + stack/platform/gotchas |
 | UI-only change, no schema changes | Categories 4-6, 9-10, 12-14, 19-23 + platform/gotchas |
 | Configuration or env change | Categories 7, 10-12, 14, 19-23 + stack/gotchas |
 
