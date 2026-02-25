@@ -907,6 +907,11 @@ At Tier 1, only `silent-failure-hunter` (item 1) applies — `code-simplifier` w
 
 Collect findings from the reporting agents dispatched in Phase 1. Consolidate them:
 
+0. **Reject non-compliant findings** — before any other processing, filter out findings that do not meet the structured output requirement from Phase 1:
+   - Discard findings missing any required field (`file`, `line`, `rule`, `severity`, `fix`)
+   - Discard findings where `fix` contains only commentary ("consider simplifying", "could be improved", "might want to") without concrete code changes
+   - Announce: "Rejected N findings (M missing required fields, K vague fixes). Proceeding with R valid findings."
+
 1. **Deduplicate by file path + line number** — if two agents flag the same location, keep the higher-severity finding
 2. **If same severity**, prefer the more specific agent (among those dispatched): security > type-design > test-analyzer > feature-dev > superpowers
 3. **Classify by severity:** Critical, Important, Minor
