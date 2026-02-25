@@ -406,9 +406,11 @@ For each step, follow this pattern:
 2. **Mark in progress:** Update the todo item to `in_progress`
 3. **Invoke the skill** using the Skill tool (see mapping below)
 4. **Confirm completion:** Verify the step produced its expected output
-5. **Mark complete:** Update the todo item to `completed`
+5. **Mark complete:** Update the todo item to `completed` — **always call `TaskUpdate` here.** This tool call is the bridge that keeps your turn alive between steps. If you output only text without a tool call, your turn ends and the user must type "continue" to resume.
 6. **Check for context checkpoint:** If the just-completed step is a checkpoint trigger (see Context Window Checkpoints section), and the current mode is not YOLO, and the current scope includes this checkpoint — output the checkpoint block and wait for the user to respond before announcing the next step.
-7. **Announce next step:** "Step N complete. Next: Step N+1 — [name]."
+7. **Announce next step and loop:** "Step N complete. Next: Step N+1 — [name]." Then **immediately loop back to sub-step 1 (Announce the step)** for the next lifecycle step.
+
+**YOLO Execution Continuity (CRITICAL):** In YOLO mode, the execution loop must be **uninterrupted**. After completing one step, proceed directly to the next step in the same turn — do NOT end your turn between steps. The most common failure mode is: a skill outputs text (e.g., brainstorming decisions table), the assistant's turn ends because there are no pending tool calls, and the user must type "continue" to resume — this defeats the purpose of YOLO ("fully unattended, no pauses"). To prevent this: after a skill finishes outputting results, **always make the `TaskUpdate` tool call (step 5) in the same response** to keep the turn alive, then continue to step 7 and loop back to step 1 for the next step.
 
 **YOLO Propagation:** When YOLO mode is active, prepend `yolo: true. scope: [scope].` to the `args` parameter of every `Skill` invocation. Scope context is required because design-document uses it to determine checkpoint behavior. For example:
 
@@ -487,6 +489,7 @@ Instead:
 4. After self-answering all questions, present the design as a single block — do NOT break it into sections and do NOT ask "does this look right?" after each section
 5. Do NOT ask "Ready to set up for implementation?" — the lifecycle continues automatically to the next step
 6. Ensure all self-answered decisions are captured when passing context to the design document step
+7. **After outputting the brainstorming results, immediately call `TaskUpdate` to mark brainstorming complete** — do NOT end your turn with only text output. The tool call keeps your turn alive so you can proceed to the next lifecycle step.
 
 This is the most complex YOLO interaction — the LLM makes design-level decisions. The user reviews these via the design document output rather than each micro-decision.
 
@@ -521,7 +524,7 @@ Or type "continue" to skip compaction and proceed.
 | Major feature | All 3 |
 
 **Suppression rules:**
-- **YOLO mode:** All checkpoints suppressed — do not output the checkpoint block
+- **YOLO mode:** All checkpoints suppressed — do not output the checkpoint block, do not end your turn. Proceed immediately to the next step (see **YOLO Execution Continuity** in Step 3).
 - **Express mode:** Checkpoints are shown — output the checkpoint block and wait
 - **Interactive mode:** Checkpoints are shown — output the checkpoint block and wait
 - **Quick fix scope:** No checkpoints regardless of mode
@@ -858,6 +861,8 @@ This step runs after implementation and before formal code review. It catches "i
 - [area] follows existing patterns
 ```
 
+**YOLO continuity:** After outputting self-review results, immediately call `TaskUpdate` to mark this step complete — do not end your turn with only text output.
+
 ### Code Review Pipeline Step (inline — no separate skill)
 
 This step runs after self-review and before final verification. It dispatches multiple specialized review agents in parallel, auto-fixes findings, and re-verifies until clean. The goal is shipping clean code, not a list of TODOs.
@@ -1048,6 +1053,8 @@ Output a summary:
 **Status:** Clean / N issues remaining
 ```
 
+**YOLO continuity:** After outputting the code review report, immediately call `TaskUpdate` to mark this step complete — do not end your turn with only text output.
+
 ### Generate CHANGELOG Entry Step (inline — no separate skill)
 
 This step runs after code review and before final verification. It auto-generates a CHANGELOG entry from the feature branch's git commits and presents it for user approval before writing. It runs for all scopes except Quick fix.
@@ -1172,6 +1179,8 @@ After writing, announce: "CHANGELOG.md updated with N entries across M categorie
 **Categories:** [list]
 **Action:** Written to CHANGELOG.md / Skipped by user
 ```
+
+**YOLO continuity:** After outputting CHANGELOG results, immediately call `TaskUpdate` to mark this step complete — do not end your turn with only text output.
 
 ### Comment and Close Issue Step (inline — no separate skill)
 
