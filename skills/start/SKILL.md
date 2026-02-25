@@ -679,6 +679,7 @@ This step runs after copy env files and before implementation. It forces reading
    - Instructions: read 2-3 example files, extract file structure, error handling, naming conventions, and state management patterns
    - Instructions: flag anti-patterns — files exceeding 300 lines (god files), mixed concerns, circular dependency imports, duplicated logic
    - Instructions: before reading any file, check its size with `wc -c <file>`. If >200KB, use Grep to find relevant sections instead of reading the whole file, or use Read with offset/limit parameters targeting the specific functions/components being studied.
+   - Instructions: identify 2-3 exemplary files per area that best demonstrate the project's patterns — these will be passed to code review agents as "known good" reference examples
 
    **Expected return format per agent:**
 
@@ -699,11 +700,17 @@ This step runs after copy env files and before implementation. It forces reading
 - Error handling: [how existing routes handle errors]
 - Response format: [what shape existing routes return]
 - Auth pattern: [how auth is checked]
+- Reference examples:
+  - `[file path]` ([aspects this file exemplifies])
+  - `[file path]` ([aspects this file exemplifies])
 
 ### [Area: e.g., Components]
 - State management: [local state vs hooks vs context]
 - Loading states: [how loading is shown]
 - Error states: [how errors are displayed]
+- Reference examples:
+  - `[file path]` ([aspects this file exemplifies])
+  - `[file path]` ([aspects this file exemplifies])
 
 ### Coding Standards to Follow
 - [List relevant items from coding-standards.md for this feature]
@@ -731,7 +738,7 @@ This step runs after copy env files and before implementation. It forces reading
 - State management: [specific approach matching existing patterns]
 ```
 
-6. Pass these patterns, the "How to Code This" notes, AND any anti-pattern warnings from the consolidated output to the implementation step as mandatory context. **New code MUST follow these patterns unless there is a documented reason to deviate.**
+6. Pass these patterns, the "How to Code This" notes, anti-pattern warnings, AND reference examples from the consolidated output to BOTH the implementation step AND the code review pipeline step as mandatory context. **New code MUST follow these patterns unless there is a documented reason to deviate.** The code review pipeline uses reference examples to check new code against known-good patterns.
 
 **Quality rules:**
 - Read at least 2 existing files per area being modified
