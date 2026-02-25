@@ -181,3 +181,17 @@ These are loaded from Context7 and the stack reference files. When implementing,
 2. **Implementation:** These standards guide every line of code written
 3. **Self-review:** After implementation, code is reviewed against these standards before formal code review
 4. **Anti-pattern hook:** PostToolUse hook checks for violations of these standards
+
+## Agent-Section Mapping
+
+This table maps code review agents to the sections of this file relevant to their specialty. During the code review pipeline (Phase 1), the lifecycle reads this file and extracts only the mapped sections for each agent's prompt.
+
+| Agent | Sections |
+|-------|----------|
+| `superpowers:code-reviewer` | Functions, Structural Quality, Naming Conventions, Code Organization |
+| `pr-review-toolkit:silent-failure-hunter` | Error Handling |
+| `feature-dev:code-reviewer` | Error Handling, Separation of Concerns, Performance |
+| `pr-review-toolkit:code-simplifier` | DRY, Separation of Concerns, Code Organization |
+| `backend-api-security:backend-security-coder` | Error Handling, Types |
+| `pr-review-toolkit:type-design-analyzer` | Types |
+| `pr-review-toolkit:pr-test-analyzer` | Testing |
