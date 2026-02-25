@@ -2,6 +2,19 @@
 
 All notable changes to the feature-flow plugin.
 
+## [1.19.1] - 2026-02-25
+
+### Added
+- **Shared tool API reference** (`references/tool-api.md`) — single source of truth for correct Task, Skill, deferred tool (TaskCreate/TaskUpdate), and Context7 MCP tool invocation syntax, with "Common mistakes" anti-hallucination sections targeting observed failure patterns
+- **SessionStart hook tool API hint** — correct Skill tool parameter names (`skill`/`args`, not `skill_name`/`arguments`) and deferred tool loading reminder injected into conversation context before any skill loads
+
+### Fixed
+- LLM hallucinating `skill_name`/`arguments` instead of `skill`/`args` when invoking the Skill tool (Closes #86)
+- LLM hallucinating `Task(subagent_type: "TodoWrite")` instead of using the `TaskCreate` deferred tool (Closes #84)
+- Inconsistent Task tool parameter notation across 5 skills (`subagent_type=Explore` → `subagent_type: "Explore"`)
+- Missing Context7 MCP plugin availability checks in spike and design-document skills
+- Explicit `subagent_type: "feature-flow:task-verifier"` in verify-acceptance-criteria skill
+
 ## [1.19.0] - 2026-02-25
 
 ### Added
@@ -96,7 +109,7 @@ All notable changes to the feature-flow plugin.
 - Combined prompt variants correctly exclude major features from YOLO-recommended label (major with detailed context maps to Neutral)
 - Neutral recommendation variant includes both detailed issue and detailed inline context triggers
 - Spike dispatch instruction repositioned parenthetical to correctly attach to `subagent_type` rather than `model`
-- Batch 6 dispatch now specifies `subagent_type=Explore`, context specification, and concurrent launch with Batches 1-5
+- Batch 6 dispatch now specifies `subagent_type: "Explore"`, context specification, and concurrent launch with Batches 1-5
 - Verification return format uses array notation to match list-of-results semantics
 - SKIPPED verification categories tracked distinctly from PASS/FAIL/WARNING with prominent warnings
 - Context7 skip conditions consolidated into dispatch table to prevent unnecessary agent dispatches
