@@ -747,11 +747,12 @@ This step runs after copy env files and before implementation. It forces reading
    - Instructions: read 2-3 example files, extract file structure, error handling, naming conventions, and state management patterns
    - Instructions: flag anti-patterns — files exceeding 300 lines (god files), mixed concerns, circular dependency imports, duplicated logic
    - Instructions: before reading any file, check its size with `wc -c <file>`. If >200KB, use Grep to find relevant sections instead of reading the whole file, or use Read with offset/limit parameters targeting the specific functions/components being studied.
+   - Instructions: identify 2-3 exemplary files per area that best demonstrate the project's patterns — these will be passed to code review agents as "known good" reference examples
 
    **Expected return format per agent:**
 
    ```
-   { area: string, patterns: [{ aspect: string, pattern: string }], antiPatterns: [{ file: string, issue: string, recommendation: string }] }
+   { area: string, patterns: [{ aspect: string, pattern: string }], antiPatterns: [{ file: string, issue: string, recommendation: string }], referenceExamples: [{ file: string, aspects: string }] }
    ```
 
    **Failure handling:** If an agent fails or crashes, retry it once. If it fails again, skip that area and log a warning: "[Area] pattern study failed — skipping. Continuing with available results."
@@ -767,11 +768,17 @@ This step runs after copy env files and before implementation. It forces reading
 - Error handling: [how existing routes handle errors]
 - Response format: [what shape existing routes return]
 - Auth pattern: [how auth is checked]
+- Reference examples:
+  - `[file path]` ([aspects this file exemplifies])
+  - `[file path]` ([aspects this file exemplifies])
 
 ### [Area: e.g., Components]
 - State management: [local state vs hooks vs context]
 - Loading states: [how loading is shown]
 - Error states: [how errors are displayed]
+- Reference examples:
+  - `[file path]` ([aspects this file exemplifies])
+  - `[file path]` ([aspects this file exemplifies])
 
 ### Coding Standards to Follow
 - [List relevant items from coding-standards.md for this feature]
@@ -799,7 +806,7 @@ This step runs after copy env files and before implementation. It forces reading
 - State management: [specific approach matching existing patterns]
 ```
 
-6. Pass these patterns, the "How to Code This" notes, AND any anti-pattern warnings from the consolidated output to the implementation step as mandatory context. **New code MUST follow these patterns unless there is a documented reason to deviate.**
+6. Pass these patterns, the "How to Code This" notes, anti-pattern warnings, AND reference examples from the consolidated output to BOTH the implementation step AND the code review pipeline step as mandatory context. **New code MUST follow these patterns unless there is a documented reason to deviate.** The code review pipeline uses reference examples to check new code against known-good patterns.
 
 **Quality rules:**
 - Read at least 2 existing files per area being modified
@@ -878,19 +885,79 @@ This step runs after self-review and before final verification. It dispatches mu
 
 Only dispatch agents that belong to the current tier (or lower). The availability check still applies — if a tier-selected agent's plugin is missing, skip it as before.
 
+#### Phase 0: Deterministic pre-filter
+
+Run deterministic tools before dispatching agents to catch issues that linters can find. Fix those issues first, then pass results as exclusion context to agents so they focus on what linters cannot catch.
+
+**Detection and execution:**
+
+1. **Detect available tools:**
+   - TypeScript: check if `tsconfig.json` exists in the project root
+   - ESLint: check if `.eslintrc*` or `eslint.config.*` exists, or `eslintConfig` in `package.json`
+   - Biome: check if `biome.json` or `biome.jsonc` exists
+   If no tools are detected, skip Phase 0 entirely: "No deterministic tools detected — skipping pre-filter."
+
+2. **Run detected tools in parallel:**
+   Before running any tool, verify the binary exists in `node_modules/.bin/` (e.g., `node_modules/.bin/tsc` for TypeScript). If the binary is not present, skip that tool with: "[tool] not found in node_modules/.bin/ — skipping. Run npm install first."
+   - TypeScript: `npx tsc --noEmit 2>&1`
+   - ESLint: `npx eslint --no-error-on-unmatched-pattern . 2>&1`
+   - Biome: `npx biome check . 2>&1`
+   Timeout: 60 seconds per tool. If a tool times out, log a warning and skip it.
+
+3. **Collect and summarize results:**
+   Parse output for file paths and line numbers. Categorize as type errors, lint violations, or anti-pattern violations.
+
+4. **Fix pre-filter findings:**
+   Before proceeding to Phase 1, fix the deterministic findings directly (type errors → fix types, lint errors → auto-fix with `--fix` flag or manual fix). This runs sequentially before agent dispatch to avoid race conditions.
+
+5. **Build exclusion context for Phase 1:**
+   Generate a "Pre-Filter Results" summary to include in each agent's prompt:
+   ```
+   ## Pre-Filter Results (already caught and fixed — skip these areas)
+   - [file:line] [category]: [description]
+
+   Focus your review on issues these tools CANNOT catch:
+   logic errors, architectural mismatches, missing edge cases, security vulnerabilities.
+   ```
+   If no issues were found in the pre-filter, include: "Pre-filter ran clean — no deterministic issues found. Proceed with full review."
+
 #### Phase 1: Dispatch review agents
 
-Dispatch the tier-selected review agents in parallel (see scope-based agent selection above). For each agent at or below the current tier, use the Task tool with the agent's `subagent_type` and `model` parameter (see table below). Each agent's prompt should include the full branch diff (`git diff [base-branch]...HEAD`) and a description of what to review. Launch all agents in a single message to run them concurrently.
+Dispatch the tier-selected review agents in parallel (see scope-based agent selection above). For each agent at or below the current tier, use the Task tool with the agent's `subagent_type` and `model` parameter (see table below). Launch all agents in a single message to run them concurrently.
 
-| Agent | Plugin | Role | Fix Mode | Model | Tier |
-|-------|--------|------|----------|-------|------|
-| `pr-review-toolkit:code-simplifier` | pr-review-toolkit | DRY, clarity, maintainability | **Direct** — writes fixes to files | sonnet | 2 |
-| `pr-review-toolkit:silent-failure-hunter` | pr-review-toolkit | Silent failures, empty catches, bad fallbacks | **Direct** — auto-fixes common patterns | sonnet | 1 |
-| `feature-dev:code-reviewer` | feature-dev | Bugs, logic errors, security, conventions | **Report** → Claude fixes | sonnet | 2 |
-| `superpowers:code-reviewer` | superpowers | General quality, plan adherence | **Report** → Claude fixes | sonnet | 1 |
-| `pr-review-toolkit:pr-test-analyzer` | pr-review-toolkit | Test coverage quality, missing tests | **Report** → Claude fixes | sonnet | 3 |
-| `backend-api-security:backend-security-coder` | backend-api-security | Input validation, auth, OWASP top 10 | **Report** → Claude fixes | opus | 3 |
-| `pr-review-toolkit:type-design-analyzer` | pr-review-toolkit | Type encapsulation, invariants, type safety | **Report** → Claude fixes | sonnet | 3 |
+**Each agent's prompt MUST include all of the following:**
+
+1. **Branch diff:** `git diff [base-branch]...HEAD`
+2. **Agent checklist:** The specific rules from the Checklist column in the table below — these are the ONLY things the agent should check
+3. **Relevant coding standards:** Extract the sections mapped to this agent from `references/coding-standards.md` (see the Agent-Section Mapping table at the bottom of that file) and include them verbatim
+4. **Stack patterns:** If `.feature-flow.yml` has a `stack` field, include applicable rules from `references/stacks/*.md` for the project's stack
+5. **Acceptance criteria:** From the implementation plan tasks, so agents can verify spec compliance
+6. **Anti-patterns and reference examples:** From the Study Existing Patterns output (carried through lifecycle context), so agents know what NOT to accept and what "known good" code looks like
+7. **Pre-filter exclusion context:** From Phase 0, so agents skip issues already caught by deterministic tools
+
+**Structured output requirement:** Instruct each **reporting** agent (Fix Mode = "Report") to return findings in this format. Direct-fix agents should summarize what they changed in free-form text (their output is consumed in Phase 2, not Phase 3). Findings that do not follow this format will be discarded in Phase 3:
+
+```
+- file: [exact file path]
+  line: [line number]
+  rule: [specific rule name from checklist]
+  severity: critical | important | minor
+  description: [what's wrong and why]
+  fix: |
+    [concrete code change — not "consider improving"]
+```
+
+Agents must name the specific rule violated from their checklist. Findings without a named rule and concrete fix will be rejected.
+
+| Agent | Plugin | Checklist | Fix Mode | Model | Tier |
+|-------|--------|-----------|----------|-------|------|
+| `pr-review-toolkit:code-simplifier` | pr-review-toolkit | (1) No duplicated logic blocks across files, (2) extract shared utilities at 2 repetitions, (3) data fetching separate from rendering, (4) business logic separate from I/O, (5) constants used for magic values | **Direct** — writes fixes to files | sonnet | 2 |
+| `pr-review-toolkit:silent-failure-hunter` | pr-review-toolkit | (1) Every catch block logs or re-throws, (2) no `.catch(() => {})` or `catch {}`, (3) no fallback that silently returns default, (4) every Promise has rejection handling, (5) no error swallowing in event handlers | **Direct** — auto-fixes common patterns | sonnet | 1 |
+| `feature-dev:code-reviewer` | feature-dev | (1) Every external call has error handling, (2) inputs validated at system boundaries, (3) no SQL/command injection vectors, (4) race conditions in async code, (5) off-by-one in loops/pagination | **Report** → Claude fixes | sonnet | 2 |
+| `superpowers:code-reviewer` | superpowers | (1) Every function ≤30 lines, (2) no nesting >3 levels, (3) guard clauses for error cases, (4) naming matches conventions, (5) no god files >300 lines, (6) all acceptance criteria met | **Report** → Claude fixes | sonnet | 1 |
+| `pr-review-toolkit:pr-test-analyzer` | pr-review-toolkit | (1) Every public function has a test, (2) error paths tested, (3) edge cases from acceptance criteria covered, (4) no mock-only tests skipping real code, (5) one behavior per test | **Report** → Claude fixes | sonnet | 3 |
+| `backend-api-security:backend-security-coder` | backend-api-security | (1) Every user input validated before use, (2) auth checked on every route, (3) no secrets in code, (4) CORS configured correctly, (5) rate limiting on public endpoints | **Report** → Claude fixes | opus | 3 |
+| `pr-review-toolkit:type-design-analyzer` | pr-review-toolkit | (1) No `any` types, (2) literal unions where applicable, (3) discriminated unions for variants, (4) generated types for external data, (5) exported types enforce invariants | **Report** → Claude fixes | sonnet | 3 |
 
 **Availability check:** Before dispatching, filter the table to agents matching the current tier (or lower), then check which of those agents' plugins are installed. Skip agents whose plugins are missing. Announce: "Running N code review agents in parallel (Tier T — [scope])..." (where N is the count of available tier-filtered agents and T is the tier number).
 
@@ -908,6 +975,11 @@ At Tier 1, only `silent-failure-hunter` (item 1) applies — `code-simplifier` w
 #### Phase 3: Consolidate and fix reported findings
 
 Collect findings from the reporting agents dispatched in Phase 1. Consolidate them:
+
+0. **Reject non-compliant findings** — before any other processing, filter out findings that do not meet the structured output requirement from Phase 1:
+   - Discard findings missing any required field (`file`, `line`, `rule`, `severity`, `description`, `fix`)
+   - Discard findings where `fix` contains only commentary ("consider simplifying", "could be improved", "might want to") without concrete code changes
+   - Announce: "Rejected N findings (M missing required fields, K vague fixes). Proceeding with R valid findings."
 
 1. **Deduplicate by file path + line number** — if two agents flag the same location, keep the higher-severity finding
 2. **If same severity**, prefer the more specific agent (among those dispatched): security > type-design > test-analyzer > feature-dev > superpowers

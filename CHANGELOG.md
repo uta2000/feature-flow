@@ -2,11 +2,17 @@
 
 All notable changes to the feature-flow plugin.
 
-## [Unreleased]
+## [1.19.0] - 2026-02-25
 
 ### Added
 - **Shift quality enforcement upstream** — adds 5 intervention points plus 1 supporting infrastructure change to push quality constraints earlier in the lifecycle so code review confirms quality rather than discovering its absence. (1) Design document gains a required "Patterns & Constraints" section covering error handling strategy, type narrowness, performance constraints, and stack-specific patterns. (2) Design verification gains Batch 7 with 5 implementation-quality categories (type narrowness audit, error strategy completeness, function complexity forecast, edge case enumeration, stack pattern compliance). (3) Implementation plans gain per-task Quality Constraints sections via Writing Plans Quality Context Injection. (4) Implementer subagents receive coding standards, "How to Code This" notes, anti-patterns, and per-task quality constraints via Implementer Quality Context Injection. (5) verify-plan-criteria gains two new validation rules: Quality Constraints required per non-trivial task, and edge case criteria required for tasks handling input/external calls/data. (6) coding-standards.md gains HTML comment section markers for machine-consumable extraction. Closes #78.
 - **GitHub Issue Dispatcher** (`dispatcher/` package) — a Python CLI tool that batch-processes GitHub issues through feature-flow's YOLO mode. Five-stage pipeline: issue selection (Textual TUI with SelectionList), AI-powered triage (claude -p with JSON schema validation and tier routing matrix), human review (DataTable TUI with tier cycling), automated execution (branch creation, claude -p headless mode, PR detection), and SQLite logging. Supports `--auto` mode for fully unattended operation, `--dry-run` for triage-only previews, `--resume` for recovering failed/leash-hit sessions, and progressive rate-limit backoff. Configurable via `dispatcher.yml` with CLI overrides. Installable as `pip install -e ".[dev]"` with `dispatcher` entry point. Closes #69.
+- **Checklist-based code review agent prompts** — replaced open-ended role descriptions with specific 5-6 rule checklists per agent in the Phase 1 dispatch table, derived from coding-standards.md sections
+- **Project context injection in agent prompts** — agents now receive relevant coding standards sections, stack patterns, acceptance criteria, anti-patterns, reference examples, and pre-filter exclusion context
+- **Phase 0 deterministic pre-filter** — runs tsc, ESLint, or Biome before agent dispatch to catch linter-detectable issues first, then passes exclusion context to agents so they focus on logic and architecture
+- **Structured output rejection filter in Phase 3** — findings missing required fields (file, line, rule, severity, fix) or containing vague commentary fixes are discarded before deduplication
+- **Reference examples in Study Existing Patterns** — exemplary files identified during pattern study are carried forward to code review agents as "known good" patterns to check against
+- **Agent-section mapping table in coding-standards.md** — maps each code review agent to the specific coding standards sections relevant to its specialty
 
 ### Fixed
 - Dispatcher code review fixes: resume_issue arg ordering bug (made resume non-functional), bare KeyError/ValueError escapes, stash returncode ignored, overly broad exception catches, missing PR lookup on resume, branch-creation failures silently dropped from exit code
