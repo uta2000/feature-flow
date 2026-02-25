@@ -2,6 +2,11 @@
 
 All notable changes to the feature-flow plugin.
 
+## [1.19.2] - 2026-02-25
+
+### Fixed
+- Base branch detection cascade now checks remote-only branches (`origin/staging`, `origin/develop`) and adds `develop` as a checked branch with Git Flow convention priority (Closes #87)
+
 ## [1.19.1] - 2026-02-25
 
 ### Added
