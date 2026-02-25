@@ -191,7 +191,7 @@ This table maps code review agents to the sections of this file relevant to thei
 | `superpowers:code-reviewer` | Functions, Structural Quality, Naming Conventions, Code Organization |
 | `pr-review-toolkit:silent-failure-hunter` | Error Handling |
 | `feature-dev:code-reviewer` | Error Handling, Separation of Concerns, Performance |
-| `pr-review-toolkit:code-simplifier` | DRY, Separation of Concerns, Code Organization |
-| `backend-api-security:backend-security-coder` | Error Handling, Types |
-| `pr-review-toolkit:type-design-analyzer` | Types |
+| `pr-review-toolkit:code-simplifier` | DRY (Don't Repeat Yourself), Separation of Concerns, Code Organization |
+| `backend-api-security:backend-security-coder` | Error Handling, Types (TypeScript) |
+| `pr-review-toolkit:type-design-analyzer` | Types (TypeScript) |
 | `pr-review-toolkit:pr-test-analyzer` | Testing |
