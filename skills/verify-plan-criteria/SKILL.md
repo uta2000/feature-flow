@@ -62,7 +62,11 @@ For each task, determine if it has acceptance criteria:
 **Missing criteria:** The task has no `**Acceptance Criteria:**` section or the section is empty.
 - Proceed to Step 4 to draft criteria.
 
-**Fast-path:** If ALL tasks already have criteria and none are flagged as vague, skip directly to Step 6 (Report). Do not execute Steps 4 or 5.
+**Quality Constraints check:** Every non-trivial task must have a `**Quality Constraints:**` section. Tasks that only create directories, copy files, or run commands are exempt. Flag tasks missing Quality Constraints with: "Task N is missing Quality Constraints — should specify error handling pattern, type narrowness, function length, and pattern reference."
+
+**Edge case criteria check:** For tasks that handle input, make external calls, or process data, acceptance criteria must include at least one edge case test (empty input, null, timeout, boundary values). Flag tasks that only have happy-path criteria with: "Task N acceptance criteria only cover happy path — add edge case criteria (empty input, error path, boundary values)."
+
+**Fast-path:** If ALL tasks already have criteria, none are flagged as vague, all non-trivial tasks have Quality Constraints, and edge case criteria are present where needed, skip directly to Step 6 (Report). Do not execute Steps 4 or 5.
 
 ### Step 4: Draft Missing Criteria
 
@@ -86,6 +90,18 @@ For each task missing criteria, generate machine-verifiable criteria from the ta
 **Always include (for non-trivial tasks):**
 - Typecheck passes (use the project's actual command — `npm run typecheck`, `yarn typecheck`, `pnpm typecheck`, `bun typecheck`, `tsc --noEmit`, or whatever `package.json` scripts defines)
 - Lint passes (use the project's actual lint command)
+
+**Draft Quality Constraints (if missing):** For tasks missing a Quality Constraints section, infer constraints from the task description, files being modified, and `references/coding-standards.md`:
+- **Error handling:** Infer from task type — API handler → typed errors with discriminated union; data processing → Result<T, E> pattern; UI component → loading/error/empty states
+- **Type narrowness:** Check if the task defines new types or interfaces. If so, specify literal unions over string/number where the domain is known
+- **Function length:** If the task describes a handler, processor, or orchestrator, note extraction points (validation, transformation, response formatting)
+- **Pattern reference:** Find the most similar existing file in the codebase and reference it
+
+**Draft edge case criteria (if missing):** For tasks with only happy-path acceptance criteria, infer edge cases from the task type:
+- API handler → timeout, validation error for empty/malformed input, auth failure
+- Data processing → empty array, null input, boundary values (0, max int, empty string)
+- External API call → timeout, rate limit, malformed response
+- UI component → loading state, error state, empty state
 
 **Present all drafted criteria in a single message:**
 
