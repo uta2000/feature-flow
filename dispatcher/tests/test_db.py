@@ -1,5 +1,3 @@
-import json
-
 from dispatcher.db import (
     get_previous_triage,
     get_resumable_issues,

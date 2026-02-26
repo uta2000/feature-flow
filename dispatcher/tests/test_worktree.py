@@ -1,7 +1,7 @@
 # dispatcher/tests/test_worktree.py
 import subprocess
 from pathlib import Path
-from unittest.mock import call, patch
+from unittest.mock import patch
 
 from dispatcher.worktree import cleanup_all, create_worktree, remove_worktree
 

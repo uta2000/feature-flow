@@ -1,5 +1,5 @@
 import subprocess
-from unittest.mock import call, patch
+from unittest.mock import patch
 
 from dispatcher.tmux import (
     create_session,
