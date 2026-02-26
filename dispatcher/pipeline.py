@@ -225,7 +225,7 @@ def _run_parallel_execution(
         # Poll for completion
         results = _poll_for_completion(
             conn, run_id, session_name, to_execute, queue,
-            worktree_paths, pane_assignments, config_json, db_path, config,
+            worktree_paths, pane_assignments, config_json, db_path,
         )
     except KeyboardInterrupt:
         print("\n  Interrupted. Cleaning up...")
@@ -268,7 +268,6 @@ def _poll_for_completion(
     pane_assignments: dict[int, int],
     config_json: str,
     db_path: str,
-    config: Config,
 ) -> list[ExecutionResult]:
     results: list[ExecutionResult] = []
     completed_indices: set[int] = set()

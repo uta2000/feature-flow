@@ -1,7 +1,4 @@
-import json
-from unittest.mock import MagicMock, AsyncMock, patch
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from dispatcher.models import Config, ExecutionResult, ReviewedIssue, TriageResult
 from dispatcher.pipeline import run
