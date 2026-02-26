@@ -231,7 +231,10 @@ def _run_parallel_execution(
         print("\n  Interrupted. Cleaning up...")
         results = []
     finally:
-        tmux.kill_session(session_name)
+        try:
+            tmux.kill_session(session_name)
+        except Exception:
+            pass
         worktree.cleanup_all(repo_root)
 
     total_turns = sum(r.num_turns for r in results)

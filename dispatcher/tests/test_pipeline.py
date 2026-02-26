@@ -420,6 +420,57 @@ def test_parallel_execution_tmux_path(mock_tmux, mock_worktree, mock_time):
 
 
 @patch("dispatcher.pipeline.time")
+@patch("dispatcher.pipeline.tmux")
+@patch("dispatcher.pipeline.worktree")
+@patch("dispatcher.pipeline.db")
+@patch("dispatcher.pipeline.github")
+@patch("dispatcher.pipeline.triage_issue")
+def test_parallel_cleanup_on_interrupt(mock_triage, mock_gh, mock_db, mock_wt, mock_tmux, mock_time):
+    """Verify worktrees and tmux are cleaned up even on interrupt."""
+    from pathlib import Path
+
+    mock_db.init_db.return_value = MagicMock()
+    mock_gh.view_issue.return_value = {"title": "Test", "body": "Body", "comments": []}
+    mock_triage.side_effect = [_triage(42), _triage(43)]
+    mock_tmux.is_tmux_available.return_value = True
+    mock_wt.create_worktree.side_effect = [Path("/wt/42"), Path("/wt/43")]
+    mock_time.time.return_value = 1000.0
+    mock_time.sleep.side_effect = KeyboardInterrupt  # interrupt during poll
+
+    mock_tmux.get_pane_status.return_value = []  # no panes finished yet
+
+    code = run(_cfg(issues=[42, 43], auto=True, dry_run=False, max_parallel=4))
+    # Cleanup should still happen
+    mock_tmux.kill_session.assert_called_once()
+    mock_wt.cleanup_all.assert_called_once()
+
+
+@patch("dispatcher.pipeline.time")
+@patch("dispatcher.pipeline.tmux")
+@patch("dispatcher.pipeline.worktree")
+@patch("dispatcher.pipeline.db")
+@patch("dispatcher.pipeline.github")
+@patch("dispatcher.pipeline.triage_issue")
+def test_parallel_cleanup_when_kill_session_fails(mock_triage, mock_gh, mock_db, mock_wt, mock_tmux, mock_time):
+    """worktree.cleanup_all runs even if tmux.kill_session raises."""
+    from pathlib import Path
+
+    mock_db.init_db.return_value = MagicMock()
+    mock_gh.view_issue.return_value = {"title": "Test", "body": "Body", "comments": []}
+    mock_triage.side_effect = [_triage(42), _triage(43)]
+    mock_tmux.is_tmux_available.return_value = True
+    mock_wt.create_worktree.side_effect = [Path("/wt/42"), Path("/wt/43")]
+    mock_time.time.return_value = 1000.0
+    mock_time.sleep.side_effect = KeyboardInterrupt
+    mock_tmux.get_pane_status.return_value = []
+    mock_tmux.kill_session.side_effect = RuntimeError("tmux not found")
+
+    code = run(_cfg(issues=[42, 43], auto=True, dry_run=False, max_parallel=4))
+    # cleanup_all must still be called even though kill_session raised
+    mock_wt.cleanup_all.assert_called_once()
+
+
+@patch("dispatcher.pipeline.time")
 @patch("dispatcher.pipeline.worktree")
 @patch("dispatcher.pipeline.tmux")
 def test_parallel_execution_batching(mock_tmux, mock_worktree, mock_time):
