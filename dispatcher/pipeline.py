@@ -4,7 +4,10 @@ import json
 import time
 import uuid
 
-from dispatcher import db, github
+from dataclasses import asdict
+from pathlib import Path
+
+from dispatcher import db, github, tmux, worktree
 from dispatcher.execute import (
     create_branch,
     execute_issue,
@@ -152,7 +155,14 @@ def _run_review(triage_results: list[TriageResult], config: Config) -> list[Revi
 def _run_execution(
     conn, run_id: str, to_execute: list[ReviewedIssue], config: Config
 ) -> tuple[list[ExecutionResult], int]:
-    stashed = stash_if_dirty()
+    if tmux.is_tmux_available() and len(to_execute) > 1:
+        return _run_parallel_execution(conn, run_id, to_execute, config)
+    return _run_sequential_execution(conn, run_id, to_execute, config)
+
+
+def _run_sequential_execution(
+    conn, run_id: str, to_execute: list[ReviewedIssue], config: Config
+) -> tuple[list[ExecutionResult], int]:
     results = []
     total_turns = 0
     tracker = _RateLimitTracker()
@@ -172,9 +182,168 @@ def _run_execution(
         results.append(er)
         total_turns += er.num_turns
 
-    if stashed:
-        unstash()
     return results, total_turns
+
+
+def _run_parallel_execution(
+    conn, run_id: str, to_execute: list[ReviewedIssue], config: Config,
+) -> tuple[list[ExecutionResult], int]:
+    repo_root = Path.cwd()
+    session_name = f"dispatcher-{run_id[:8]}"
+    num_panes = min(len(to_execute), config.max_parallel)
+    worktree_paths: list[Path] = []
+
+    try:
+        # Create worktrees for all issues
+        for r in to_execute:
+            wt_path = worktree.create_worktree(
+                r.triage.issue_number, config.base_branch, repo_root,
+            )
+            worktree_paths.append(wt_path)
+
+        # Create tmux session
+        tmux.create_session(session_name, num_panes)
+
+        # Build serialized config
+        config_json = json.dumps({k: v for k, v in asdict(config).items()})
+        db_path = str(Path(config.db_path).resolve())
+
+        # Launch initial batch
+        queue = list(enumerate(to_execute))
+        pane_assignments: dict[int, int] = {}
+        for pane_idx in range(num_panes):
+            qi, reviewed = queue.pop(0)
+            _launch_worker(
+                session_name, pane_idx, worktree_paths[qi],
+                reviewed, config_json, run_id, db_path,
+            )
+            pane_assignments[pane_idx] = qi
+
+        print(f"\n  Parallel execution started in tmux session '{session_name}'.")
+        print(f"  Run `tmux attach -t {session_name}` to watch progress.\n")
+
+        # Poll for completion
+        results = _poll_for_completion(
+            conn, run_id, session_name, to_execute, queue,
+            worktree_paths, pane_assignments, config_json, db_path, config,
+        )
+    except KeyboardInterrupt:
+        print("\n  Interrupted. Cleaning up...")
+        results = []
+    finally:
+        tmux.kill_session(session_name)
+        worktree.cleanup_all(repo_root)
+
+    total_turns = sum(r.num_turns for r in results)
+    return results, total_turns
+
+
+def _launch_worker(
+    session_name: str,
+    pane_idx: int,
+    wt_path: Path,
+    reviewed: ReviewedIssue,
+    config_json: str,
+    run_id: str,
+    db_path: str,
+) -> None:
+    issue_json = json.dumps(asdict(reviewed))
+    cmd = (
+        f"cd {wt_path} && python3 -m dispatcher.worker"
+        f" --issue-json '{issue_json}'"
+        f" --config-json '{config_json}'"
+        f" --run-id {run_id}"
+        f" --db-path {db_path}"
+    )
+    tmux.send_command(session_name, pane_idx, cmd)
+
+
+def _poll_for_completion(
+    conn,
+    run_id: str,
+    session_name: str,
+    to_execute: list[ReviewedIssue],
+    queue: list[tuple[int, ReviewedIssue]],
+    worktree_paths: list[Path],
+    pane_assignments: dict[int, int],
+    config_json: str,
+    db_path: str,
+    config: Config,
+) -> list[ExecutionResult]:
+    results: list[ExecutionResult] = []
+    completed_indices: set[int] = set()
+
+    while len(results) < len(to_execute):
+        time.sleep(5)
+        statuses = tmux.get_pane_status(session_name)
+
+        for pane_idx, is_alive, exit_code in statuses:
+            if pane_idx not in pane_assignments:
+                continue
+            if is_alive:
+                continue
+
+            qi = pane_assignments.pop(pane_idx)
+            if qi in completed_indices:
+                continue
+            completed_indices.add(qi)
+
+            reviewed = to_execute[qi]
+            er = _read_result_from_db(conn, run_id, reviewed.triage.issue_number)
+            if er is None:
+                er = ExecutionResult(
+                    issue_number=reviewed.triage.issue_number,
+                    branch_name="",
+                    session_id=None,
+                    num_turns=0,
+                    is_error=True,
+                    pr_number=None,
+                    pr_url=None,
+                    error_message=f"Worker exited with code {exit_code}",
+                    outcome="failed",
+                )
+            results.append(er)
+            _print_execution_result(
+                reviewed.triage.issue_number, er.branch_name, er,
+            )
+
+            # Launch next queued issue into freed pane
+            if queue:
+                next_qi, next_reviewed = queue.pop(0)
+                _launch_worker(
+                    session_name, pane_idx, worktree_paths[next_qi],
+                    next_reviewed, config_json, run_id, db_path,
+                )
+                pane_assignments[pane_idx] = next_qi
+
+        # Safety: if no panes are assigned and queue is empty, break
+        if not pane_assignments and not queue:
+            break
+
+    return results
+
+
+def _read_result_from_db(conn, run_id: str, issue_number: int) -> ExecutionResult | None:
+    row = conn.execute(
+        "SELECT * FROM issues WHERE run_id = ? AND issue_number = ?",
+        (run_id, issue_number),
+    ).fetchone()
+    if row is None:
+        return None
+    # Only return if worker has written execution results
+    if row["outcome"] is None:
+        return None
+    return ExecutionResult(
+        issue_number=row["issue_number"],
+        branch_name=row["branch_name"] or "",
+        session_id=row["session_id"],
+        num_turns=row["num_turns"] or 0,
+        is_error=bool(row["is_error"]),
+        pr_number=row["pr_number"],
+        pr_url=row["pr_url"],
+        error_message=row["error_message"],
+        outcome=row["outcome"],
+    )
 
 
 def _execute_single_issue(conn, run_id: str, r: ReviewedIssue, config: Config) -> ExecutionResult:

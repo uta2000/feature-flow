@@ -85,18 +85,17 @@ def test_github_error_skips_issue(mock_triage, mock_gh, mock_db):
     assert code == 1
 
 
+@patch("dispatcher.pipeline.tmux")
 @patch("dispatcher.pipeline.db")
 @patch("dispatcher.pipeline.github")
 @patch("dispatcher.pipeline.triage_issue")
 @patch("dispatcher.pipeline.execute_issue")
 @patch("dispatcher.pipeline.create_branch")
-@patch("dispatcher.pipeline.stash_if_dirty")
-@patch("dispatcher.pipeline.unstash")
-def test_execution_success_exit_0(mock_unstash, mock_stash, mock_branch, mock_exec, mock_triage, mock_gh, mock_db):
+def test_execution_success_exit_0(mock_branch, mock_exec, mock_triage, mock_gh, mock_db, mock_tmux):
+    mock_tmux.is_tmux_available.return_value = False
     mock_db.init_db.return_value = MagicMock()
     mock_gh.view_issue.return_value = {"title": "Test", "body": "Body", "comments": []}
     mock_triage.return_value = _triage()
-    mock_stash.return_value = False
     mock_branch.return_value = "fix/42-issue-42"
     mock_exec.return_value = _exec_result(outcome="pr_created")
 
@@ -104,18 +103,17 @@ def test_execution_success_exit_0(mock_unstash, mock_stash, mock_branch, mock_ex
     assert code == 0
 
 
+@patch("dispatcher.pipeline.tmux")
 @patch("dispatcher.pipeline.db")
 @patch("dispatcher.pipeline.github")
 @patch("dispatcher.pipeline.triage_issue")
 @patch("dispatcher.pipeline.execute_issue")
 @patch("dispatcher.pipeline.create_branch")
-@patch("dispatcher.pipeline.stash_if_dirty")
-@patch("dispatcher.pipeline.unstash")
-def test_execution_failure_exit_1(mock_unstash, mock_stash, mock_branch, mock_exec, mock_triage, mock_gh, mock_db):
+def test_execution_failure_exit_1(mock_branch, mock_exec, mock_triage, mock_gh, mock_db, mock_tmux):
+    mock_tmux.is_tmux_available.return_value = False
     mock_db.init_db.return_value = MagicMock()
     mock_gh.view_issue.return_value = {"title": "Test", "body": "Body", "comments": []}
     mock_triage.return_value = _triage()
-    mock_stash.return_value = False
     mock_branch.return_value = "fix/42-issue-42"
     mock_exec.return_value = _exec_result(outcome="failed")
 
@@ -123,15 +121,15 @@ def test_execution_failure_exit_1(mock_unstash, mock_stash, mock_branch, mock_ex
     assert code == 1
 
 
+@patch("dispatcher.pipeline.tmux")
 @patch("dispatcher.pipeline.db")
 @patch("dispatcher.pipeline.github")
 @patch("dispatcher.pipeline.triage_issue")
 @patch("dispatcher.pipeline.execute_issue")
 @patch("dispatcher.pipeline.create_branch")
-@patch("dispatcher.pipeline.stash_if_dirty")
-@patch("dispatcher.pipeline.unstash")
-def test_parked_comment_posted_after_execution(mock_unstash, mock_stash, mock_branch, mock_exec, mock_triage, mock_gh, mock_db):
+def test_parked_comment_posted_after_execution(mock_branch, mock_exec, mock_triage, mock_gh, mock_db, mock_tmux):
     """Parked comments should be posted after all executions complete."""
+    mock_tmux.is_tmux_available.return_value = False
     mock_db.init_db.return_value = MagicMock()
     mock_gh.view_issue.side_effect = [
         {"title": "Executable", "body": "Body", "comments": []},
@@ -143,7 +141,6 @@ def test_parked_comment_posted_after_execution(mock_unstash, mock_stash, mock_br
         triage_tier="parked", confidence=0.3, risk_flags=[], missing_info=["x"], reasoning="vague",
     )
     mock_triage.side_effect = [_triage(42), parked_tr]
-    mock_stash.return_value = False
     mock_branch.return_value = "fix/42-issue-42"
     mock_exec.return_value = _exec_result(outcome="pr_created")
 
@@ -327,3 +324,154 @@ def test_rate_limit_tracker_progressive_backoff():
     tracker.record_failure()
     tracker.record_failure()  # 3 consecutive failures
     assert tracker.backoff_seconds() == 900  # 15 minutes
+
+
+# --- Task 6: Parallel execution tests ---
+
+from dispatcher.pipeline import _run_execution, _run_parallel_execution, _run_sequential_execution
+
+
+@patch("dispatcher.pipeline.tmux")
+@patch("dispatcher.pipeline.execute_issue")
+@patch("dispatcher.pipeline.create_branch")
+def test_sequential_fallback_when_tmux_unavailable(mock_branch, mock_exec, mock_tmux):
+    """When tmux is unavailable, _run_execution falls back to sequential."""
+    mock_tmux.is_tmux_available.return_value = False
+    mock_branch.return_value = "fix/42-issue-42"
+    mock_exec.return_value = _exec_result(outcome="pr_created")
+
+    conn = MagicMock()
+    reviewed = ReviewedIssue(triage=_triage(42), final_tier="full-yolo", skipped=False, edited_comment=None)
+    results, turns = _run_execution(conn, "run-1", [reviewed, reviewed], _cfg(dry_run=False))
+
+    assert len(results) == 2
+    mock_tmux.create_session.assert_not_called()
+
+
+@patch("dispatcher.pipeline.tmux")
+@patch("dispatcher.pipeline.execute_issue")
+@patch("dispatcher.pipeline.create_branch")
+def test_sequential_fallback_single_issue_with_tmux(mock_branch, mock_exec, mock_tmux):
+    """Single issue uses sequential even when tmux is available."""
+    mock_tmux.is_tmux_available.return_value = True
+    mock_branch.return_value = "fix/42-issue-42"
+    mock_exec.return_value = _exec_result(outcome="pr_created")
+
+    conn = MagicMock()
+    reviewed = ReviewedIssue(triage=_triage(42), final_tier="full-yolo", skipped=False, edited_comment=None)
+    results, turns = _run_execution(conn, "run-1", [reviewed], _cfg(dry_run=False))
+
+    assert len(results) == 1
+    mock_tmux.create_session.assert_not_called()
+
+
+@patch("dispatcher.pipeline.time")
+@patch("dispatcher.pipeline.worktree")
+@patch("dispatcher.pipeline.tmux")
+def test_parallel_execution_tmux_path(mock_tmux, mock_worktree, mock_time):
+    """Parallel path: worktrees created, session created, workers launched, results collected."""
+    from pathlib import Path
+
+    mock_tmux.is_tmux_available.return_value = True
+    mock_worktree.create_worktree.side_effect = [Path("/wt/issue-10"), Path("/wt/issue-20")]
+
+    # Simulate panes: first poll both alive, second poll both dead
+    mock_tmux.get_pane_status.side_effect = [
+        [(0, True, None), (1, True, None)],  # first poll: both alive
+        [(0, False, 0), (1, False, 0)],       # second poll: both dead
+    ]
+    mock_time.sleep = MagicMock()  # don't actually sleep
+
+    conn = MagicMock()
+    # Simulate DB returning execution results for both issues
+    def fake_execute_row(sql, params):
+        num = params[1]
+        row = MagicMock()
+        row.__getitem__ = lambda self, key: {
+            "issue_number": num, "branch_name": f"fix/{num}-issue-{num}",
+            "session_id": "sess-1", "num_turns": 5, "is_error": 0,
+            "pr_number": 101, "pr_url": f"https://github.com/o/r/pull/101",
+            "error_message": None, "outcome": "pr_created",
+        }[key]
+        mock_fetchone = MagicMock(return_value=row)
+        return MagicMock(fetchone=mock_fetchone)
+
+    conn.execute = fake_execute_row
+
+    r1 = ReviewedIssue(triage=_triage(10), final_tier="full-yolo", skipped=False, edited_comment=None)
+    r2 = ReviewedIssue(triage=_triage(20), final_tier="full-yolo", skipped=False, edited_comment=None)
+
+    results, turns = _run_parallel_execution(conn, "abcd1234-run", [r1, r2], _cfg(dry_run=False))
+
+    # Worktrees created for each issue
+    assert mock_worktree.create_worktree.call_count == 2
+
+    # Tmux session created
+    mock_tmux.create_session.assert_called_once_with("dispatcher-abcd1234", 2)
+
+    # Workers launched via send_command (one per issue)
+    assert mock_tmux.send_command.call_count == 2
+
+    # Results collected
+    assert len(results) == 2
+    assert all(r.outcome == "pr_created" for r in results)
+    assert turns == 10
+
+    # Cleanup called
+    mock_tmux.kill_session.assert_called_once_with("dispatcher-abcd1234")
+    mock_worktree.cleanup_all.assert_called_once()
+
+
+@patch("dispatcher.pipeline.time")
+@patch("dispatcher.pipeline.worktree")
+@patch("dispatcher.pipeline.tmux")
+def test_parallel_execution_batching(mock_tmux, mock_worktree, mock_time):
+    """When more issues than max_parallel, new issues launch as panes free up."""
+    from pathlib import Path
+
+    mock_tmux.is_tmux_available.return_value = True
+    mock_worktree.create_worktree.side_effect = [
+        Path(f"/wt/issue-{n}") for n in [10, 20, 30]
+    ]
+
+    # max_parallel=2, 3 issues: first 2 launch, then 3rd when a pane frees
+    mock_tmux.get_pane_status.side_effect = [
+        [(0, True, None), (1, True, None)],    # poll 1: both alive
+        [(0, False, 0), (1, True, None)],       # poll 2: pane 0 done
+        [(0, True, None), (1, False, 0)],       # poll 3: pane 0 relaunched (issue 30), pane 1 done
+        [(0, False, 0), (1, False, 0)],          # poll 4: safety - but 1 already collected; pane 0 done
+    ]
+    mock_time.sleep = MagicMock()
+
+    conn = MagicMock()
+    def fake_execute_row(sql, params):
+        num = params[1]
+        row = MagicMock()
+        row.__getitem__ = lambda self, key: {
+            "issue_number": num, "branch_name": f"fix/{num}",
+            "session_id": "s", "num_turns": 3, "is_error": 0,
+            "pr_number": 1, "pr_url": "url", "error_message": None,
+            "outcome": "pr_created",
+        }[key]
+        return MagicMock(fetchone=MagicMock(return_value=row))
+
+    conn.execute = fake_execute_row
+
+    issues = [
+        ReviewedIssue(triage=_triage(n), final_tier="full-yolo", skipped=False, edited_comment=None)
+        for n in [10, 20, 30]
+    ]
+
+    results, turns = _run_parallel_execution(
+        conn, "abcd1234-run", issues, _cfg(dry_run=False, max_parallel=2),
+    )
+
+    # Session created with 2 panes (not 3)
+    mock_tmux.create_session.assert_called_once_with("dispatcher-abcd1234", 2)
+
+    # 3 workers launched total (2 initial + 1 when pane freed)
+    assert mock_tmux.send_command.call_count == 3
+
+    assert len(results) == 3
+    mock_tmux.kill_session.assert_called_once()
+    mock_worktree.cleanup_all.assert_called_once()
