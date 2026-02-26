@@ -102,6 +102,14 @@ def test_get_previous_triage_none(db):
     assert prev is None
 
 
+def test_wal_mode_enabled(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    conn = init_db(db_path)
+    mode = conn.execute("PRAGMA journal_mode").fetchone()[0]
+    assert mode == "wal"
+    conn.close()
+
+
 def test_increment_resume_count(db):
     insert_run(db, "run-1", [42], "{}")
     insert_issue(db, "run-1", _make_triage(42))
