@@ -1,10 +1,9 @@
 import json
-import subprocess
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from dispatcher.models import Config, ExecutionResult, ReviewedIssue, TriageResult
+from dispatcher.models import ExecutionResult
 
 
 def _sample_triage_dict() -> dict:
