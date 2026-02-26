@@ -128,6 +128,7 @@ def _build_config(args: argparse.Namespace, yaml_data: dict, plugin_path: str) -
         selection_limit=args.limit or yaml_data.get("selection_limit", 50),
         rate_limit_pause_seconds=yaml_data.get("rate_limit_pause_seconds", 300),
         rate_limit_batch_pause_seconds=yaml_data.get("rate_limit_batch_pause_seconds", 900),
+        max_parallel=args.max_parallel or yaml_data.get("max_parallel", 4),
         issues=_parse_issues(args.issues),
         auto=args.auto,
         dry_run=args.dry_run,

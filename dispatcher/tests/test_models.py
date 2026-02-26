@@ -55,3 +55,8 @@ def test_execution_result():
     )
     assert er.outcome == "pr_created"
     assert er.pr_number == 100
+
+
+def test_config_max_parallel_default():
+    cfg = Config(plugin_path="/p")
+    assert cfg.max_parallel == 4

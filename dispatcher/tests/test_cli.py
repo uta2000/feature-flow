@@ -37,3 +37,15 @@ def test_parser_all_args():
     assert args.resume == "run-123"
     assert args.limit == 10
     assert args.verbose is True
+
+
+def test_max_parallel_flag():
+    parser = build_parser()
+    args = parser.parse_args(["--max-parallel", "6"])
+    assert args.max_parallel == 6
+
+
+def test_max_parallel_default():
+    parser = build_parser()
+    args = parser.parse_args([])
+    assert args.max_parallel is None
