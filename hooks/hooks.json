@@ -82,17 +82,6 @@
             "statusMessage": "Running code quality checks (tsc, lint, type-sync, tests)..."
           }
         ]
-      },
-      {
-        "hooks": [
-          {
-            "type": "prompt",
-            "prompt": "You are a gate-check that outputs ONLY a single word or a single BLOCK line. No other text.\n\nCheck the conversation for ALL conditions:\nA) The assistant used Edit/Write tools to implement code from a plan that has acceptance criteria (- [ ] items)\nB) The verify-acceptance-criteria skill was NOT invoked\nC) No PR was created during this session (no `gh pr create` or `gh pr view` showing an existing PR for the current branch)\n\nIf A AND B AND C are all true, output exactly:\nBLOCK: Run verify-acceptance-criteria before ending this session.\n\nOtherwise output exactly:\npass",
-            "model": "claude-haiku-4-5-20251001",
-            "timeout": 60,
-            "statusMessage": "Checking acceptance criteria verification..."
-          }
-        ]
       }
     ]
   }
