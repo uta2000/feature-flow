@@ -759,7 +759,27 @@ For each file you modify, follow this protocol:
 
 ### Model Routing Defaults
 
-This section applies unconditionally in all modes (YOLO, Express, Interactive). When dispatching subagents via the Task tool, use these model defaults unless a skill documents a specific override with justification.
+**Sonnet-first philosophy:** Default to Sonnet for the entire lifecycle. Escalate to Opus only for phases requiring deep creative or architectural reasoning. This reduces session cost by ~75% with no quality loss on mechanical work (implementation, review, verification, git operations). Evidence: a full lifecycle on Opus costs ~$61; Sonnet-first routing costs ~$27 (source: session analysis in issue #94).
+
+This section applies unconditionally in all modes (YOLO, Express, Interactive). It is the single source of truth for model routing — all other sections reference this table rather than re-stating rules.
+
+**Orchestrator-level phases (main conversation model):**
+
+| Phase | Recommended Model | Rationale |
+|-------|-------------------|-----------|
+| Brainstorming | `opus` | Creative reasoning, design-level decisions |
+| Design document | `opus` | Architectural decisions, trade-off analysis |
+| Design verification | `sonnet` | Checklist comparison against codebase |
+| Implementation planning | `sonnet` | Structured task decomposition from approved design |
+| Study existing patterns | `sonnet` | Pattern extraction (subagents use `haiku`) |
+| Implementation (orchestrator) | `sonnet` | Dispatching and reviewing subagent results |
+| Self-review | `sonnet` | Checklist-based diff review |
+| Code review pipeline | `sonnet` | Dispatching and consolidating agent results |
+| CHANGELOG generation | `sonnet` | Mechanical commit parsing |
+| Final verification | `sonnet` | Acceptance criteria checking |
+| Git operations (commit, PR, issue) | `sonnet` | Mechanical CLI operations |
+
+**Subagent dispatches (Task tool `model` parameter):**
 
 | `subagent_type` | Default Model | Rationale | Override When |
 |-----------------|---------------|-----------|---------------|
