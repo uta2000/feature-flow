@@ -67,19 +67,39 @@ def unstash() -> None:
         print(f"  Warning: git stash pop failed: {result.stderr.strip()}")
 
 
-def _run_claude(tr: TriageResult, branch_name: str, config: Config) -> subprocess.CompletedProcess:
-    prompt = f"Start a feature for GitHub issue #{tr.issue_number} in YOLO mode. Issue title: {tr.issue_title}. Work on branch {branch_name}."
-    return subprocess.run(
-        [
+def build_interactive_claude_cmd(config: Config) -> list[str]:
+    """Build the claude command for interactive TUI (no -p, no prompt)."""
+    return [
+        "claude", "--plugin-dir", config.plugin_path,
+        "--model", config.execution_model,
+        "--allowedTools", _ALLOWED_TOOLS,
+        "--dangerously-skip-permissions",
+    ]
+
+
+def build_interactive_prompt(tr: TriageResult, branch_name: str) -> str:
+    """Build the prompt text to send to an interactive Claude session."""
+    return f"start: GitHub issue #{tr.issue_number}. Issue title: {tr.issue_title}. Work on branch {branch_name}. YOLO mode."
+
+
+def _run_claude(tr: TriageResult, branch_name: str, config: Config, interactive: bool = False) -> subprocess.CompletedProcess:
+    prompt = f"start: GitHub issue #{tr.issue_number}. Issue title: {tr.issue_title}. Work on branch {branch_name}. YOLO mode."
+    if interactive:
+        # Launch interactive TUI — prompt is sent separately via tmux send-keys.
+        cmd = build_interactive_claude_cmd(config)
+        result = subprocess.run(cmd)
+        return subprocess.CompletedProcess(result.args, result.returncode, "", "")
+    else:
+        cmd = [
             "claude", "--plugin-dir", config.plugin_path,
             "-p", prompt,
             "--model", config.execution_model,
             "--allowedTools", _ALLOWED_TOOLS,
             "--max-turns", str(config.execution_max_turns),
+            "--dangerously-skip-permissions",
             "--output-format", "json",
-        ],
-        capture_output=True, text=True,
-    )
+        ]
+        return subprocess.run(cmd, capture_output=True, text=True)
 
 
 def _error_result(issue_number: int, branch_name: str, message: str, **kw) -> ExecutionResult:
@@ -145,12 +165,24 @@ def _try_add_review_label(pr_number: int, config: Config) -> None:
         print(f"  Warning: Failed to add review label to PR #{pr_number}: {exc}")
 
 
-def execute_issue(reviewed: ReviewedIssue, branch_name: str, config: Config) -> ExecutionResult:
+def execute_issue(reviewed: ReviewedIssue, branch_name: str, config: Config, interactive: bool = False) -> ExecutionResult:
     tr = reviewed.triage
     try:
-        result = _run_claude(tr, branch_name, config)
+        result = _run_claude(tr, branch_name, config, interactive=interactive)
     except Exception as exc:
         return _error_result(tr.issue_number, branch_name, str(exc))
+
+    if interactive:
+        # No JSON output in interactive mode — determine outcome from git state
+        pr_number, pr_url = _find_pr(branch_name, config)
+        outcome = "pr_created" if pr_number else "failed"
+        return ExecutionResult(
+            issue_number=tr.issue_number, branch_name=branch_name,
+            session_id=None, num_turns=0, is_error=not pr_number,
+            pr_number=pr_number, pr_url=pr_url,
+            error_message=None if pr_number else "No PR created",
+            outcome=outcome,
+        )
 
     if result.returncode != 0 and not result.stdout.strip():
         return _error_result(tr.issue_number, branch_name, f"claude exited {result.returncode}: {result.stderr[:200]}")

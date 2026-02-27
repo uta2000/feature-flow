@@ -13,16 +13,24 @@ class TestCreateWorktree:
         repo_root = Path("/repo")
         path = create_worktree(42, "main", repo_root)
         assert path == repo_root / ".dispatcher-worktrees" / "issue-42"
-        mock_run.assert_called_once()
-        cmd = mock_run.call_args[0][0]
-        assert cmd[0:3] == ["git", "worktree", "add"]
-        assert str(path) in cmd
-        assert "main" in cmd
+        assert mock_run.call_count == 2
+        # First call: git worktree prune
+        prune_cmd = mock_run.call_args_list[0][0][0]
+        assert prune_cmd == ["git", "worktree", "prune"]
+        # Second call: git worktree add
+        add_cmd = mock_run.call_args_list[1][0][0]
+        assert add_cmd[0:3] == ["git", "worktree", "add"]
+        assert str(path) in add_cmd
+        assert "main" in add_cmd
 
     @patch("dispatcher.worktree.subprocess.run")
     def test_raises_on_failure(self, mock_run):
-        mock_run.side_effect = subprocess.CalledProcessError(1, "git")
         import pytest
+        # Prune succeeds, but worktree add fails
+        mock_run.side_effect = [
+            subprocess.CompletedProcess([], 0, "", ""),
+            subprocess.CalledProcessError(128, "git"),
+        ]
         with pytest.raises(subprocess.CalledProcessError):
             create_worktree(42, "main", Path("/repo"))
 

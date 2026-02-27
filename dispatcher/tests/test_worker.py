@@ -139,7 +139,9 @@ class TestWorkerMain:
         with patch("dispatcher.worker.parse_args") as mock_parse:
             mock_parse.return_value = MagicMock(
                 issue_json=json.dumps(_sample_issue_dict()),
+                issue_file=None,
                 config_json=json.dumps(_sample_config_dict()),
+                config_file=None,
                 run_id="run-1",
                 db_path="/tmp/test.db",
             )
@@ -152,7 +154,9 @@ class TestWorkerMain:
         with patch("dispatcher.worker.parse_args") as mock_parse:
             mock_parse.return_value = MagicMock(
                 issue_json="not-valid-json",
+                issue_file=None,
                 config_json=json.dumps(_sample_config_dict()),
+                config_file=None,
                 run_id="run-1",
                 db_path="/tmp/test.db",
             )

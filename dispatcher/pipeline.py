@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 import time
 import uuid
 
@@ -9,6 +10,7 @@ from pathlib import Path
 
 from dispatcher import db, github, tmux, worktree
 from dispatcher.execute import (
+    build_interactive_prompt,
     create_branch,
     execute_issue,
     generate_parked_comment,
@@ -202,7 +204,7 @@ def _run_parallel_execution(
             worktree_paths.append(wt_path)
 
         # Create tmux session
-        tmux.create_session(session_name, num_panes)
+        tmux.create_session(session_name)
 
         # Build serialized config
         config_json = json.dumps({k: v for k, v in asdict(config).items()})
@@ -213,19 +215,27 @@ def _run_parallel_execution(
         pane_assignments: dict[int, int] = {}
         for pane_idx in range(num_panes):
             qi, reviewed = queue.pop(0)
-            _launch_worker(
-                session_name, pane_idx, worktree_paths[qi],
-                reviewed, config_json, run_id, db_path,
-            )
-            pane_assignments[pane_idx] = qi
+            cmd = _build_worker_cmd(worktree_paths[qi], reviewed, config_json, run_id, db_path)
+            actual_idx = tmux.launch_in_pane(session_name, pane_idx, cmd)
+            pane_assignments[actual_idx] = qi
 
-        print(f"\n  Parallel execution started in tmux session '{session_name}'.")
-        print(f"  Run `tmux attach -t {session_name}` to watch progress.\n")
+        # Wait for workers to create branches and start claude, then send prompts
+        time.sleep(5)
+        for pane_idx, qi in pane_assignments.items():
+            reviewed = to_execute[qi]
+            branch_prefix = config.branch_prefix_fix if reviewed.triage.scope in ("quick-fix",) else config.branch_prefix_feat
+            branch_name = f"{branch_prefix}/{reviewed.triage.issue_number}-issue-{reviewed.triage.issue_number}"
+            prompt = build_interactive_prompt(reviewed.triage, branch_name)
+            tmux.send_keys(session_name, pane_idx, prompt)
+
+        print(f"\n  Interactive sessions launched in tmux session '{session_name}'.")
+        print(f"  Run `tmux attach -t {session_name}` to interact with each pane.")
+        print(f"  Use Ctrl-B + arrow keys to switch panes. Sessions close when you exit Claude.\n")
 
         # Poll for completion
         results = _poll_for_completion(
             conn, run_id, session_name, to_execute, queue,
-            worktree_paths, pane_assignments, config_json, db_path,
+            worktree_paths, pane_assignments, config_json, db_path, config,
         )
     except KeyboardInterrupt:
         print("\n  Interrupted. Cleaning up...")
@@ -241,24 +251,36 @@ def _run_parallel_execution(
     return results, total_turns
 
 
-def _launch_worker(
-    session_name: str,
-    pane_idx: int,
+def _build_worker_cmd(
     wt_path: Path,
     reviewed: ReviewedIssue,
     config_json: str,
     run_id: str,
     db_path: str,
-) -> None:
-    issue_json = json.dumps(asdict(reviewed))
-    cmd = (
-        f"cd {wt_path} && python3 -m dispatcher.worker"
-        f" --issue-json '{issue_json}'"
-        f" --config-json '{config_json}'"
+) -> str:
+    import sys
+    import tempfile
+    issue_fd = tempfile.NamedTemporaryFile(
+        mode="w", suffix=".json", prefix=f"issue-{reviewed.triage.issue_number}-", delete=False,
+    )
+    issue_fd.write(json.dumps(asdict(reviewed)))
+    issue_fd.close()
+    config_fd = tempfile.NamedTemporaryFile(
+        mode="w", suffix=".json", prefix="config-", delete=False,
+    )
+    config_fd.write(config_json)
+    config_fd.close()
+    python = sys.executable
+    project_root = str(Path(__file__).resolve().parent.parent)
+    return (
+        f"cd {wt_path} &&"
+        f" unset CLAUDECODE CLAUDE_CODE_SSE_PORT CLAUDE_CODE_ENTRYPOINT CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS &&"
+        f" PYTHONPATH={project_root}:$PYTHONPATH exec {python} -m dispatcher.worker"
+        f" --issue-file {issue_fd.name}"
+        f" --config-file {config_fd.name}"
         f" --run-id {run_id}"
         f" --db-path {db_path}"
     )
-    tmux.send_command(session_name, pane_idx, cmd)
 
 
 def _poll_for_completion(
@@ -271,6 +293,7 @@ def _poll_for_completion(
     pane_assignments: dict[int, int],
     config_json: str,
     db_path: str,
+    config: Config | None = None,
 ) -> list[ExecutionResult]:
     results: list[ExecutionResult] = []
     completed_indices: set[int] = set()
@@ -312,11 +335,18 @@ def _poll_for_completion(
             # Launch next queued issue into freed pane
             if queue:
                 next_qi, next_reviewed = queue.pop(0)
-                _launch_worker(
-                    session_name, pane_idx, worktree_paths[next_qi],
-                    next_reviewed, config_json, run_id, db_path,
+                cmd = _build_worker_cmd(
+                    worktree_paths[next_qi], next_reviewed, config_json, run_id, db_path,
                 )
+                tmux.respawn_pane(session_name, pane_idx, cmd)
                 pane_assignments[pane_idx] = next_qi
+                # Send prompt after worker starts claude
+                if config is not None:
+                    time.sleep(5)
+                    tr = next_reviewed.triage
+                    prefix = config.branch_prefix_fix if tr.scope in ("quick-fix",) else config.branch_prefix_feat
+                    branch = f"{prefix}/{tr.issue_number}-issue-{tr.issue_number}"
+                    tmux.send_keys(session_name, pane_idx, build_interactive_prompt(tr, branch))
 
         # Safety: if no panes are assigned and queue is empty, break
         if not pane_assignments and not queue:
@@ -363,7 +393,7 @@ def _execute_single_issue(conn, run_id: str, r: ReviewedIssue, config: Config) -
         db.update_issue_execution(conn, run_id, r.triage.issue_number, er)
         return er
 
-    er = execute_issue(r, branch, config)
+    er = execute_issue(r, branch, config, interactive=sys.stdout.isatty())
     db.update_issue_execution(conn, run_id, r.triage.issue_number, er)
     _print_execution_result(r.triage.issue_number, branch, er)
     return er

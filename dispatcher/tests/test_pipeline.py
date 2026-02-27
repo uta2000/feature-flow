@@ -325,7 +325,7 @@ def test_rate_limit_tracker_progressive_backoff():
 
 # --- Task 6: Parallel execution tests ---
 
-from dispatcher.pipeline import _run_execution, _run_parallel_execution, _run_sequential_execution
+from dispatcher.pipeline import _build_worker_cmd, _run_execution, _run_parallel_execution, _run_sequential_execution
 
 
 @patch("dispatcher.pipeline.tmux")
@@ -371,6 +371,7 @@ def test_parallel_execution_tmux_path(mock_tmux, mock_worktree, mock_time):
 
     mock_tmux.is_tmux_available.return_value = True
     mock_worktree.create_worktree.side_effect = [Path("/wt/issue-10"), Path("/wt/issue-20")]
+    mock_tmux.launch_in_pane.side_effect = [0, 1]  # return pane indices
 
     # Simulate panes: first poll both alive, second poll both dead
     mock_tmux.get_pane_status.side_effect = [
@@ -404,10 +405,10 @@ def test_parallel_execution_tmux_path(mock_tmux, mock_worktree, mock_time):
     assert mock_worktree.create_worktree.call_count == 2
 
     # Tmux session created
-    mock_tmux.create_session.assert_called_once_with("dispatcher-abcd1234", 2)
+    mock_tmux.create_session.assert_called_once_with("dispatcher-abcd1234")
 
-    # Workers launched via send_command (one per issue)
-    assert mock_tmux.send_command.call_count == 2
+    # Workers launched via launch_in_pane (one per issue)
+    assert mock_tmux.launch_in_pane.call_count == 2
 
     # Results collected
     assert len(results) == 2
@@ -433,6 +434,7 @@ def test_parallel_cleanup_on_interrupt(mock_triage, mock_gh, mock_db, mock_wt, m
     mock_gh.view_issue.return_value = {"title": "Test", "body": "Body", "comments": []}
     mock_triage.side_effect = [_triage(42), _triage(43)]
     mock_tmux.is_tmux_available.return_value = True
+    mock_tmux.launch_in_pane.side_effect = [0, 1]
     mock_wt.create_worktree.side_effect = [Path("/wt/42"), Path("/wt/43")]
     mock_time.time.return_value = 1000.0
     mock_time.sleep.side_effect = KeyboardInterrupt  # interrupt during poll
@@ -459,6 +461,7 @@ def test_parallel_cleanup_when_kill_session_fails(mock_triage, mock_gh, mock_db,
     mock_gh.view_issue.return_value = {"title": "Test", "body": "Body", "comments": []}
     mock_triage.side_effect = [_triage(42), _triage(43)]
     mock_tmux.is_tmux_available.return_value = True
+    mock_tmux.launch_in_pane.side_effect = [0, 1]
     mock_wt.create_worktree.side_effect = [Path("/wt/42"), Path("/wt/43")]
     mock_time.time.return_value = 1000.0
     mock_time.sleep.side_effect = KeyboardInterrupt
@@ -481,6 +484,7 @@ def test_parallel_execution_batching(mock_tmux, mock_worktree, mock_time):
     mock_worktree.create_worktree.side_effect = [
         Path(f"/wt/issue-{n}") for n in [10, 20, 30]
     ]
+    mock_tmux.launch_in_pane.side_effect = [0, 1]  # return pane indices
 
     # max_parallel=2, 3 issues: first 2 launch, then 3rd when a pane frees
     mock_tmux.get_pane_status.side_effect = [
@@ -514,12 +518,26 @@ def test_parallel_execution_batching(mock_tmux, mock_worktree, mock_time):
         conn, "abcd1234-run", issues, _cfg(dry_run=False, max_parallel=2),
     )
 
-    # Session created with 2 panes (not 3)
-    mock_tmux.create_session.assert_called_once_with("dispatcher-abcd1234", 2)
+    # Session created
+    mock_tmux.create_session.assert_called_once_with("dispatcher-abcd1234")
 
-    # 3 workers launched total (2 initial + 1 when pane freed)
-    assert mock_tmux.send_command.call_count == 3
+    # 2 initial via launch_in_pane + 1 batched via respawn_pane
+    assert mock_tmux.launch_in_pane.call_count == 2
+    assert mock_tmux.respawn_pane.call_count == 1
 
     assert len(results) == 3
     mock_tmux.kill_session.assert_called_once()
     mock_worktree.cleanup_all.assert_called_once()
+
+
+# --- Worker command env var cleanup tests ---
+
+def test_build_worker_cmd_unsets_all_claude_env_vars():
+    """Worker command must unset all CLAUDE* env vars to prevent nested session detection."""
+    from pathlib import Path
+    reviewed = ReviewedIssue(triage=_triage(42), final_tier="full-yolo", skipped=False, edited_comment=None)
+    cmd = _build_worker_cmd(Path("/wt/issue-42"), reviewed, '{}', "run-1", "/tmp/db")
+    assert "unset CLAUDECODE" in cmd
+    assert "CLAUDE_CODE_SSE_PORT" in cmd
+    assert "CLAUDE_CODE_ENTRYPOINT" in cmd
+    assert "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS" in cmd

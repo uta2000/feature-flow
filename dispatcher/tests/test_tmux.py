@@ -6,7 +6,9 @@ from dispatcher.tmux import (
     get_pane_status,
     is_tmux_available,
     kill_session,
-    send_command,
+    launch_in_pane,
+    respawn_pane,
+    send_keys,
 )
 
 
@@ -22,42 +24,50 @@ class TestIsTmuxAvailable:
 
 class TestCreateSession:
     @patch("dispatcher.tmux.subprocess.run")
-    def test_creates_session_with_panes(self, mock_run):
+    def test_creates_session(self, mock_run):
         mock_run.return_value = subprocess.CompletedProcess([], 0, "", "")
-        create_session("disp-abc", 3)
+        create_session("disp-abc")
         calls = mock_run.call_args_list
-        # First call: new-session
+        assert len(calls) == 2
         assert "new-session" in calls[0][0][0]
-        # Should have split-window calls for panes 2 and 3
-        split_calls = [c for c in calls if "split-window" in str(c)]
-        assert len(split_calls) == 2
-        # Should set remain-on-exit and tiled layout
-        all_args = str(calls)
-        assert "remain-on-exit" in all_args
-        assert "tiled" in all_args
+        assert "remain-on-exit" in str(calls[1])
 
+
+class TestLaunchInPane:
     @patch("dispatcher.tmux.subprocess.run")
-    def test_single_pane_no_splits(self, mock_run):
+    def test_pane_0_uses_respawn(self, mock_run):
         mock_run.return_value = subprocess.CompletedProcess([], 0, "", "")
-        create_session("disp-abc", 1)
-        split_calls = [c for c in mock_run.call_args_list if "split-window" in str(c)]
-        assert len(split_calls) == 0
-
-
-class TestSendCommand:
-    @patch("dispatcher.tmux.subprocess.run")
-    def test_sends_keys(self, mock_run):
-        mock_run.return_value = subprocess.CompletedProcess([], 0, "", "")
-        send_command("disp-abc", 0, "echo hello")
+        idx = launch_in_pane("disp-abc", 0, "echo hello")
+        assert idx == 0
         cmd = mock_run.call_args[0][0]
-        assert "send-keys" in cmd
+        assert "respawn-pane" in cmd
+        assert "echo hello" in cmd
+
+    @patch("dispatcher.tmux.subprocess.run")
+    def test_pane_1_uses_split_window(self, mock_run):
+        mock_run.return_value = subprocess.CompletedProcess([], 0, "1\n", "")
+        idx = launch_in_pane("disp-abc", 1, "echo hello")
+        assert idx == 1
+        # First call: split-window, second call: select-layout
+        split_cmd = mock_run.call_args_list[0][0][0]
+        assert "split-window" in split_cmd
+        assert "echo hello" in split_cmd
+
+
+class TestRespawnPane:
+    @patch("dispatcher.tmux.subprocess.run")
+    def test_respawns_dead_pane(self, mock_run):
+        mock_run.return_value = subprocess.CompletedProcess([], 0, "", "")
+        respawn_pane("disp-abc", 2, "echo hello")
+        cmd = mock_run.call_args[0][0]
+        assert "respawn-pane" in cmd
+        assert "disp-abc:0.2" in cmd
         assert "echo hello" in cmd
 
 
 class TestGetPaneStatus:
     @patch("dispatcher.tmux.subprocess.run")
     def test_parses_pane_output(self, mock_run):
-        # Format: pane_index, pane_dead (0/1), pane_dead_status (exit code)
         mock_run.return_value = subprocess.CompletedProcess(
             [], 0, "0 0 \n1 1 0\n2 1 1\n", "",
         )
@@ -71,6 +81,30 @@ class TestGetPaneStatus:
         mock_run.return_value = subprocess.CompletedProcess([], 1, "", "no session")
         statuses = get_pane_status("nonexistent")
         assert statuses == []
+
+
+class TestSendKeys:
+    @patch("dispatcher.tmux.subprocess.run")
+    def test_sends_literal_text_and_enter(self, mock_run):
+        mock_run.return_value = subprocess.CompletedProcess([], 0, "", "")
+        send_keys("disp-abc", 0, "start: issue #42")
+        calls = mock_run.call_args_list
+        assert len(calls) == 2
+        # First call: literal text with -l flag
+        text_cmd = calls[0][0][0]
+        assert "send-keys" in text_cmd
+        assert "-l" in text_cmd
+        assert "start: issue #42" in text_cmd
+        # Second call: Enter key
+        enter_cmd = calls[1][0][0]
+        assert "Enter" in enter_cmd
+
+    @patch("dispatcher.tmux.subprocess.run")
+    def test_sends_without_enter(self, mock_run):
+        mock_run.return_value = subprocess.CompletedProcess([], 0, "", "")
+        send_keys("disp-abc", 1, "some text", enter=False)
+        calls = mock_run.call_args_list
+        assert len(calls) == 1  # Only text, no Enter
 
 
 class TestKillSession:

@@ -142,7 +142,7 @@ After loading project context, detect the base branch that will be used as the P
 Detection cascade:
 1. `.feature-flow.yml` → `default_branch` field (if present and non-empty)
 2. `git config --get init.defaultBranch` (if set and branch exists locally or on remote)
-3. Check if `staging` branch exists: `git rev-parse --verify staging 2>/dev/null`
+3. Check if `develop` or `staging` branch exists (local or remote): `git rev-parse --verify develop 2>/dev/null || git rev-parse --verify origin/develop 2>/dev/null || git rev-parse --verify staging 2>/dev/null || git rev-parse --verify origin/staging 2>/dev/null` — use the first match found (`develop` preferred over `staging`)
 4. Fall back to `main` (or `master` if `main` doesn't exist)
 
 Announce: `"Detected base branch: [branch]. All PR targets and branch diffs will use this."`
@@ -396,17 +396,19 @@ When the platform is mobile, modify the step list:
 
 Announce the platform-specific additions: "Mobile platform detected. Adding: device matrix testing, beta testing, app store review, and comment and close issue steps."
 
-Use `TaskCreate` to create a todo item for each step.
+**Create a todo list to track progress.** Use `ToolSearch` to load `TaskCreate` (query: `select:TaskCreate`), then create a todo item for each step. If `TaskCreate` is not available (ToolSearch returns no results), fall back to tracking progress by printing a checklist in your output — prefix completed steps with `[x]` and pending steps with `[ ]`.
+
+Also load `TaskUpdate` via `ToolSearch` (query: `select:TaskUpdate`) for marking items in progress and complete. If unavailable, use the text-based checklist fallback.
 
 ### Step 3: Execute Steps in Order
 
 For each step, follow this pattern:
 
 1. **Announce the step:** "Step N: [name]. Invoking [skill name]."
-2. **Mark in progress:** Update the todo item to `in_progress`
+2. **Mark in progress:** Update the todo item to `in_progress` (or print updated checklist if using fallback)
 3. **Invoke the skill** using the Skill tool (see mapping below)
 4. **Confirm completion:** Verify the step produced its expected output
-5. **Mark complete:** Update the todo item to `completed`
+5. **Mark complete:** Update the todo item to `completed` (or print updated checklist if using fallback)
 6. **Check for context checkpoint:** If the just-completed step is a checkpoint trigger (see Context Window Checkpoints section), and the current mode is not YOLO, and the current scope includes this checkpoint — output the checkpoint block and wait for the user to respond before announcing the next step.
 7. **Announce next step:** "Step N complete. Next: Step N+1 — [name]."
 
@@ -529,7 +531,7 @@ Or type "continue" to skip compaction and proceed.
 **Handling the response:**
 When the user responds after a checkpoint:
 - If the user types "continue", "skip", "next", or "proceed" → resume the lifecycle at the next step
-- If the user ran `/compact` and then sends any message → the context has been compressed. Check the todo list to determine the current step and announce: "Resuming lifecycle. Last completed step: [N]. Next: [N+1] — [name]."
+- If the user ran `/compact` and then sends any message → the context has been compressed. Check the todo list (via `TaskList` if available, or from the last printed checklist) to determine the current step and announce: "Resuming lifecycle. Last completed step: [N]. Next: [N+1] — [name]."
 - Any other response → treat as "continue" and resume
 
 ### Express Design Approval Checkpoint

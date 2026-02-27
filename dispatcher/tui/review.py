@@ -1,16 +1,21 @@
 from __future__ import annotations
 
+from importlib.metadata import version
+
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.widgets import DataTable, Footer, Header, Static
 
 from dispatcher.models import ReviewedIssue, TriageResult
 
+_VERSION = version("feature-flow-dispatcher")
+
 _TIER_CYCLE = ["full-yolo", "supervised-yolo", "parked"]
 
 
 class ReviewApp(App[list[ReviewedIssue]]):
     TITLE = "Issue Dispatcher — Review Triage"
+    SUB_TITLE = f"v{_VERSION}"
     BINDINGS = [
         Binding("t", "cycle_tier", "Cycle Tier"),
         Binding("s", "skip_issue", "Skip"),
