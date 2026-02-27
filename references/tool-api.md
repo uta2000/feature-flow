@@ -47,7 +47,7 @@ Task(subagent_type: "feature-flow:task-verifier", description: "Verify acceptanc
 
 ### Recommended Model Defaults
 
-When dispatching subagents, use these model defaults. Always set the `model` parameter explicitly — omitting it causes agents to inherit the parent model (often Opus), which is wasteful for simple tasks.
+**Sonnet-first principle:** The feature-flow lifecycle defaults to Sonnet for all mechanical work. Opus is reserved for creative/architectural reasoning (brainstorming, design documents). Always set the `model` parameter explicitly — omitting it causes agents to inherit the parent model, which wastes cost if the parent is Opus.
 
 | `subagent_type` | Recommended Model | Rationale |
 |-----------------|-------------------|-----------|
@@ -55,7 +55,7 @@ When dispatching subagents, use these model defaults. Always set the `model` par
 | `"general-purpose"` | `sonnet` | Write access; needs reasoning for implementation |
 | `"Plan"` | `sonnet` | Architecture planning requires reasoning |
 
-**Override guidance:** Use `sonnet` for Explore agents that do substantive analysis (e.g., design-verification batch agents). Use `opus` for implementation agents handling architectural complexity. Document overrides inline in the skill. For the full table with override conditions, see the Model Routing Defaults section in `skills/start/SKILL.md`.
+**Override guidance:** Use `sonnet` for Explore agents that do substantive analysis (e.g., design-verification batch agents). Use `opus` for implementation agents handling architectural complexity. For the full orchestrator-level phase table and override conditions, see the Model Routing Defaults section in `skills/start/SKILL.md`.
 
 ## Skill Tool (invoke a skill)
 
