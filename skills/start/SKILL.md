@@ -624,6 +624,7 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
 - Function length: handler ≤30 lines; extract validation and transformation helpers
 - Pattern: follow existing handler in `src/handlers/users.ts`
 - Files modified: `src/handlers/search.ts` (design-first — 180 lines)
+- Design-first files: `src/handlers/search.ts` — implementer must output change plan before editing
 ```
 
 ### Using Git Worktrees YOLO Override
