@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+from importlib.metadata import version
+
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.widgets import Footer, Header, SelectionList, Static
 
+_VERSION = version("feature-flow-dispatcher")
+
 
 class SelectionApp(App[list[int]]):
     TITLE = "Issue Dispatcher — Select Issues"
+    SUB_TITLE = f"v{_VERSION}"
     BINDINGS = [
         Binding("p", "process", "Process"),
         Binding("a", "select_all", "Select All"),

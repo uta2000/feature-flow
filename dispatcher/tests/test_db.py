@@ -1,5 +1,3 @@
-import json
-
 from dispatcher.db import (
     get_previous_triage,
     get_resumable_issues,
@@ -100,6 +98,14 @@ def test_get_previous_triage(db):
 def test_get_previous_triage_none(db):
     prev = get_previous_triage(db, 999)
     assert prev is None
+
+
+def test_wal_mode_enabled(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    conn = init_db(db_path)
+    mode = conn.execute("PRAGMA journal_mode").fetchone()[0]
+    assert mode == "wal"
+    conn.close()
 
 
 def test_increment_resume_count(db):

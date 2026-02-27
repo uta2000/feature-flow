@@ -18,6 +18,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--resume", type=str, default=None, help="Resume a previous run by run ID")
     parser.add_argument("--limit", type=int, default=None, help="Max issues in selection TUI")
     parser.add_argument("--verbose", action="store_true", help="Print full claude -p output")
+    parser.add_argument("--max-parallel", type=int, default=None, help="Max parallel executions (default: 4)")
     return parser
 
 

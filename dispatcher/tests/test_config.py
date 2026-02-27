@@ -1,5 +1,4 @@
 import argparse
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -11,7 +10,7 @@ def _args(**overrides):
     defaults = {
         "issues": None, "label": None, "repo": None, "auto": False,
         "config": "nonexistent.yml", "dry_run": False, "resume": None,
-        "limit": None, "verbose": False,
+        "limit": None, "verbose": False, "max_parallel": None,
     }
     defaults.update(overrides)
     return argparse.Namespace(**defaults)
@@ -66,3 +65,19 @@ def test_issues_parsed(tmp_path):
     with patch("dispatcher.config._detect_repo", return_value="owner/repo"):
         cfg = load_config(_args(config=str(cfg_file), issues="42,43,51"))
     assert cfg.issues == [42, 43, 51]
+
+
+def test_yaml_max_parallel_loaded(tmp_path):
+    cfg_file = tmp_path / "dispatcher.yml"
+    cfg_file.write_text("plugin_path: /test/path\nmax_parallel: 8\n")
+    with patch("dispatcher.config._detect_repo", return_value="owner/repo"):
+        cfg = load_config(_args(config=str(cfg_file)))
+    assert cfg.max_parallel == 8
+
+
+def test_cli_max_parallel_overrides_yaml(tmp_path):
+    cfg_file = tmp_path / "dispatcher.yml"
+    cfg_file.write_text("plugin_path: /test/path\nmax_parallel: 8\n")
+    with patch("dispatcher.config._detect_repo", return_value="owner/repo"):
+        cfg = load_config(_args(config=str(cfg_file), max_parallel=6))
+    assert cfg.max_parallel == 6

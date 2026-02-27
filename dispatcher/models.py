@@ -20,6 +20,7 @@ class Config:
     selection_limit: int = 50
     rate_limit_pause_seconds: int = 300
     rate_limit_batch_pause_seconds: int = 900
+    max_parallel: int = 4
     issues: list[int] = field(default_factory=list)
     auto: bool = False
     dry_run: bool = False

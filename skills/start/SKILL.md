@@ -535,7 +535,7 @@ Or type "continue" to skip compaction and proceed.
 **Handling the response:**
 When the user responds after a checkpoint:
 - If the user types "continue", "skip", "next", or "proceed" → resume the lifecycle at the next step
-- If the user ran `/compact` and then sends any message → the context has been compressed. Check the todo list to determine the current step and announce: "Resuming lifecycle. Last completed step: [N]. Next: [N+1] — [name]."
+- If the user ran `/compact` and then sends any message → the context has been compressed. Check the todo list (via `TaskList` if available, or from the last printed checklist) to determine the current step and announce: "Resuming lifecycle. Last completed step: [N]. Next: [N+1] — [name]."
 - Any other response → treat as "continue" and resume
 
 ### Express Design Approval Checkpoint
