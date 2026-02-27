@@ -167,6 +167,22 @@ Announce: `"Detected base branch: [branch]. All PR targets and branch diffs will
 
 **YOLO behavior:** No prompt — always auto-detected. Announce: `YOLO: start — Base branch detection → [branch]`
 
+**Session Model Recommendation:**
+
+After detecting the base branch, recommend Sonnet-first routing. The lifecycle's mechanical phases (implementation, review, verification, git operations) do not require Opus-level reasoning — Sonnet handles them equally well at significantly lower cost (see Model Routing Defaults for figures).
+
+1. Announce the recommendation:
+   ```
+   Model routing: Sonnet-first is recommended for this lifecycle.
+   - Brainstorming and design phases benefit from Opus (deep reasoning)
+   - Implementation, review, and verification phases run well on Sonnet
+   - All subagent dispatches set explicit model parameters (see Model Routing Defaults)
+   If you're on Opus, consider `/model sonnet` — the skill will suggest `/model opus` before phases that benefit from it.
+   ```
+2. This is informational only — no prompt, no mode gate. The lifecycle works on any model; Opus is a quality upgrade for reasoning-heavy phases, not a hard requirement.
+
+**YOLO behavior:** No prompt — always announced. Announce: `YOLO: start — Session model recommendation → Sonnet-first (informational)`
+
 ### Step 1: Determine Scope
 
 Ask the user what they want to build. Then classify the work.
@@ -475,6 +491,32 @@ For inline steps (CHANGELOG generation, self-review, code review, study existing
 | App store review | No skill — manual step | Submission accepted |
 | Comment and close issue | No skill — inline step (see below) | Issue commented with implementation summary + closed |
 
+### Phase-Boundary Model Hints
+
+At phase transitions between reasoning-heavy and mechanical work, output a model switch suggestion. These are suggestions only — the lifecycle functions on any model.
+
+**Escalation hint (before reasoning-heavy phases):**
+
+Before invoking `superpowers:brainstorming` or `feature-flow:design-document`, output:
+```
+Entering [phase name] — this phase benefits from Opus-level reasoning.
+Consider: /model opus
+```
+
+**De-escalation hint (after reasoning-heavy phases):**
+
+After the design document step completes (or after design verification if present), output:
+```
+Design phase complete — switching to implementation phases.
+Consider: /model sonnet
+```
+
+**Suppression rules:**
+- **YOLO mode:** Hints suppressed — do not output. Announce inline: `YOLO: start — Phase-boundary model hint → suppressed ([phase])`
+- **Express mode:** Hints shown — output the suggestion block
+- **Interactive mode:** Hints shown — output the suggestion block
+- **Quick fix scope:** No hints — too few phases to warrant switching
+
 ### Brainstorming Interview Format Override
 
 When invoking `superpowers:brainstorming` from this lifecycle, pass these formatting instructions as context. Every interview question presented to the user must follow this format:
@@ -717,7 +759,27 @@ For each file you modify, follow this protocol:
 
 ### Model Routing Defaults
 
-This section applies unconditionally in all modes (YOLO, Express, Interactive). When dispatching subagents via the Task tool, use these model defaults unless a skill documents a specific override with justification.
+**Sonnet-first philosophy:** Default to Sonnet for the entire lifecycle. Escalate to Opus only for phases requiring deep creative or architectural reasoning. This reduces session cost by ~75% with no quality loss on mechanical work (implementation, review, verification, git operations). Evidence: a full lifecycle on Opus costs ~$61; Sonnet-first routing costs ~$27 (source: session analysis in issue #94).
+
+This section applies unconditionally in all modes (YOLO, Express, Interactive). It is the single source of truth for model routing — all other sections reference this table rather than re-stating rules.
+
+**Orchestrator-level phases (main conversation model):**
+
+| Phase | Recommended Model | Rationale |
+|-------|-------------------|-----------|
+| Brainstorming | `opus` | Creative reasoning, design-level decisions |
+| Design document | `opus` | Architectural decisions, trade-off analysis |
+| Design verification | `sonnet` | Checklist comparison against codebase |
+| Implementation planning | `sonnet` | Structured task decomposition from approved design |
+| Study existing patterns | `sonnet` | Pattern extraction (subagents use `haiku`) |
+| Implementation (orchestrator) | `sonnet` | Dispatching and reviewing subagent results |
+| Self-review | `sonnet` | Checklist-based diff review |
+| Code review pipeline | `sonnet` | Dispatching and consolidating agent results |
+| CHANGELOG generation | `sonnet` | Mechanical commit parsing |
+| Final verification | `sonnet` | Acceptance criteria checking |
+| Git operations (commit, PR, issue) | `sonnet` | Mechanical CLI operations |
+
+**Subagent dispatches (Task tool `model` parameter):**
 
 | `subagent_type` | Default Model | Rationale | Override When |
 |-----------------|---------------|-----------|---------------|
