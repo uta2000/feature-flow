@@ -7,6 +7,7 @@ All notable changes to the feature-flow plugin.
 ### Added
 - **Model routing defaults** — new general section in `start` skill establishing Haiku as the default model for Explore subagents across all run modes (YOLO, Express, Interactive), with override guidance for complex analysis tasks. Updated `references/tool-api.md` with recommended model defaults table. (Closes #97)
 - **Change Design Protocol for implementer subagents** — adds "read file, plan change, write in one pass" protocol to Implementer Quality Context Injection and file modification complexity requirement to Writing Plans Quality Context Injection, preventing edit thrashing that wastes API calls on repeated edit→typecheck→re-read cycles (Related: #95)
+- **Sonnet-first model routing** — lifecycle defaults to Sonnet for all mechanical phases (implementation, review, verification, git operations), escalating to Opus only for brainstorming and design. Adds Session Model Recommendation to Step 0, Phase-Boundary Model Hints to Step 3, orchestrator-level phase table to Model Routing Defaults, and Sonnet-first principle to `references/tool-api.md`. Estimated ~75% cost reduction per session. (Closes #94)
 
 ## [1.20.0] - 2026-02-27
 
