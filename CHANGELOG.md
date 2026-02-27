@@ -4,6 +4,9 @@ All notable changes to the feature-flow plugin.
 
 ## [Unreleased]
 
+### Added
+- **Active model detection gate** — replaces the passive Session Model Recommendation announcement with model detection that prompts Opus users to switch to Sonnet (~70% cost savings). Falls back to informational announcement if detection fails. YOLO skips the prompt; Express shows it. (Closes #105)
+
 ## [1.21.0] - 2026-02-27
 
 ### Added

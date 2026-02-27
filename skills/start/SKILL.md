@@ -169,9 +169,22 @@ Announce: `"Detected base branch: [branch]. All PR targets and branch diffs will
 
 **Session Model Recommendation:**
 
-After detecting the base branch, recommend Sonnet-first routing. The lifecycle's mechanical phases (implementation, review, verification, git operations) do not require Opus-level reasoning — Sonnet handles them equally well at significantly lower cost (see Model Routing Defaults for figures).
+After detecting the base branch, detect the current model and recommend Sonnet-first routing. The lifecycle's mechanical phases (implementation, review, verification, git operations) do not require Opus-level reasoning — Sonnet handles them equally well at significantly lower cost (see Model Routing Defaults for figures).
 
-1. Announce the recommendation:
+1. **Detect model:** The system prompt contains `"You are powered by the model named X. The exact model ID is Y"`. Check if the model ID contains `opus`.
+
+2. **If Opus detected**, use `AskUserQuestion`:
+   - Question: `"You're on Opus. Sonnet-first routing saves ~70% with no quality loss on mechanical phases. Switch?"`
+   - Option 1: `"Yes — I'll run /model sonnet"` with description: `"*Recommended — estimated ~70% cost reduction for lifecycle phases that don't need Opus reasoning*"`
+   - Option 2: `"No — stay on Opus"` with description: `"Opus for all phases. Higher cost but maximum reasoning quality throughout."`
+
+3. **If user selects "Yes"** — instruct: `"Run '/model sonnet' now, then type 'continue' to resume the lifecycle."` Pause until the user's next message. On resume, proceed regardless (the user controls when to resume; re-checking the model at this point is not reliable since the system prompt may not have updated yet).
+
+4. **If user selects "No"** — announce: `"Staying on Opus. No further model prompts."` Proceed without further model-related prompts for the remainder of the lifecycle.
+
+5. **If already on a non-Opus model** (Sonnet, Haiku, or other) — no prompt needed. Announce: `"Model check: running on [model] — no switch needed."`
+
+6. **If model detection fails** (model ID string not found in system prompt) — announce: `"Model detection: could not determine current model. Falling back to informational recommendation."` Then display the informational fallback:
    ```
    Model routing: Sonnet-first is recommended for this lifecycle.
    - Brainstorming and design phases benefit from Opus (deep reasoning)
@@ -179,9 +192,12 @@ After detecting the base branch, recommend Sonnet-first routing. The lifecycle's
    - All subagent dispatches set explicit model parameters (see Model Routing Defaults)
    If you're on Opus, consider `/model sonnet` — the skill will suggest `/model opus` before phases that benefit from it.
    ```
-2. This is informational only — no prompt, no mode gate. The lifecycle works on any model; Opus is a quality upgrade for reasoning-heavy phases, not a hard requirement.
 
-**YOLO behavior:** No prompt — always announced. Announce: `YOLO: start — Session model recommendation → Sonnet-first (informational)`
+**YOLO behavior:** No prompt — detect model and announce:
+- If detected: `YOLO: start — Model detection → [model ID] (Sonnet-first recommended, no gate in YOLO mode)`
+- If detection fails: `YOLO: start — Model detection → unknown (Sonnet-first recommended, no gate in YOLO mode)`
+
+**Express behavior:** Same as Interactive — show the `AskUserQuestion` prompt. Express auto-selects decisions but model switching requires user action (`/model` command), so it must pause.
 
 ### Step 1: Determine Scope
 
