@@ -7,6 +7,7 @@
   Batch 4 (Patterns & Build): Categories 9-12
   Batch 5 (Structure & Layout): Categories 13-14
   Batch 6 (Stack/Platform/Docs): Categories 15-18 (defined in SKILL.md, not here)
+  Batch 7 (Implementation Quality): Categories 19-23 (defined in SKILL.md, not here)
 -->
 
 <!-- batch: 1 -->

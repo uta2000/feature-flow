@@ -8,7 +8,7 @@
     {
       "name": "feature-flow",
       "description": "Full feature development lifecycle — design docs, verification, acceptance criteria, coding standards enforcement, and automated checks. Queries Context7 for current library patterns. Anti-pattern detection hooks. Requires superpowers and context7 plugins.",
-      "version": "1.18.0",
+      "version": "1.19.2",
       "source": "./",
       "author": {
         "name": "uta2000"

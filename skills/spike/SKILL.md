@@ -19,7 +19,7 @@ Run time-boxed technical experiments to de-risk unknowns before committing to a 
 
 **Project context:** Check for `.feature-flow.yml` in the project root. If found, load the `stack` entries and check for matching stack-specific assumption patterns at `../../references/stacks/{name}.md`. Each stack file includes a "Risky Assumptions (for Spike)" section with common assumptions and how to test them.
 
-**Documentation context:** If `.feature-flow.yml` has a `context7` field, query relevant Context7 libraries before designing experiments. Current documentation often reveals known limitations, deprecated APIs, or undocumented behaviors that inform what to test. For example, querying Context7 for "Supabase bulk insert limits" before spiking a batch data import can surface rate limits or payload size constraints documented in the official guides.
+**Documentation context:** If `.feature-flow.yml` has a `context7` field and the Context7 MCP plugin is available (see `../../references/tool-api.md` — Context7 MCP Tools for availability check), query relevant Context7 libraries before designing experiments. Current documentation often reveals known limitations, deprecated APIs, or undocumented behaviors that inform what to test. For example, querying Context7 for "Supabase bulk insert limits" before spiking a batch data import can surface rate limits or payload size constraints documented in the official guides.
 
 ## When to Skip
 
@@ -61,7 +61,7 @@ Use `AskUserQuestion` to confirm which assumptions to test.
 
 Before designing experiments, check if existing documentation already answers the question:
 
-1. If `.feature-flow.yml` has a `context7` field, query relevant Context7 libraries for the assumptions being tested
+1. If `.feature-flow.yml` has a `context7` field and the Context7 MCP plugin is available, query relevant Context7 libraries for the assumptions being tested
 2. Check stack reference files at `../../references/stacks/{name}.md` for known gotchas related to the assumptions
 3. If documentation clearly confirms or denies an assumption with evidence (code examples, explicit limits), mark it as CONFIRMED_BY_DOCS or DENIED_BY_DOCS — no experiment needed
 4. If documentation is ambiguous or missing, proceed to experiment
@@ -95,7 +95,7 @@ Dispatch one agent per selected assumption to run experiments in parallel. Each 
 
 #### Dispatch
 
-Use the Task tool with `subagent_type=general-purpose` (not Explore — experiments execute scripts and need write access), `model: sonnet`, and `isolation: "worktree"` for every agent. Launch up to **5 agents** in a single message to run them concurrently. If more than 5 assumptions need testing, dispatch the first 5, wait for completion, then dispatch the remainder.
+Use the Task tool with `subagent_type: "general-purpose"` (not `"Explore"` — experiments execute scripts and need write access), `model: "sonnet"`, and `isolation: "worktree"` for every agent (see `../../references/tool-api.md` — Task Tool for correct parameter syntax). Launch up to **5 agents** in a single message to run them concurrently. If more than 5 assumptions need testing, dispatch the first 5, wait for completion, then dispatch the remainder.
 
 Announce: "Dispatching N experiment agents in parallel (worktree-isolated)..."
 

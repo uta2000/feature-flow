@@ -119,7 +119,10 @@ Optional PR target branch. When set, overrides the automatic detection cascade u
 
 **Detection cascade (when `default_branch` is absent):**
 1. `git config --get init.defaultBranch` (if set and branch exists locally or on remote)
-2. Check if `staging` branch exists: `git rev-parse --verify staging 2>/dev/null`
+2. Check for common integration branches (local first, then remote):
+   a. `develop`: `git rev-parse --verify develop 2>/dev/null || git rev-parse --verify origin/develop 2>/dev/null`
+   b. `staging`: `git rev-parse --verify staging 2>/dev/null || git rev-parse --verify origin/staging 2>/dev/null`
+   `develop` is checked before `staging` (Git Flow convention). If both exist, `develop` wins — set `default_branch` to override.
 3. Fall back to `main` (or `master` if `main` doesn't exist)
 
 **Format:** Single branch name string.

@@ -142,7 +142,10 @@ After loading project context, detect the base branch that will be used as the P
 Detection cascade:
 1. `.feature-flow.yml` → `default_branch` field (if present and non-empty)
 2. `git config --get init.defaultBranch` (if set and branch exists locally or on remote)
-3. Check if `develop` or `staging` branch exists (local or remote): `git rev-parse --verify develop 2>/dev/null || git rev-parse --verify origin/develop 2>/dev/null || git rev-parse --verify staging 2>/dev/null || git rev-parse --verify origin/staging 2>/dev/null` — use the first match found (`develop` preferred over `staging`)
+3. Check for common integration branches (local first, then remote):
+   a. `develop`: `git rev-parse --verify develop 2>/dev/null || git rev-parse --verify origin/develop 2>/dev/null`
+   b. `staging`: `git rev-parse --verify staging 2>/dev/null || git rev-parse --verify origin/staging 2>/dev/null`
+   `develop` is checked before `staging` because it is the Git Flow standard integration branch, while `staging` is typically an environment branch. If both exist, announce a warning: `"Both develop and staging branches detected. Using develop — set default_branch in .feature-flow.yml to override."`
 4. Fall back to `main` (or `master` if `main` doesn't exist)
 
 Announce: `"Detected base branch: [branch]. All PR targets and branch diffs will use this."`
@@ -396,21 +399,21 @@ When the platform is mobile, modify the step list:
 
 Announce the platform-specific additions: "Mobile platform detected. Adding: device matrix testing, beta testing, app store review, and comment and close issue steps."
 
-**Create a todo list to track progress.** Use `ToolSearch` to load `TaskCreate` (query: `select:TaskCreate`), then create a todo item for each step. If `TaskCreate` is not available (ToolSearch returns no results), fall back to tracking progress by printing a checklist in your output — prefix completed steps with `[x]` and pending steps with `[ ]`.
-
-Also load `TaskUpdate` via `ToolSearch` (query: `select:TaskUpdate`) for marking items in progress and complete. If unavailable, use the text-based checklist fallback.
+Use the `TaskCreate` tool to create a todo item for each step (see `../../references/tool-api.md` — Deferred Tools section for loading instructions and correct usage).
 
 ### Step 3: Execute Steps in Order
 
 For each step, follow this pattern:
 
 1. **Announce the step:** "Step N: [name]. Invoking [skill name]."
-2. **Mark in progress:** Update the todo item to `in_progress` (or print updated checklist if using fallback)
-3. **Invoke the skill** using the Skill tool (see mapping below)
+2. **Mark in progress:** Update the todo item to `in_progress` using `TaskUpdate` (see `../../references/tool-api.md` — Deferred Tools)
+3. **Invoke the skill** using the Skill tool (see mapping below and `../../references/tool-api.md` — Skill Tool for correct parameter names)
 4. **Confirm completion:** Verify the step produced its expected output
-5. **Mark complete:** Update the todo item to `completed` (or print updated checklist if using fallback)
+5. **Mark complete:** Update the todo item to `completed` — **always call `TaskUpdate` here.** This tool call is the bridge that keeps your turn alive between steps. If you output only text without a tool call, your turn ends and the user must type "continue" to resume.
 6. **Check for context checkpoint:** If the just-completed step is a checkpoint trigger (see Context Window Checkpoints section), and the current mode is not YOLO, and the current scope includes this checkpoint — output the checkpoint block and wait for the user to respond before announcing the next step.
-7. **Announce next step:** "Step N complete. Next: Step N+1 — [name]."
+7. **Announce next step and loop:** "Step N complete. Next: Step N+1 — [name]." Then **immediately loop back to sub-step 1 (Announce the step)** for the next lifecycle step.
+
+**YOLO Execution Continuity (CRITICAL):** In YOLO mode, the execution loop must be **uninterrupted**. After completing one step, proceed directly to the next step in the same turn — do NOT end your turn between steps. The most common failure mode is: a skill outputs text (e.g., brainstorming decisions table), the assistant's turn ends because there are no pending tool calls, and the user must type "continue" to resume — this defeats the purpose of YOLO ("fully unattended, no pauses"). To prevent this: after a skill finishes outputting results, **always make the `TaskUpdate` tool call (step 5) in the same response** to keep the turn alive, then continue to step 7 and loop back to step 1 for the next step.
 
 **YOLO Propagation:** When YOLO mode is active, prepend `yolo: true. scope: [scope].` to the `args` parameter of every `Skill` invocation. Scope context is required because design-document uses it to determine checkpoint behavior. For example:
 
@@ -489,6 +492,7 @@ Instead:
 4. After self-answering all questions, present the design as a single block — do NOT break it into sections and do NOT ask "does this look right?" after each section
 5. Do NOT ask "Ready to set up for implementation?" — the lifecycle continues automatically to the next step
 6. Ensure all self-answered decisions are captured when passing context to the design document step
+7. **After outputting the brainstorming results, immediately call `TaskUpdate` to mark brainstorming complete** — do NOT end your turn with only text output. The tool call keeps your turn alive so you can proceed to the next lifecycle step.
 
 This is the most complex YOLO interaction — the LLM makes design-level decisions. The user reviews these via the design document output rather than each micro-decision.
 
@@ -523,7 +527,7 @@ Or type "continue" to skip compaction and proceed.
 | Major feature | All 3 |
 
 **Suppression rules:**
-- **YOLO mode:** All checkpoints suppressed — do not output the checkpoint block
+- **YOLO mode:** All checkpoints suppressed — do not output the checkpoint block, do not end your turn. Proceed immediately to the next step (see **YOLO Execution Continuity** in Step 3).
 - **Express mode:** Checkpoints are shown — output the checkpoint block and wait
 - **Interactive mode:** Checkpoints are shown — output the checkpoint block and wait
 - **Quick fix scope:** No checkpoints regardless of mode
@@ -565,6 +569,42 @@ After the plan is saved:
 1. Do NOT present the execution choice
 2. Announce: `YOLO: writing-plans — Execution choice → Subagent-Driven (auto-selected)`
 3. Immediately proceed to the next lifecycle step
+
+### Writing Plans Quality Context Injection
+
+This section applies unconditionally in all modes (YOLO, Express, Interactive). When invoking `superpowers:writing-plans`, prepend the following quality requirements to the planning instructions so that every task in the implementation plan includes quality constraints alongside acceptance criteria. `verify-plan-criteria` enforces these requirements — tasks without Quality Constraints will be flagged.
+
+**Prepend to the planning instructions:**
+
+1. **Quality Constraints section required per task.** Every non-trivial task must include a `**Quality Constraints:**` section after its acceptance criteria. The section specifies:
+   - **Error handling pattern:** Which pattern to use (typed errors, discriminated unions, Result<T, E>) and which existing file to follow as reference
+   - **Type narrowness:** Which types must use literal unions instead of string/number, and which types should be generated vs hand-maintained
+   - **Function length/extraction:** Whether the task's main function can fit in ≤30 lines, and what helpers to extract if not
+   - **Pattern reference:** Which existing file in the codebase to follow as a structural pattern
+
+2. **Edge case criteria required in acceptance criteria.** For tasks that handle input, make external calls, or process data, acceptance criteria must include at least one edge case test:
+   - Empty/null input handling
+   - Timeout/error path handling
+   - Boundary value testing (e.g., pagination limits, max lengths)
+   - Special character/injection prevention (where applicable)
+
+**Example task with quality constraints:**
+
+```markdown
+### Task 3: Build search handler
+
+**Acceptance Criteria:**
+- [ ] Returns paginated results matching query
+- [ ] Returns empty array for no matches
+- [ ] Handles API timeout (30s) with typed error
+- [ ] Returns validation error for empty string input
+
+**Quality Constraints:**
+- Error handling: typed errors with discriminated union (match `src/handlers/users.ts`)
+- Types: `SearchResult.status` uses literal union `'available' | 'taken' | 'error'`, not string
+- Function length: handler ≤30 lines; extract validation and transformation helpers
+- Pattern: follow existing handler in `src/handlers/users.ts`
+```
 
 ### Using Git Worktrees YOLO Override
 
@@ -608,6 +648,38 @@ Additional YOLO behavior:
 3. When dispatching implementation subagents, use `model: sonnet` unless the task description contains keywords indicating architectural complexity: "architect", "migration", "schema change", "new data model". For these, use `model: opus`. Announce: `YOLO: subagent-driven-development — Model selection → sonnet (or opus for [keyword])`
 4. When dispatching spec review or consumer verification subagents, use `model: sonnet`. These agents compare implementation against acceptance criteria or verify existing code is unchanged — checklist work that does not require deep reasoning.
 5. When dispatching Explore agents during implementation, use `model: haiku`. These agents do read-only file exploration and pattern extraction.
+
+### Implementer Quality Context Injection
+
+This section applies unconditionally in all modes (YOLO, Express, Interactive). When `subagent-driven-development` dispatches implementer subagents, prepend quality context to each implementer's prompt so they write code that follows standards from the start.
+
+**Context injected per implementer subagent:**
+
+1. **Relevant coding standards sections.** Extract the sections from `../../references/coding-standards.md` that apply to the task being implemented, using `<!-- section: slug -->` markers. For example, a task building an API handler gets: `functions`, `error-handling`, `types`, and `naming-conventions`. A task building a UI component gets: `functions`, `types`, `separation-of-concerns`, and `naming-conventions`. Always include `functions` and `types` — they apply universally.
+
+2. **"How to Code This" notes.** Include the per-task notes generated during the Study Existing Patterns step. These map each task to the specific patterns found in the codebase (e.g., "Follow pattern from `src/handlers/users.ts`; error handling uses discriminated union return type").
+
+3. **Anti-patterns found.** Include any anti-patterns flagged during Study Existing Patterns with an explicit instruction: "Do NOT replicate these patterns in new code." This prevents implementers from copying existing bad patterns for consistency.
+
+4. **Quality Constraints from the plan task.** Include the `**Quality Constraints:**` section from the specific plan task being implemented. This gives the implementer concrete constraints: which error handling pattern, which types must be narrow, what function length target, and which file to follow.
+
+**Injection format:**
+
+```
+## Quality Context for This Task
+
+### Coding Standards (from ../../references/coding-standards.md)
+[Extracted sections relevant to this task]
+
+### How to Code This
+[Per-task notes from Study Existing Patterns]
+
+### Anti-Patterns (do NOT replicate)
+[Flagged anti-patterns from Study Existing Patterns]
+
+### Quality Constraints (from implementation plan)
+[Quality Constraints section from this specific task]
+```
 
 ### Commit Planning Artifacts Step (inline — no separate skill)
 
@@ -674,18 +746,19 @@ This step runs after copy env files and before implementation. It forces reading
 2. Identify the areas of the codebase that will be modified or extended (from the implementation plan)
 3. **Parallel dispatch** — For each identified area, dispatch one Explore agent to read 2-3 example files and extract patterns. Each agent also flags anti-patterns (files >300 lines, mixed concerns, circular dependencies, duplicated logic).
 
-   Use the Task tool with `subagent_type=Explore` and `model: haiku`. Launch all agents in a **single message** to run them concurrently. Announce: "Dispatching N pattern study agents in parallel..."
+   Use the Task tool with `subagent_type: "Explore"` and `model: "haiku"` (see `../../references/tool-api.md` — Task Tool for correct parameter syntax). Launch all agents in a **single message** to run them concurrently. Announce: "Dispatching N pattern study agents in parallel..."
 
    **Context passed to each agent:**
    - Area name and file paths/directories to examine
    - Instructions: read 2-3 example files, extract file structure, error handling, naming conventions, and state management patterns
    - Instructions: flag anti-patterns — files exceeding 300 lines (god files), mixed concerns, circular dependency imports, duplicated logic
    - Instructions: before reading any file, check its size with `wc -c <file>`. If >200KB, use Grep to find relevant sections instead of reading the whole file, or use Read with offset/limit parameters targeting the specific functions/components being studied.
+   - Instructions: identify 2-3 exemplary files per area that best demonstrate the project's patterns — these will be passed to code review agents as "known good" reference examples
 
    **Expected return format per agent:**
 
    ```
-   { area: string, patterns: [{ aspect: string, pattern: string }], antiPatterns: [{ file: string, issue: string, recommendation: string }] }
+   { area: string, patterns: [{ aspect: string, pattern: string }], antiPatterns: [{ file: string, issue: string, recommendation: string }], referenceExamples: [{ file: string, aspects: string }] }
    ```
 
    **Failure handling:** If an agent fails or crashes, retry it once. If it fails again, skip that area and log a warning: "[Area] pattern study failed — skipping. Continuing with available results."
@@ -701,11 +774,17 @@ This step runs after copy env files and before implementation. It forces reading
 - Error handling: [how existing routes handle errors]
 - Response format: [what shape existing routes return]
 - Auth pattern: [how auth is checked]
+- Reference examples:
+  - `[file path]` ([aspects this file exemplifies])
+  - `[file path]` ([aspects this file exemplifies])
 
 ### [Area: e.g., Components]
 - State management: [local state vs hooks vs context]
 - Loading states: [how loading is shown]
 - Error states: [how errors are displayed]
+- Reference examples:
+  - `[file path]` ([aspects this file exemplifies])
+  - `[file path]` ([aspects this file exemplifies])
 
 ### Coding Standards to Follow
 - [List relevant items from coding-standards.md for this feature]
@@ -733,7 +812,7 @@ This step runs after copy env files and before implementation. It forces reading
 - State management: [specific approach matching existing patterns]
 ```
 
-6. Pass these patterns, the "How to Code This" notes, AND any anti-pattern warnings from the consolidated output to the implementation step as mandatory context. **New code MUST follow these patterns unless there is a documented reason to deviate.**
+6. Pass these patterns, the "How to Code This" notes, anti-pattern warnings, AND reference examples from the consolidated output to BOTH the implementation step AND the code review pipeline step as mandatory context. **New code MUST follow these patterns unless there is a documented reason to deviate.** The code review pipeline uses reference examples to check new code against known-good patterns.
 
 **Quality rules:**
 - Read at least 2 existing files per area being modified
@@ -785,6 +864,8 @@ This step runs after implementation and before formal code review. It catches "i
 - [area] follows existing patterns
 ```
 
+**YOLO continuity:** After outputting self-review results, immediately call `TaskUpdate` to mark this step complete — do not end your turn with only text output.
+
 ### Code Review Pipeline Step (inline — no separate skill)
 
 This step runs after self-review and before final verification. It dispatches multiple specialized review agents in parallel, auto-fixes findings, and re-verifies until clean. The goal is shipping clean code, not a list of TODOs.
@@ -812,19 +893,79 @@ This step runs after self-review and before final verification. It dispatches mu
 
 Only dispatch agents that belong to the current tier (or lower). The availability check still applies — if a tier-selected agent's plugin is missing, skip it as before.
 
+#### Phase 0: Deterministic pre-filter
+
+Run deterministic tools before dispatching agents to catch issues that linters can find. Fix those issues first, then pass results as exclusion context to agents so they focus on what linters cannot catch.
+
+**Detection and execution:**
+
+1. **Detect available tools:**
+   - TypeScript: check if `tsconfig.json` exists in the project root
+   - ESLint: check if `.eslintrc*` or `eslint.config.*` exists, or `eslintConfig` in `package.json`
+   - Biome: check if `biome.json` or `biome.jsonc` exists
+   If no tools are detected, skip Phase 0 entirely: "No deterministic tools detected — skipping pre-filter."
+
+2. **Run detected tools in parallel:**
+   Before running any tool, verify the binary exists in `node_modules/.bin/` (e.g., `node_modules/.bin/tsc` for TypeScript). If the binary is not present, skip that tool with: "[tool] not found in node_modules/.bin/ — skipping. Run npm install first."
+   - TypeScript: `./node_modules/.bin/tsc --noEmit 2>&1`
+   - ESLint: `./node_modules/.bin/eslint --no-error-on-unmatched-pattern . 2>&1`
+   - Biome: `./node_modules/.bin/biome check . 2>&1`
+   Timeout: 60 seconds per tool. If a tool times out, log a warning and skip it.
+
+3. **Collect and summarize results:**
+   Parse output for file paths and line numbers. Categorize as type errors, lint violations, or anti-pattern violations.
+
+4. **Fix pre-filter findings:**
+   Before proceeding to Phase 1, fix the deterministic findings directly (type errors → fix types, lint errors → auto-fix with `--fix` flag or manual fix). This runs sequentially before agent dispatch to avoid race conditions.
+
+5. **Build exclusion context for Phase 1:**
+   Generate a "Pre-Filter Results" summary to include in each agent's prompt:
+   ```
+   ## Pre-Filter Results (already caught and fixed — skip these areas)
+   - [file:line] [category]: [description]
+
+   Focus your review on issues these tools CANNOT catch:
+   logic errors, architectural mismatches, missing edge cases, security vulnerabilities.
+   ```
+   If no issues were found in the pre-filter, include: "Pre-filter ran clean — no deterministic issues found. Proceed with full review."
+
 #### Phase 1: Dispatch review agents
 
-Dispatch the tier-selected review agents in parallel (see scope-based agent selection above). For each agent at or below the current tier, use the Task tool with the agent's `subagent_type` and `model` parameter (see table below). Each agent's prompt should include the full branch diff (`git diff [base-branch]...HEAD`) and a description of what to review. Launch all agents in a single message to run them concurrently.
+Dispatch the tier-selected review agents in parallel (see scope-based agent selection above). For each agent at or below the current tier, use the Task tool with the agent's `subagent_type` and `model` parameter (see table below and `../../references/tool-api.md` — Task Tool for correct syntax). Launch all agents in a single message to run them concurrently.
 
-| Agent | Plugin | Role | Fix Mode | Model | Tier |
-|-------|--------|------|----------|-------|------|
-| `pr-review-toolkit:code-simplifier` | pr-review-toolkit | DRY, clarity, maintainability | **Direct** — writes fixes to files | sonnet | 2 |
-| `pr-review-toolkit:silent-failure-hunter` | pr-review-toolkit | Silent failures, empty catches, bad fallbacks | **Direct** — auto-fixes common patterns | sonnet | 1 |
-| `feature-dev:code-reviewer` | feature-dev | Bugs, logic errors, security, conventions | **Report** → Claude fixes | sonnet | 2 |
-| `superpowers:code-reviewer` | superpowers | General quality, plan adherence | **Report** → Claude fixes | sonnet | 1 |
-| `pr-review-toolkit:pr-test-analyzer` | pr-review-toolkit | Test coverage quality, missing tests | **Report** → Claude fixes | sonnet | 3 |
-| `backend-api-security:backend-security-coder` | backend-api-security | Input validation, auth, OWASP top 10 | **Report** → Claude fixes | opus | 3 |
-| `pr-review-toolkit:type-design-analyzer` | pr-review-toolkit | Type encapsulation, invariants, type safety | **Report** → Claude fixes | sonnet | 3 |
+**Each agent's prompt MUST include all of the following:**
+
+1. **Branch diff:** `git diff [base-branch]...HEAD`
+2. **Agent checklist:** The specific rules from the Checklist column in the table below — these are the ONLY things the agent should check
+3. **Relevant coding standards:** Extract the sections mapped to this agent from `references/coding-standards.md` (see the Agent-Section Mapping table at the bottom of that file) and include them verbatim
+4. **Stack patterns:** If `.feature-flow.yml` has a `stack` field, include applicable rules from `references/stacks/*.md` for the project's stack
+5. **Acceptance criteria:** From the implementation plan tasks, so agents can verify spec compliance
+6. **Anti-patterns and reference examples:** From the Study Existing Patterns output (carried through lifecycle context), so agents know what NOT to accept and what "known good" code looks like
+7. **Pre-filter exclusion context:** From Phase 0, so agents skip issues already caught by deterministic tools
+
+**Structured output requirement:** Instruct each **reporting** agent (Fix Mode = "Report") to return findings in this format. Direct-fix agents should summarize what they changed in free-form text (their output is consumed in Phase 2, not Phase 3). Findings that do not follow this format will be discarded in Phase 3:
+
+```
+- file: [exact file path]
+  line: [line number]
+  rule: [specific rule name from checklist]
+  severity: critical | important | minor
+  description: [what's wrong and why]
+  fix: |
+    [concrete code change — not "consider improving"]
+```
+
+Agents must name the specific rule violated from their checklist. Findings without a named rule and concrete fix will be rejected.
+
+| Agent | Plugin | Checklist | Fix Mode | Model | Tier |
+|-------|--------|-----------|----------|-------|------|
+| `pr-review-toolkit:code-simplifier` | pr-review-toolkit | (1) No duplicated logic blocks across files, (2) extract shared utilities at 2 repetitions, (3) data fetching separate from rendering, (4) business logic separate from I/O, (5) constants used for magic values | **Direct** — writes fixes to files | sonnet | 2 |
+| `pr-review-toolkit:silent-failure-hunter` | pr-review-toolkit | (1) Every catch block logs or re-throws, (2) no `.catch(() => {})` or `catch {}`, (3) no fallback that silently returns default, (4) every Promise has rejection handling, (5) no error swallowing in event handlers | **Direct** — auto-fixes common patterns | sonnet | 1 |
+| `feature-dev:code-reviewer` | feature-dev | (1) Every external call has error handling, (2) inputs validated at system boundaries, (3) no SQL/command injection vectors, (4) race conditions in async code, (5) off-by-one in loops/pagination | **Report** → Claude fixes | sonnet | 2 |
+| `superpowers:code-reviewer` | superpowers | (1) Every function ≤30 lines, (2) no nesting >3 levels, (3) guard clauses for error cases, (4) naming matches conventions, (5) no god files >300 lines, (6) all acceptance criteria met | **Report** → Claude fixes | sonnet | 1 |
+| `pr-review-toolkit:pr-test-analyzer` | pr-review-toolkit | (1) Every public function has a test, (2) error paths tested, (3) edge cases from acceptance criteria covered, (4) no mock-only tests skipping real code, (5) one behavior per test | **Report** → Claude fixes | sonnet | 3 |
+| `backend-api-security:backend-security-coder` | backend-api-security | (1) Every user input validated before use, (2) auth checked on every route, (3) no secrets in code, (4) CORS configured correctly, (5) rate limiting on public endpoints | **Report** → Claude fixes | opus | 3 |
+| `pr-review-toolkit:type-design-analyzer` | pr-review-toolkit | (1) No `any` types, (2) literal unions where applicable, (3) discriminated unions for variants, (4) generated types for external data, (5) exported types enforce invariants | **Report** → Claude fixes | sonnet | 3 |
 
 **Availability check:** Before dispatching, filter the table to agents matching the current tier (or lower), then check which of those agents' plugins are installed. Skip agents whose plugins are missing. Announce: "Running N code review agents in parallel (Tier T — [scope])..." (where N is the count of available tier-filtered agents and T is the tier number).
 
@@ -835,13 +976,18 @@ Dispatch the tier-selected review agents in parallel (see scope-based agent sele
 After all agents complete, review the direct-fix agents that were dispatched in this tier. Summarize what they changed:
 
 1. **`silent-failure-hunter`** (Tier 1+) — If dispatched: auto-fixed common patterns (`catch {}` → `catch (e) { console.error(...) }`). Summarize what changed. Flag anything complex it couldn't auto-fix. If skipped (plugin unavailable): announce "silent-failure-hunter was unavailable — silent failure patterns were not automatically reviewed."
-2. **`code-simplifier`** (Tier 2+) — If dispatched: applied structural improvements directly (DRY extraction, clarity rewrites). Summarize what changed. If skipped (plugin unavailable): announce "code-simplifier was unavailable — DRY/clarity improvements were not automatically applied."
+2. **`code-simplifier`** (Tier 2+) — If dispatched: applied structural improvements directly (DRY extraction, separation of concerns, magic value extraction). Summarize what changed. If skipped (plugin unavailable): announce "code-simplifier was unavailable — DRY/clarity improvements were not automatically applied."
 
 At Tier 1, only `silent-failure-hunter` (item 1) applies — `code-simplifier` was not dispatched at this tier.
 
 #### Phase 3: Consolidate and fix reported findings
 
 Collect findings from the reporting agents dispatched in Phase 1. Consolidate them:
+
+0. **Reject non-compliant findings** — applies only to **reporting agents** (Fix Mode = "Report"). Direct-fix agent summaries from Phase 2 are not subject to this filter. Before any other processing, filter out findings from reporting agents that do not meet the structured output requirement from Phase 1:
+   - Discard findings missing any required field (`file`, `line`, `rule`, `severity`, `description`, `fix`)
+   - Discard findings where `fix` contains only commentary ("consider simplifying", "could be improved", "might want to") without concrete code changes
+   - Announce: "Rejected N findings (M missing required fields, K vague fixes). Proceeding with R valid findings."
 
 1. **Deduplicate by file path + line number** — if two agents flag the same location, keep the higher-severity finding
 2. **If same severity**, prefer the more specific agent (among those dispatched): security > type-design > test-analyzer > feature-dev > superpowers
@@ -909,6 +1055,8 @@ Output a summary:
 
 **Status:** Clean / N issues remaining
 ```
+
+**YOLO continuity:** After outputting the code review report, immediately call `TaskUpdate` to mark this step complete — do not end your turn with only text output.
 
 ### Generate CHANGELOG Entry Step (inline — no separate skill)
 
@@ -1034,6 +1182,8 @@ After writing, announce: "CHANGELOG.md updated with N entries across M categorie
 **Categories:** [list]
 **Action:** Written to CHANGELOG.md / Skipped by user
 ```
+
+**YOLO continuity:** After outputting CHANGELOG results, immediately call `TaskUpdate` to mark this step complete — do not end your turn with only text output.
 
 ### Comment and Close Issue Step (inline — no separate skill)
 

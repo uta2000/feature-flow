@@ -28,14 +28,14 @@ Collect the inputs needed to write the document:
 
 #### Parallel Context Gathering
 
-Launch 3-4 Explore agents in a **single message** using the Task tool with `subagent_type=Explore` and `model: haiku`. Announce: "Dispatching N context-gathering agents in parallel..."
+Launch 3-4 Explore agents in a **single message** using the Task tool with `subagent_type: "Explore"` and `model: "haiku"` (see `../../references/tool-api.md` — Task Tool for correct parameter syntax). Announce: "Dispatching N context-gathering agents in parallel..."
 
 | Agent | Assignment | Always? |
 |-------|-----------|---------|
 | Format patterns | Read existing design docs in `docs/plans/` and extract document structure, section patterns, and conventions | Yes |
 | Stack & dependencies | Examine dependency files (`package.json`, config files), project structure, and tech stack conventions | Yes |
 | Relevant code | Search for and read source files related to the feature being designed (e.g., existing components, routes, hooks, models in the affected areas) | Yes |
-| Documentation (Context7) | If `.feature-flow.yml` has a `context7` field, Context7 is available, AND no documentation lookup step was already run in the `start` lifecycle — query relevant Context7 libraries for current patterns the design should follow. Skip this agent if any condition is not met. | Conditional |
+| Documentation (Context7) | If `.feature-flow.yml` has a `context7` field, the Context7 MCP plugin is available (see `../../references/tool-api.md` — Context7 MCP Tools for availability check), AND no documentation lookup step was already run in the `start` lifecycle — query relevant Context7 libraries for current patterns the design should follow. Skip this agent if any condition is not met. | Conditional |
 
 **Context passed to each agent:**
 - Feature description (from brainstorming output or issue body)
@@ -69,6 +69,7 @@ Select sections based on what the feature requires. Not every feature needs ever
 **Required sections:**
 - **Overview** — What the feature does, in 2-3 sentences
 - **User Flow** — Step-by-step from the user's perspective
+- **Patterns & Constraints** — Error handling strategy, type narrowness, performance constraints, and stack-specific patterns that implementation must follow
 - **Scope** — What is included and what is explicitly excluded
 
 **Include when applicable:**
@@ -126,6 +127,23 @@ Write each section following these principles (see `references/section-templates
 ### Step 3 — [Name]
 
 ## [Technical sections as needed]
+
+## Patterns & Constraints
+
+### Error Handling
+- [Strategy for each external call type — typed Result<T, E>, retry, timeout]
+- [User-facing vs system error distinction]
+
+### Types
+- [Key types with narrowness specified — literal unions, not string]
+- [Generated vs hand-maintained types]
+
+### Performance
+- [Debounce, pagination, parallel constraints]
+- [N+1 prevention strategy]
+
+### Stack-Specific
+- [Patterns from references/stacks/*.md and Context7 docs that apply]
 
 ## Migration Requirements
 [Numbered list of all schema/type changes]
