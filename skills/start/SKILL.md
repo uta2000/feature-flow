@@ -169,7 +169,7 @@ Announce: `"Detected base branch: [branch]. All PR targets and branch diffs will
 
 **Session Model Recommendation:**
 
-After detecting the base branch, recommend Sonnet-first routing. The lifecycle's mechanical phases (implementation, review, verification, git operations) do not require Opus-level reasoning — Sonnet handles them equally well at ~80% lower cost.
+After detecting the base branch, recommend Sonnet-first routing. The lifecycle's mechanical phases (implementation, review, verification, git operations) do not require Opus-level reasoning — Sonnet handles them equally well at significantly lower cost (see Model Routing Defaults for figures).
 
 1. Announce the recommendation:
    ```
