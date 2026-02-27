@@ -2,6 +2,11 @@
 
 All notable changes to the feature-flow plugin.
 
+## [1.19.3] - 2026-02-27
+
+### Fixed
+- Removed stop hook `verify-acceptance-criteria` Haiku prompt that fired on every session end, costing tokens and blocking non-plan sessions (Closes #91)
+
 ## [1.19.2] - 2026-02-25
 
 ### Fixed
