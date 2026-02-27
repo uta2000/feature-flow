@@ -668,7 +668,7 @@ Additional YOLO behavior:
 2. Do NOT ask the user to answer subagent questions — use available context to provide answers directly
 3. When dispatching implementation subagents, use `model: sonnet` unless the task description contains keywords indicating architectural complexity: "architect", "migration", "schema change", "new data model". For these, use `model: opus`. Announce: `YOLO: subagent-driven-development — Model selection → sonnet (or opus for [keyword])`
 4. When dispatching spec review or consumer verification subagents, use `model: sonnet`. These agents compare implementation against acceptance criteria or verify existing code is unchanged — checklist work that does not require deep reasoning.
-5. When dispatching Explore agents during implementation, use `model: haiku`. These agents do read-only file exploration and pattern extraction.
+5. When dispatching Explore agents during implementation, follow the Model Routing Defaults section below (`haiku`).
 
 ### Implementer Quality Context Injection
 
@@ -714,6 +714,19 @@ For each file you modify, follow this protocol:
 3. Write the edit in one pass
 4. MANDATORY for design-first files: Output your change plan before ANY Edit call on: [file list]
 ```
+
+### Model Routing Defaults
+
+This section applies unconditionally in all modes (YOLO, Express, Interactive). When dispatching subagents via the Task tool, use these model defaults unless a skill documents a specific override with justification.
+
+| `subagent_type` | Default Model | Rationale | Override When |
+|-----------------|---------------|-----------|---------------|
+| `"Explore"` | `haiku` | Read-only operations (Glob, Grep, Read, LS); no advanced reasoning needed | Task requires substantive analysis (e.g., design-verification batch agents making PASS/FAIL/WARNING judgments) — use `sonnet` and document justification inline |
+| `"general-purpose"` | `sonnet` | Write access; needs reasoning for implementation | Task involves architectural complexity ("architect", "migration", "schema change", "new data model") — use `opus` |
+| `"Plan"` | `sonnet` | Architecture planning requires reasoning | — |
+| Spec review / consumer verification | `sonnet` | Checklist comparison work | — |
+
+**Enforcement:** Convention-based via skill instructions. Skills that dispatch Task agents must include the `model` parameter explicitly. The YOLO/Express override section and inline steps reference this table rather than re-stating routing rules.
 
 ### Commit Planning Artifacts Step (inline — no separate skill)
 
@@ -780,7 +793,7 @@ This step runs after copy env files and before implementation. It forces reading
 2. Identify the areas of the codebase that will be modified or extended (from the implementation plan)
 3. **Parallel dispatch** — For each identified area, dispatch one Explore agent to read 2-3 example files and extract patterns. Each agent also flags anti-patterns (files >300 lines, mixed concerns, circular dependencies, duplicated logic).
 
-   Use the Task tool with `subagent_type: "Explore"` and `model: "haiku"` (see `../../references/tool-api.md` — Task Tool for correct parameter syntax). Launch all agents in a **single message** to run them concurrently. Announce: "Dispatching N pattern study agents in parallel..."
+   Use the Task tool with `subagent_type: "Explore"` and `model: "haiku"` (per Model Routing Defaults; see `../../references/tool-api.md` — Task Tool for parameter syntax). Launch all agents in a **single message** to run them concurrently. Announce: "Dispatching N pattern study agents in parallel..."
 
    **Context passed to each agent:**
    - Area name and file paths/directories to examine

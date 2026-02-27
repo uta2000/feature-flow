@@ -19,7 +19,7 @@ Launches a specialized agent to handle a subtask. Returns a result message when 
 
 **Valid `subagent_type` values (common in feature-flow):**
 
-- `"Explore"` — Read-only codebase exploration (Glob, Grep, Read, Bash). Use for pattern study, codebase analysis, verification.
+- `"Explore"` — Read-only codebase exploration (Glob, Grep, Read, Bash). Use for pattern study, codebase analysis, verification. **Default model: `haiku`** (see Recommended Model Defaults below).
 - `"general-purpose"` — Full tool access including Write, Edit, Bash. Use for experiments, implementation, tasks needing write access.
 - `"feature-flow:task-verifier"` — Verify acceptance criteria against the codebase.
 - `"superpowers:code-reviewer"` — Code review against coding standards.
@@ -44,6 +44,18 @@ Task(subagent_type: "Explore", model: "haiku", description: "Study API patterns"
 Task(subagent_type: "general-purpose", model: "sonnet", isolation: "worktree", description: "Run spike experiment", prompt: "Test whether...")
 Task(subagent_type: "feature-flow:task-verifier", description: "Verify acceptance criteria", prompt: "Verify the following...")
 ```
+
+### Recommended Model Defaults
+
+When dispatching subagents, use these model defaults. Always set the `model` parameter explicitly — omitting it causes agents to inherit the parent model (often Opus), which is wasteful for simple tasks.
+
+| `subagent_type` | Recommended Model | Rationale |
+|-----------------|-------------------|-----------|
+| `"Explore"` | `haiku` | Read-only; no advanced reasoning needed |
+| `"general-purpose"` | `sonnet` | Write access; needs reasoning for implementation |
+| `"Plan"` | `sonnet` | Architecture planning requires reasoning |
+
+**Override guidance:** Use `sonnet` for Explore agents that do substantive analysis (e.g., design-verification batch agents). Use `opus` for implementation agents handling architectural complexity. Document overrides inline in the skill. For the full table with override conditions, see the Model Routing Defaults section in `skills/start/SKILL.md`.
 
 ## Skill Tool (invoke a skill)
 
