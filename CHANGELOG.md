@@ -2,6 +2,11 @@
 
 All notable changes to the feature-flow plugin.
 
+## [Unreleased]
+
+### Added
+- **Model routing defaults** — new general section in `start` skill establishing Haiku as the default model for Explore subagents across all run modes (YOLO, Express, Interactive), with override guidance for complex analysis tasks. Updated `references/tool-api.md` with recommended model defaults table. (Closes #97)
+
 ## [1.20.0] - 2026-02-27
 
 ### Added
