@@ -4,6 +4,8 @@ All notable changes to the feature-flow plugin.
 
 ## [Unreleased]
 
+## [1.21.0] - 2026-02-27
+
 ### Added
 - **Model routing defaults** — new general section in `start` skill establishing Haiku as the default model for Explore subagents across all run modes (YOLO, Express, Interactive), with override guidance for complex analysis tasks. Updated `references/tool-api.md` with recommended model defaults table. (Closes #97)
 - **Change Design Protocol for implementer subagents** — adds "read file, plan change, write in one pass" protocol to Implementer Quality Context Injection and file modification complexity requirement to Writing Plans Quality Context Injection, preventing edit thrashing that wastes API calls on repeated edit→typecheck→re-read cycles (Related: #95)
