@@ -178,13 +178,13 @@ After detecting the base branch, detect the current model and recommend Sonnet-f
    - Option 1: `"Yes — I'll run /model sonnet"` with description: `"*Recommended — estimated ~70% cost reduction for lifecycle phases that don't need Opus reasoning*"`
    - Option 2: `"No — stay on Opus"` with description: `"Opus for all phases. Higher cost but maximum reasoning quality throughout."`
 
-3. **If user selects "Yes"** — instruct: `"Run '/model sonnet' now, then type 'continue' to resume the lifecycle."` Pause until the user's next message (which confirms the switch happened). On resume, announce: `"Model switched. Continuing lifecycle on Sonnet."` Then proceed.
+3. **If user selects "Yes"** — instruct: `"Run '/model sonnet' now, then type 'continue' to resume the lifecycle."` Pause until the user's next message. On resume, proceed regardless (the user controls when to resume; re-checking the model at this point is not reliable since the system prompt may not have updated yet).
 
 4. **If user selects "No"** — announce: `"Staying on Opus. No further model prompts."` Proceed without further model-related prompts for the remainder of the lifecycle.
 
 5. **If already on a non-Opus model** (Sonnet, Haiku, or other) — no prompt needed. Announce: `"Model check: running on [model] — no switch needed."`
 
-6. **If model detection fails** (model ID string not found in system prompt) — fall back to the informational announcement:
+6. **If model detection fails** (model ID string not found in system prompt) — announce: `"Model detection: could not determine current model. Falling back to informational recommendation."` Then display the informational fallback:
    ```
    Model routing: Sonnet-first is recommended for this lifecycle.
    - Brainstorming and design phases benefit from Opus (deep reasoning)
