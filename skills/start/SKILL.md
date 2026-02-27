@@ -624,7 +624,6 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
 - Function length: handler ≤30 lines; extract validation and transformation helpers
 - Pattern: follow existing handler in `src/handlers/users.ts`
 - Files modified: `src/handlers/search.ts` (design-first — 180 lines)
-- Design-first files: `src/handlers/search.ts` — implementer must output change plan before editing
 ```
 
 ### Using Git Worktrees YOLO Override
@@ -685,7 +684,7 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
 4. **Quality Constraints from the plan task.** Include the `**Quality Constraints:**` section from the specific plan task being implemented. This gives the implementer concrete constraints: which error handling pattern, which types must be narrow, what function length target, and which file to follow.
 
 5. **Change Design Protocol.** For every file the task modifies (listed in the Quality Constraints `Files modified` field), instruct the implementer to follow this protocol before any Edit call:
-   1. **Read the complete file** before any edit. For files >200KB, use Grep to find relevant sections or Read with offset/limit targeting specific functions.
+   1. **Read the complete file** before any edit. (For very large files >200KB, use Grep to locate relevant sections or Read with offset/limit — this is a read strategy, separate from the design-first threshold.)
    2. **Output a brief change plan:** which functions/sections change, what's added, what's removed, and how the change fits the file's existing structure.
    3. **Write the edit in one pass** — do not edit, run typecheck, re-read, and edit again. If the first edit has issues, re-read the file to understand what went wrong before making a second edit.
    4. For files marked `(design-first)` in Quality Constraints (>150 lines): the change plan in sub-step 2 is **mandatory** and must be output before any Edit tool call on that file.
@@ -712,7 +711,7 @@ For each file you modify, follow this protocol:
 1. Read the complete file before editing
 2. Output your change plan (which functions change, what's added/removed)
 3. Write the edit in one pass
-[If any file is marked (design-first): "MANDATORY: Output change plan before ANY Edit call on: [file list]"]
+4. MANDATORY for design-first files: Output your change plan before ANY Edit call on: [file list]
 ```
 
 ### Commit Planning Artifacts Step (inline — no separate skill)
