@@ -2,6 +2,11 @@
 
 All notable changes to the feature-flow plugin.
 
+## [Unreleased]
+
+### Added
+- **Change Design Protocol for implementer subagents** — adds "read file, plan change, write in one pass" protocol to Implementer Quality Context Injection and file modification complexity requirement to Writing Plans Quality Context Injection, preventing edit thrashing that wastes API calls on repeated edit→typecheck→re-read cycles (Related: #95)
+
 ## [1.20.0] - 2026-02-27
 
 ### Added
