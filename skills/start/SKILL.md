@@ -182,7 +182,7 @@ After detecting the base branch, detect the current model and recommend Sonnet-f
 
 4. **If user selects "No"** — announce: `"Staying on Opus. No further model prompts."` Proceed without further model-related prompts for the remainder of the lifecycle.
 
-5. **If already on Sonnet/Haiku** — no prompt needed. Announce: `"Model check: running on [model] — Sonnet-first routing active."`
+5. **If already on a non-Opus model** (Sonnet, Haiku, or other) — no prompt needed. Announce: `"Model check: running on [model] — no switch needed."`
 
 6. **If model detection fails** (model ID string not found in system prompt) — fall back to the informational announcement:
    ```
@@ -193,7 +193,9 @@ After detecting the base branch, detect the current model and recommend Sonnet-f
    If you're on Opus, consider `/model sonnet` — the skill will suggest `/model opus` before phases that benefit from it.
    ```
 
-**YOLO behavior:** Skip the prompt (YOLO users opted into unattended execution). Detect the model and announce: `YOLO: start — Model detection → [model ID] (Sonnet-first recommended, no gate in YOLO mode)`
+**YOLO behavior:** No prompt — detect model and announce:
+- If detected: `YOLO: start — Model detection → [model ID] (Sonnet-first recommended, no gate in YOLO mode)`
+- If detection fails: `YOLO: start — Model detection → unknown (Sonnet-first recommended, no gate in YOLO mode)`
 
 **Express behavior:** Same as Interactive — show the `AskUserQuestion` prompt. Express auto-selects decisions but model switching requires user action (`/model` command), so it must pause.
 
