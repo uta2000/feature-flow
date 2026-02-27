@@ -2,6 +2,18 @@
 
 All notable changes to the feature-flow plugin.
 
+## [Unreleased]
+
+### Added
+- **Plugin version drift detection** (`hooks/scripts/version-check.js`) — auto-stamps `plugin_version` in `.feature-flow.yml` on every SessionStart, compares against running version with semver-aware classification (major/minor/patch), and surfaces informational upgrade notices when drift is detected. Includes TOCTOU-safe file reading and 29-test coverage. (Closes #89)
+- **Version drift check in `start` skill** — Step 0 reads `plugin_version`, compares against running version, announces drift level, and auto-stamps the field when creating or updating `.feature-flow.yml`
+
+### Fixed
+- Eliminated TOCTOU race in version-check hook by replacing `existsSync` + `readFileSync` with try/catch on `readFileSync` with specific `ENOENT` handling
+
+### Documentation
+- Added `plugin_version` field to `references/project-context-schema.md` with auto-stamping behavior, version source, drift classification, and team-wide detection documentation
+
 ## [1.19.3] - 2026-02-27
 
 ### Fixed

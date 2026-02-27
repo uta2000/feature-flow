@@ -6,6 +6,7 @@ Skills read project context from `.feature-flow.yml` in the project root. This f
 
 ```yaml
 # .feature-flow.yml
+plugin_version: 1.19.2   # Auto-managed: stamped by plugin on SessionStart/start:
 platform: web          # web | ios | android | cross-platform
 stack:
   - supabase           # Any technology name — matched against references/stacks/
@@ -26,6 +27,29 @@ default_branch: staging  # Optional: PR target branch (default: detected via cas
 ```
 
 ## Fields
+
+### `plugin_version`
+
+Auto-managed field that tracks which plugin version last stamped this config file. Used for version drift detection — when the running plugin version differs from the stamped version, an upgrade notice is displayed.
+
+**Auto-stamped:** The SessionStart hook and `start` skill automatically write the current plugin version to this field on every session. This field should not be manually edited.
+
+**Version source:** Extracted from the `CLAUDE_PLUGIN_ROOT` environment variable's last path segment (e.g., `/path/to/cache/feature-flow/1.19.2` → `1.19.2`).
+
+**Drift detection:** When the stamped version differs from the running version, the plugin classifies drift by semver component:
+- **Major drift** (e.g., 1.x → 2.x): Breaking changes likely — review CHANGELOG carefully
+- **Minor drift** (e.g., 1.19.x → 1.20.x): New features available — review CHANGELOG for additions
+- **Patch drift** (e.g., 1.19.1 → 1.19.2): Bug fixes — informational only
+
+**Committed to git:** Yes — this enables team-wide drift detection. When one team member updates the plugin and stamps a new version, other team members see the drift notice on their next session.
+
+**Format:** Semver string.
+
+```yaml
+plugin_version: 1.19.2
+```
+
+**When absent:** First-time upgrade path. No notice is shown; the field is stamped on the next SessionStart or `start:` invocation.
 
 ### `platform`
 
@@ -137,8 +161,10 @@ default_branch: staging
 
 ### start (reads + writes)
 - **Reads** context at lifecycle start. Adjusts step list based on platform and stack.
-- **Creates** `.feature-flow.yml` via auto-detection if it doesn't exist.
+- **Reads** `plugin_version` field to detect version drift and display upgrade notices.
+- **Creates** `.feature-flow.yml` via auto-detection if it doesn't exist (includes `plugin_version`).
 - **Updates** stack list if new dependencies are detected that aren't declared.
+- **Writes** `plugin_version` to current running version on every lifecycle start.
 - **Reads** `context7` field to query relevant documentation before the design phase.
 - **Reads** `default_branch` field to determine the PR target branch. If absent, runs the detection cascade.
 
@@ -162,3 +188,7 @@ Includes platform-relevant sections in the issue template.
 ### quality-gate hook (reads)
 - **Reads** `stack` field to determine which type generators to check (supabase, prisma)
 - **Reads** `types_path` field to find the canonical generated types file
+
+### SessionStart hook (reads + writes)
+- **Reads** `plugin_version` to detect drift against the running plugin version.
+- **Writes** `plugin_version` to current running version on every session start.

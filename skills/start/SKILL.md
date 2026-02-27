@@ -101,7 +101,21 @@ Before any other processing, check if the user requested YOLO mode via a trigger
 Check for a `.feature-flow.yml` file in the project root.
 
 **If found:**
-1. Read it and extract `platform`, `stack`, `context7`, and `gotchas`
+1. Read it and extract `platform`, `stack`, `context7`, `gotchas`, and `plugin_version`
+
+**Version drift check:**
+
+After reading `.feature-flow.yml`, check for version drift:
+1. Extract `plugin_version` from the loaded YAML
+2. Determine the running plugin version from the `CLAUDE_PLUGIN_ROOT` environment variable (last path segment, e.g., `/path/to/1.19.2` → `1.19.2`)
+3. If `plugin_version` is present and differs from the running version:
+   - Compare semver components (major.minor.patch)
+   - Classify drift as major, minor, or patch
+   - Announce: `"UPGRADE NOTICE: [Drift level] version drift detected — config was stamped by v[stored], now running v[running]. Review CHANGELOG.md for what changed."`
+4. If `plugin_version` is absent: no notice (first-time upgrade path — the SessionStart hook will stamp it)
+
+**YOLO behavior:** No prompt — always auto-detected. Announce: `YOLO: start — Version drift check → [no drift | drift level from vX.Y.Z to vA.B.C]`
+
 2. Cross-check against auto-detected stack (see `../../references/auto-discovery.md`). If new dependencies are detected that aren't declared, suggest additions:
    ```
    Your .feature-flow.yml declares: [supabase, next-js]
@@ -109,6 +123,7 @@ Check for a `.feature-flow.yml` file in the project root.
    Want me to add stripe to your stack list?
    ```
 3. If user approves additions, update the file with `Edit`
+4. Ensure `plugin_version` is current — if it differs from the running version (or is absent), update it in `.feature-flow.yml` using `Edit`
 
 **YOLO behavior:** If YOLO mode is active, skip this question. Auto-accept all detected dependency additions and announce: `YOLO: start — Stack cross-check → Auto-added: [list of new dependencies]`
 
@@ -130,7 +145,7 @@ Check for a `.feature-flow.yml` file in the project root.
 
 **YOLO behavior:** If YOLO mode is active, skip this question. Accept the detected context as-is and announce: `YOLO: start — Platform/stack detection → Accepted: [platform], [stack list]`
 
-5. Write `.feature-flow.yml` with confirmed values (gotchas starts empty — skills will populate it as they discover issues)
+5. Write `.feature-flow.yml` with confirmed values (include `plugin_version` set to the running plugin version; gotchas starts empty — skills will populate it as they discover issues)
 
 See `../../references/auto-discovery.md` for the full detection rules.
 See `../../references/project-context-schema.md` for the schema.
