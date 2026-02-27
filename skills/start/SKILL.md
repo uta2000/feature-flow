@@ -491,6 +491,32 @@ For inline steps (CHANGELOG generation, self-review, code review, study existing
 | App store review | No skill — manual step | Submission accepted |
 | Comment and close issue | No skill — inline step (see below) | Issue commented with implementation summary + closed |
 
+### Phase-Boundary Model Hints
+
+At phase transitions between reasoning-heavy and mechanical work, output a model switch suggestion. These are suggestions only — the lifecycle functions on any model.
+
+**Escalation hint (before reasoning-heavy phases):**
+
+Before invoking `superpowers:brainstorming` or `feature-flow:design-document`, output:
+```
+Entering [phase name] — this phase benefits from Opus-level reasoning.
+Consider: /model opus
+```
+
+**De-escalation hint (after reasoning-heavy phases):**
+
+After the design document step completes (or after design verification if present), output:
+```
+Design phase complete — switching to implementation phases.
+Consider: /model sonnet
+```
+
+**Suppression rules:**
+- **YOLO mode:** Hints suppressed — do not output. Announce inline: `YOLO: start — Phase-boundary model hint → suppressed ([phase])`
+- **Express mode:** Hints shown — output the suggestion block
+- **Interactive mode:** Hints shown — output the suggestion block
+- **Quick fix scope:** No hints — too few phases to warrant switching
+
 ### Brainstorming Interview Format Override
 
 When invoking `superpowers:brainstorming` from this lifecycle, pass these formatting instructions as context. Every interview question presented to the user must follow this format:
