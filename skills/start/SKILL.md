@@ -167,6 +167,22 @@ Announce: `"Detected base branch: [branch]. All PR targets and branch diffs will
 
 **YOLO behavior:** No prompt — always auto-detected. Announce: `YOLO: start — Base branch detection → [branch]`
 
+**Session Model Recommendation:**
+
+After detecting the base branch, recommend Sonnet-first routing. The lifecycle's mechanical phases (implementation, review, verification, git operations) do not require Opus-level reasoning — Sonnet handles them equally well at ~80% lower cost.
+
+1. Announce the recommendation:
+   ```
+   Model routing: Sonnet-first is recommended for this lifecycle.
+   - Brainstorming and design phases benefit from Opus (deep reasoning)
+   - Implementation, review, and verification phases run well on Sonnet
+   - All subagent dispatches set explicit model parameters (see Model Routing Defaults)
+   If you're on Opus, consider `/model sonnet` — the skill will suggest `/model opus` before phases that benefit from it.
+   ```
+2. This is informational only — no prompt, no mode gate. The lifecycle works on any model; Opus is a quality upgrade for reasoning-heavy phases, not a hard requirement.
+
+**YOLO behavior:** No prompt — always announced. Announce: `YOLO: start — Session model recommendation → Sonnet-first (informational)`
+
 ### Step 1: Determine Scope
 
 Ask the user what they want to build. Then classify the work.
