@@ -695,8 +695,8 @@ def analyze_session(filepath):
             tool_call_index[tc.get("id", "")] = (i, tc)
             inp = tc.get("input", {})
 
-            # Subagents
-            if tool_name == "Task":
+            # Subagents (tool was renamed from "Agent" to "Task" in Claude Code)
+            if tool_name in ("Task", "Agent"):
                 subagents.append({
                     "description": inp.get("description", "unknown"),
                     "subagent_type": inp.get("subagent_type", "unknown"),
@@ -812,7 +812,7 @@ def analyze_session(filepath):
             for tc in m.get("toolCalls", []):
                 if tc["name"] == "Skill":
                     label = f"Skill: {tc['input'].get('skill', '')}"
-                elif tc["name"] == "Task":
+                elif tc["name"] in ("Task", "Agent"):
                     inp_tc = tc.get("input", {})
                     label = (
                         f"Task: {inp_tc.get('description', '')} "
@@ -857,7 +857,7 @@ def analyze_session(filepath):
             # Subagent metrics from Task results
             if tool_use_id in tool_call_index:
                 _, orig_tc = tool_call_index[tool_use_id]
-                if orig_tc.get("name") == "Task":
+                if orig_tc.get("name") in ("Task", "Agent"):
                     result_text = ""
                     content = tr.get("content", "")
                     if isinstance(content, list):
