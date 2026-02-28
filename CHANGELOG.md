@@ -4,6 +4,12 @@ All notable changes to the feature-flow plugin.
 
 ## [Unreleased]
 
+### Changed
+- **Batch TaskCreate calls in Step 2** — all N TaskCreate calls now sent in a single parallel message, eliminating N-1 sequential parent API turns (~17 API calls saved per session)
+- **Conditional `in_progress` updates in Step 3** — replaces unconditional `in_progress` TaskUpdate with exhaustive keep/skip classification; short/mechanical steps (brainstorming, design document, worktree setup, etc.) skip the update while extended steps retain it (~11 API calls saved)
+- **Commit planning artifacts delegated to subagent** — `git add`/`git commit` operations moved from inline parent bash calls to a `general-purpose` subagent dispatch, with conservative empty-output skip and non-blocking failure handling (~2 API calls saved)
+- **Comment and close issue delegated to subagent** — `gh issue comment`/`gh issue close` operations moved to a `general-purpose` subagent after 2 inline data-gathering bash calls (git log + git diff --stat); subagent receives fully-assembled comment body with no placeholders (~1 API call saved). Adds `--body-file` to avoid shell quoting issues with apostrophes, and conditional announce based on structured subagent return value. (Closes #111)
+
 ## [1.22.0] - 2026-02-27
 
 ### Added
