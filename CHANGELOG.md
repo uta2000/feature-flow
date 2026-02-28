@@ -4,6 +4,8 @@ All notable changes to the feature-flow plugin.
 
 ## [Unreleased]
 
+## [1.22.1] - 2026-02-28
+
 ### Changed
 - **Batch TaskCreate calls in Step 2** — all N TaskCreate calls now sent in a single parallel message, eliminating N-1 sequential parent API turns (~17 API calls saved per session)
 - **Conditional `in_progress` updates in Step 3** — replaces unconditional `in_progress` TaskUpdate with exhaustive keep/skip classification; short/mechanical steps (brainstorming, design document, worktree setup, etc.) skip the update while extended steps retain it (~11 API calls saved)
