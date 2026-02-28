@@ -1328,52 +1328,56 @@ This step runs after "Commit and PR" (or after mobile-specific steps like app st
    ```
    If the state is `CLOSED`, log: `"Issue #N is already closed — skipping."` and skip.
 
-2. **Generate the comment body** from lifecycle context:
+2. **Gather context inline** (2 bash calls to assemble accurate comment content before dispatch):
+   ```bash
+   git log --format="%s" [base-branch]...HEAD
+   ```
+   → Derive 2-4 "What was built" bullets from commit messages.
+   ```bash
+   git diff --stat [base-branch]...HEAD | head -10
+   ```
+   → Key files changed list.
+   - **PR number:** from conversation context (produced by "Commit and PR" step — already in context)
+   - **Acceptance criteria:** from conversation context (implementation plan tasks + final verification results)
 
-   ```markdown
+3. **Dispatch a general-purpose subagent** with the fully-assembled comment content (substitute all placeholders from step 2 before dispatching — no placeholders should remain in the prompt):
+
+   ```
+   Task(
+     subagent_type: "general-purpose",
+     model: "sonnet",
+     description: "Post issue comment and close issue #N",
+     prompt: "Post a comment on GitHub issue #[N], then close it. Use exactly this comment body:
+
    ## Implementation Complete
 
-   **PR:** #[PR number]
+   **PR:** #[PR number from context]
 
    ### What was built
-   - [2-4 bullet points summarizing what was implemented, derived from the design doc and commit history]
+   - [bullet 1 from git log]
+   - [bullet 2 from git log]
+   [up to 4 bullets]
 
    ### Acceptance criteria verified
-   - [x] [Each acceptance criterion from the implementation plan, marked as verified]
+   - [x] [criterion 1 from implementation plan]
+   - [x] [criterion 2 from implementation plan]
+   [all criteria]
 
    ### Key files changed
-   - `[file path]` — [1-line description of change]
-   - `[file path]` — [1-line description of change]
-   [limit to 10 most significant files]
+   - \`[file path]\` — [1-line description]
+   [up to 10 files from git diff --stat]
+
+   Run: gh issue comment [N] --body '[above content]' then gh issue close [N]. If gh fails, log the error and continue."
+   )
    ```
 
-   **Content sources:**
-   - "What was built" → derive from design doc overview + `git log --format="%s" [base-branch]...HEAD`
-   - Acceptance criteria → from the implementation plan tasks, verified during the final verification step
-   - Key files → from `git diff --stat [base-branch]...HEAD`, limited to 10 most-changed files
-
-3. **Post the comment:**
-   ```bash
-   gh issue comment N --body "$(cat <<'EOF'
-   [generated comment]
-   EOF
-   )"
-   ```
-   Use a heredoc to safely pass multiline markdown content to `gh`.
-
-4. **Close the issue:**
-   ```bash
-   gh issue close N
-   ```
-
-5. **Announce:** `"Issue #N commented and closed."`
+4. **Announce:** `"Issue #N commented and closed."`
 
 **Edge cases:**
 - **No issue linked:** Skip this step silently — not all lifecycle runs start from an issue
-- **Issue already closed:** Log warning: `"Issue #N is already closed — skipping."` Do not reopen or double-comment.
-- **`gh` command fails:** Log warning and continue — don't block completion on a comment failure
-
-**YOLO behavior:** No prompt needed — this step is always automated. In YOLO mode, runs silently. In Interactive mode, announce but don't ask for confirmation.
+- **Issue already closed:** Caught in step 1 — skip dispatch. Do not reopen or double-comment.
+- **`gh` command fails:** Subagent logs error and continues — non-blocking
+- **YOLO/mode propagation:** YOLO propagation applies only to `Skill()` invocations, not `Task()` dispatches. These git/gh subagents require no mode flag.
 
 ### Documentation Lookup Step (inline — no separate skill)
 
