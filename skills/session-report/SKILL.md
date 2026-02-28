@@ -149,13 +149,41 @@ From `idle_analysis` in the script output. **This reframes session duration into
 | Metric | What It Means |
 |---|---|
 | `wall_clock_seconds` | Total elapsed time from first to last message |
-| `active_working_seconds` | Wall clock minus idle gaps (>60s between assistant response and next user message) |
+| `active_working_seconds` | Wall clock minus idle gaps (>60s between last system activity and next genuine human input) |
 | `idle_pct` | % of session spent waiting for the user |
 | `longest_gaps` | Top 5 idle periods — where the user stepped away |
 
-**Interpretation:** Always present both durations: "Session duration: **2h 15m** (active working time: **48m**, idle: **1h 27m**)". This prevents inflated duration from distorting efficiency metrics.
+**Important:** The script only counts gaps before **genuine human keyboard input** as idle time. Automated "user" messages — tool results, skill loads, hook outputs, compaction summaries, and continuation messages — are excluded. Compaction processing time (~90-240s per compaction) is system work, not idle time.
+
+**Interpretation:** Always present both durations: "Session duration: **2h 15m** (active working time: **2h 01m**, idle: **14m**)". This prevents inflated duration from distorting efficiency metrics.
 
 Adjust tokens-per-hour and cost-per-hour calculations to use `active_working_seconds`, not wall clock.
+
+### 3G2: Compaction Duration Analysis
+
+From `compaction.durations`, `compaction.manual_count`, `compaction.automatic_count`, `compaction.total_compaction_human`, and `compaction.compaction_pct_of_wall_clock` in the script output.
+
+**This is important context for sessions with compaction — it reveals how much wall clock time was spent on compaction rather than productive work.**
+
+| Metric | What It Means |
+|---|---|
+| `manual_count` / `manual_total_seconds` | User-triggered `/compact` commands. Duration = time from command to completion |
+| `automatic_count` / `automatic_total_seconds` | System-forced compactions mid-operation. Duration = time from last assistant message to compaction summary |
+| `total_compaction_human` | Combined compaction time |
+| `compaction_pct_of_wall_clock` | What fraction of the session was spent compacting |
+
+**Interpretation thresholds:**
+
+| Compaction % of wall clock | Assessment |
+|---|---|
+| 0% | No compaction — session stayed within context limits |
+| <10% | Normal — compaction overhead is manageable |
+| 10–20% | Significant — compaction is a meaningful time cost. Consider splitting work |
+| >20% | Critical — the session spent more time compacting than is healthy. Task was too large for a single session |
+
+**Manual vs. automatic:** Manual compactions (user-triggered `/compact` at checkpoints) are typically faster (~90s) because they happen at natural boundaries with less accumulated context. Automatic compactions (forced mid-operation) are typically slower (~170-240s) because the system has more context to summarize and no clean breakpoint. If automatic compactions dominate, flag as an optimization opportunity.
+
+**Per-compaction breakdown:** The `durations` array contains individual entries. Present them as a table when `compaction.count > 2` to show the pattern (e.g., manual compactions clustered in the planning phase, automatic ones in implementation/review).
 
 ### 3H: Bottleneck Identification
 
@@ -246,7 +274,9 @@ From `overview.context_consumption` and `overview.context_assessment` plus `comp
 | high | 60–80% | Consider splitting future tasks |
 | critical | >80% | Session was context-constrained. Split tasks or use `/clear` more aggressively |
 
-If `compaction.count > 0`: "Session underwent **[N] compaction(s)**, which may have caused loss of earlier context. Check for repeated work after compaction events."
+If `compaction.count > 0`: Report the count, total time, and breakdown. Example: "Session underwent **6 compactions** totaling **13m 15s** (14.8% of wall clock): 3 manual at checkpoints (4m 35s), 3 automatic mid-operation (8m 40s)."
+
+If `compaction.automatic_count > 0`: Flag automatic compactions specifically — they indicate the session hit context limits unexpectedly, and the compaction timing data (from 3G2) shows the cost.
 
 ### 3O: Prompt Quality Signal
 
@@ -377,10 +407,11 @@ Write the report to `docs/plans/session-report-<session-id-first-8-chars>.md`:
 |---|---|
 | Wall clock duration | <duration_human> |
 | Active working time | <active_working_human> |
+| Compaction time | <total_compaction_human> (<compaction_pct_of_wall_clock>%) |
 | Idle time (user away) | <total_idle_human> |
 | Idle % | ...% |
 
-> Efficiency metrics below use active working time, not wall clock.
+> Active time = wall clock minus idle time. Compaction time is a subset of active time (the system is working, not idle). Idle time only counts gaps before genuine human input — automated messages, tool results, and compaction processing are not idle.
 
 ### Top Bottlenecks (by duration)
 
@@ -496,6 +527,17 @@ Write the report to `docs/plans/session-report-<session-id-first-8-chars>.md`:
 
 - **Context consumption:** <pct>% — **<assessment>**
 - **Compactions:** <count> — <compaction.note from script>
+- **Total compaction time:** <total_compaction_human> (<compaction_pct_of_wall_clock>% of wall clock)
+  - Manual (`/compact` at checkpoints): <manual_count> compactions, <manual_total_human> (avg <manual_avg>s each)
+  - Automatic (mid-operation): <automatic_count> compactions, <automatic_total_human> (avg <automatic_avg>s each)
+
+> Include the per-compaction breakdown table only if `compaction.count > 0`:
+
+| # | Type | Duration | When |
+|---|------|----------|------|
+| 1 | Manual/Automatic | <duration>s | <context from script> |
+
+<Interpret per 3G2: automatic compactions averaging >2x manual suggests the system is accumulating too much context before compacting.>
 
 ### Token Density Timeline
 
@@ -585,6 +627,8 @@ Rank by estimated cost/time savings. Include the dollar or time impact when poss
 | Test trajectory | ... |
 | Prompt quality | ... |
 | Context consumption | ...% (<assessment>) |
+| Compaction time | <total_compaction_human> (<compaction_pct_of_wall_clock>% of wall clock) |
+| Idle time | <total_idle_human> (<idle_pct>%) |
 | Friction rate | ... |
 | Tool errors | ... |
 | Permission denials | ... |
