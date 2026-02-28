@@ -447,7 +447,7 @@ When the platform is mobile, modify the step list:
 Announce the platform-specific additions: "Mobile platform detected. Adding: device matrix testing, beta testing, app store review, and comment and close issue steps."
 
 Use the `TaskCreate` tool to create a todo item for each step (see `../../references/tool-api.md` — Deferred Tools section for loading instructions and correct usage).
-Call all TaskCreate tools in a **single parallel message** — send one message containing all N TaskCreate calls simultaneously. Do NOT call them one at a time; sequential calls waste N−1 parent API turns. This is the most impactful optimization: all steps must be created in one turn.
+Call all TaskCreate tools in a **single parallel message** — send one message containing all N TaskCreate calls simultaneously. Do NOT call them one at a time; sequential calls waste N-1 parent API turns. This is the most impactful optimization: all steps must be created in one turn.
 
 ### Step 3: Execute Steps in Order
 
@@ -813,8 +813,7 @@ This step runs after verify-plan-criteria and before worktree setup. It commits 
 
 **Process:**
 1. Run inline: `git status --porcelain docs/plans/*.md .feature-flow.yml 2>/dev/null`
-   - If output is empty AND exit code is 0: skip — "No planning artifacts to commit."
-   - If output is empty AND exit code is non-zero (error suppressed by `2>/dev/null`): treat conservatively as "artifacts may exist" and proceed to step 2.
+   - If output is empty: skip — "No planning artifacts to commit."
    - If output is non-empty: proceed to step 2.
 2. Dispatch a general-purpose subagent to commit. **Before dispatching, substitute `[feature-name]` with the actual feature name from Step 1** (e.g., "csv-export", "auth-refresh-token"). The orchestrator holds this value in context:
 
@@ -1326,7 +1325,8 @@ This step runs after "Commit and PR" (or after mobile-specific steps like app st
    ```bash
    gh issue view [N] --json state --jq '.state'
    ```
-   If the state is `CLOSED`, log: `"Issue #[N] is already closed — skipping."` and skip.
+   - If the state is `CLOSED`, log: `"Issue #[N] is already closed — skipping."` and skip.
+   - If the command fails (non-zero exit, network error, auth failure), log: `"Issue state check failed for #[N] — skipping comment and close step."` and skip.
 
 2. **Gather context inline** (2 bash calls — substitute `[base-branch]` with the base branch detected in Step 0):
    ```bash
@@ -1367,11 +1367,13 @@ This step runs after "Commit and PR" (or after mobile-specific steps like app st
    - \`[file path]\` — [1-line description]
    [up to 10 files from git diff --stat]
 
-   Run: gh issue comment [N] --body '[comment body above]' then gh issue close [N]. If gh fails, log the error and continue."
+   Run: gh issue comment [N] --body-file /tmp/ff_issue_comment.md then gh issue close [N] (write the comment body to /tmp/ff_issue_comment.md first to avoid shell quoting issues with apostrophes and special characters). Return 'success' or 'failed: [reason]' so the orchestrator can branch the announcement."
    )
    ```
 
-4. **Announce:** `"Issue #[N] commented and closed."`
+4. **Announce:**
+   - If subagent returned `'success'`: `"Issue #[N] commented and closed."`
+   - If subagent returned `'failed: [reason]'`: log `"Issue #[N] comment/close failed — [reason]. Continuing."` and skip success announcement.
 
 **Edge cases:**
 - **No issue linked:** Skip this step silently — not all lifecycle runs start from an issue
