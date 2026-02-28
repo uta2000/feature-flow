@@ -7,7 +7,7 @@
 **Duration:** 1h 30m (active: 1h 26m, idle: 4m)
 **Git Branch:** fix/infinite-render-useMenuItemDetail → feature/756-mobile-home-screen
 **Context:** 6 compactions (critical — session was heavily context-constrained)
-**Total Cost:** $27.30
+**Total Cost:** $27.89
 **Result:** Completed full lifecycle for GH#756 "MVP Home Screen: Restaurant Selection" — design doc, design verification, implementation plan, worktree-isolated implementation, 3 rounds of code review fixes, CHANGELOG, and PR push. 6 commits, 2 pushes.
 
 ---
@@ -18,9 +18,9 @@
 
 | Category | Cost (USD) | % of Total |
 |---|---:|---:|
-| Parent orchestrator | $27.30 | 100% |
-| Subagents (total) | $0.00 (not tracked) | — |
-| **Total session** | **$27.30** | |
+| Parent orchestrator | $27.30 | 97.9% |
+| Subagents (total) | $0.59 | 2.1% |
+| **Total session** | **$27.89** | |
 
 ### Cost by Model
 
@@ -32,13 +32,13 @@
 
 | Metric | Value | Assessment |
 |---|---|---|
-| Cost per commit | $4.55 | **Red flag** (>$3.00) |
+| Cost per commit | $4.65 | **Red flag** (>$3.00) |
 | Cost per line changed | N/A | No git diff output detected |
-| Subagent cost share | 0% (not tracked) | N/A — session predates subagent usage tag tracking |
+| Subagent cost share | 2.1% | Low — parent orchestrator dominates |
 
 > Costs calculated from token counts using published API pricing. Actual plan costs may differ based on subscription tier.
 
-**Note:** The $4.55/commit figure is misleading — 4 of 6 commits were fix-up rounds from code review, not independent feature work. The real cost driver is the 413 API calls across a session that underwent 6 compactions, meaning the model re-read massive context repeatedly.
+**Note:** The $4.65/commit figure is misleading — 4 of 6 commits were fix-up rounds from code review, not independent feature work. The real cost driver is the 413 API calls across a session that underwent 6 compactions, meaning the model re-read massive context repeatedly.
 
 ---
 
@@ -59,8 +59,52 @@
 | Agent | Model | Tokens | Cost |
 |---|---|---:|---:|
 | Parent orchestrator | claude-sonnet-4-6 | 51,737,658 | $27.30 |
+| Subagents (38 total) | mixed (haiku/sonnet) | 1,876,830 | $0.59 |
 
-> Subagent token usage: **Not available** — session predates usage tag tracking. 40 Agent tool calls were made but their individual token usage was not recorded.
+### Subagent Cost Detail
+
+| Phase | Agent | Model | Tokens | Duration | Cost |
+|---|---|---|---:|---:|---:|
+| Design | Read design doc for GH756 | haiku | 74,248 | 67s | $0.02 |
+| Design | Explore mobile app structure | haiku | 61,061 | 31s | $0.02 |
+| Design | Read hooks and API files | haiku | 57,150 | 18s | $0.02 |
+| Design | Read _layout.tsx and routes | haiku | 46,367 | 8s | $0.01 |
+| Design | Read supabase client and types | haiku | 48,253 | 12s | $0.02 |
+| Design | Check mobile deps and home screen | haiku | 50,848 | 21s | $0.02 |
+| Verification | Batch 1: Schema & Type compat | sonnet | 43,353 | 55s | $0.01 |
+| Verification | Batch 2: Pipeline, components | sonnet | 47,185 | 70s | $0.01 |
+| Verification | Batch 3: Quality, safety, deps | sonnet | 64,443 | 146s | $0.02 |
+| Verification | Batch 4+5: Patterns, routes | sonnet | 37,012 | 64s | $0.01 |
+| Verification | Batch 6: Stack, platform, gotchas | sonnet | 45,959 | 88s | $0.01 |
+| Verification | Batch 7: Implementation quality | sonnet | 70,177 | 124s | $0.02 |
+| Patterns | Study hooks patterns | haiku | 62,451 | 46s | $0.02 |
+| Patterns | Study screens and components | haiku | 73,269 | 52s | $0.02 |
+| Patterns | Study Edge Function patterns | haiku | 86,874 | 43s | $0.03 |
+| Patterns | Study API client patterns | haiku | 62,375 | 40s | $0.02 |
+| Implement | Task 1: DB migration | sonnet | 36,602 | 49s | $0.01 |
+| Implement | Task 1: Spec review | sonnet | 35,642 | 25s | $0.01 |
+| Implement | Task 2: lucide + react-native-svg | sonnet | 29,879 | 34s | $0.01 |
+| Implement | Task 3: lib/types.ts | sonnet | 26,450 | 33s | $0.01 |
+| Implement | Task 4: featureFlags.ts | sonnet | 25,665 | 18s | $0.01 |
+| Implement | Task 5: Restaurant interface | sonnet | 34,369 | 24s | $0.01 |
+| Implement | Task 6: _layout.tsx routes | sonnet | 34,372 | 21s | $0.01 |
+| Implement | Task 7: Edge Function | sonnet | 35,352 | 34s | $0.01 |
+| Implement | Task 8: useRecentMenus hook | sonnet | 27,314 | 24s | $0.01 |
+| Implement | Task 10: success.tsx | default (Sonnet) | 36,345 | 45s | $0.01 |
+| Implement | Task 11: search.tsx | default (Sonnet) | 37,641 | 53s | $0.01 |
+| Implement | Task 12: associate.tsx | default (Sonnet) | 37,264 | 42s | $0.01 |
+| Implement | Task 13: create-restaurant.tsx | default (Sonnet) | 28,818 | 44s | $0.01 |
+| Implement | Task 14: home.tsx redesign | default (Sonnet) | 48,945 | 88s | $0.02 |
+| Review | Spec review Tasks 10-14 | default (Sonnet) | 44,305 | 80s | $0.01 |
+| Review | Silent failures + spec compliance | default (Sonnet) | 76,102 | 64s | $0.02 |
+| Review | Code quality review | default (Sonnet) | 56,798 | 73s | $0.02 |
+| Review | Security audit | default (Sonnet) | 51,871 | 54s | $0.02 |
+| Review | Type design analysis | default (Sonnet) | 68,110 | 58s | $0.02 |
+| Review | Test coverage analysis | default (Sonnet) | 56,914 | 147s | $0.02 |
+| Verify | Acceptance criteria verification | default (Sonnet) | 90,553 | 271s | $0.03 |
+| Close | Post comment and close issue | default (Sonnet) | 26,494 | 14s | $0.01 |
+
+> Subagent costs estimated from total_tokens using published API pricing. "default" model inherited parent Sonnet.
 
 ### Cache Economics
 
@@ -257,15 +301,15 @@ Session worked across **3** directories:
 | Duration (wall clock) | 1h 30m |
 | Duration (active) | 1h 26m |
 | API calls (parent) | 413 |
-| Subagents dispatched | 40 (usage not tracked) |
+| Subagents dispatched | 38 (tracked) |
 | Total cost (parent) | $27.30 |
-| Total cost (subagents) | Not tracked |
-| **Total session cost** | **$27.30** (calculated) |
+| Total cost (subagents) | $0.59 |
+| **Total session cost** | **$27.89** |
 | Total tokens (parent) | 51,737,658 |
-| Total tokens (subagents) | Not tracked |
+| Total tokens (subagents) | 1,876,830 |
 | Cache read % | 94.32% |
 | Cache efficiency % | 94.66% |
-| Cost per commit | $4.55 |
+| Cost per commit | $4.65 |
 | Cost per line changed | N/A |
 | Test trajectory | Insufficient data |
 | Prompt quality | Underspecified (mitigated by rich GH issue) |
@@ -279,8 +323,8 @@ Session worked across **3** directories:
 
 ### Sections Omitted (No Data)
 - Model Switches (single model used)
-- Model Efficiency Findings (single model, no subagent data)
+- Model Efficiency Findings (all subagents used appropriate models — haiku for exploration, sonnet for implementation/review)
 - Permission Denials (none)
 - Conversation Tree (no sidechains or branch points)
-- Agent Tree (no agent metadata captured)
+- Agent Tree (no team mode)
 - Thinking Patterns (thinking block previews were empty)
