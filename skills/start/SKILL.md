@@ -447,6 +447,7 @@ When the platform is mobile, modify the step list:
 Announce the platform-specific additions: "Mobile platform detected. Adding: device matrix testing, beta testing, app store review, and comment and close issue steps."
 
 Use the `TaskCreate` tool to create a todo item for each step (see `../../references/tool-api.md` — Deferred Tools section for loading instructions and correct usage).
+Call all TaskCreate tools in a **single parallel message** — send one message containing all N TaskCreate calls simultaneously. Do NOT call them one at a time; sequential calls waste N−1 parent API turns. This is the most impactful optimization: all steps must be created in one turn.
 
 ### Step 3: Execute Steps in Order
 
