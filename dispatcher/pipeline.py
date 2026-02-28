@@ -226,6 +226,9 @@ def _run_parallel_execution(
             branch_prefix = config.branch_prefix_fix if reviewed.triage.scope in ("quick-fix",) else config.branch_prefix_feat
             branch_name = f"{branch_prefix}/{reviewed.triage.issue_number}-issue-{reviewed.triage.issue_number}"
             prompt = build_interactive_prompt(reviewed.triage, branch_name)
+            # Set model to Sonnet before sending the start prompt
+            tmux.send_keys(session_name, pane_idx, "/model sonnet")
+            time.sleep(2)
             tmux.send_keys(session_name, pane_idx, prompt)
 
         print(f"\n  Interactive sessions launched in tmux session '{session_name}'.")
@@ -346,6 +349,9 @@ def _poll_for_completion(
                     tr = next_reviewed.triage
                     prefix = config.branch_prefix_fix if tr.scope in ("quick-fix",) else config.branch_prefix_feat
                     branch = f"{prefix}/{tr.issue_number}-issue-{tr.issue_number}"
+                    # Set model to Sonnet before sending the start prompt
+                    tmux.send_keys(session_name, pane_idx, "/model sonnet")
+                    time.sleep(2)
                     tmux.send_keys(session_name, pane_idx, build_interactive_prompt(tr, branch))
 
         # Safety: if no panes are assigned and queue is empty, break
