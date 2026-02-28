@@ -1322,13 +1322,13 @@ This step runs after "Commit and PR" (or after mobile-specific steps like app st
 
 **Process:**
 
-1. **Check if issue is already closed:**
+1. **Check if issue is already closed** (substitute `[N]` with the actual issue number from Step 1):
    ```bash
-   gh issue view N --json state --jq '.state'
+   gh issue view [N] --json state --jq '.state'
    ```
-   If the state is `CLOSED`, log: `"Issue #N is already closed — skipping."` and skip.
+   If the state is `CLOSED`, log: `"Issue #[N] is already closed — skipping."` and skip.
 
-2. **Gather context inline** (2 bash calls to assemble accurate comment content before dispatch):
+2. **Gather context inline** (2 bash calls — substitute `[base-branch]` with the base branch detected in Step 0):
    ```bash
    git log --format="%s" [base-branch]...HEAD
    ```
@@ -1340,13 +1340,13 @@ This step runs after "Commit and PR" (or after mobile-specific steps like app st
    - **PR number:** from conversation context (produced by "Commit and PR" step — already in context)
    - **Acceptance criteria:** from conversation context (implementation plan tasks + final verification results)
 
-3. **Dispatch a general-purpose subagent** with the fully-assembled comment content (substitute all placeholders from step 2 before dispatching — no placeholders should remain in the prompt):
+3. **Dispatch a general-purpose subagent** with the fully-assembled comment content. **Before dispatching, substitute every bracket placeholder** — `[N]`, `[PR number]`, all `[bullet N from git log]` entries, all `[criterion N]` entries, all `[file path]` entries — using the data gathered in step 2. No bracket placeholders should remain in the prompt string sent to the subagent:
 
    ```
    Task(
      subagent_type: "general-purpose",
      model: "sonnet",
-     description: "Post issue comment and close issue #N",
+     description: "Post issue comment and close issue #[N]",
      prompt: "Post a comment on GitHub issue #[N], then close it. Use exactly this comment body:
 
    ## Implementation Complete
@@ -1367,11 +1367,11 @@ This step runs after "Commit and PR" (or after mobile-specific steps like app st
    - \`[file path]\` — [1-line description]
    [up to 10 files from git diff --stat]
 
-   Run: gh issue comment [N] --body '[above content]' then gh issue close [N]. If gh fails, log the error and continue."
+   Run: gh issue comment [N] --body '[comment body above]' then gh issue close [N]. If gh fails, log the error and continue."
    )
    ```
 
-4. **Announce:** `"Issue #N commented and closed."`
+4. **Announce:** `"Issue #[N] commented and closed."`
 
 **Edge cases:**
 - **No issue linked:** Skip this step silently — not all lifecycle runs start from an issue
