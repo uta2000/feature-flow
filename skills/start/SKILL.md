@@ -834,6 +834,7 @@ This step runs after verify-plan-criteria and before worktree setup. It commits 
 - **`.feature-flow.yml` already tracked and unchanged** — `git add` no-ops on unchanged tracked files
 - **No plan files exist** — git status in step 1 returns empty (exit 0), step skipped
 - **Only `.feature-flow.yml` changed** — still dispatches subagent; file should be tracked regardless
+- **git errors suppressed** — `2>/dev/null` suppresses stderr; any empty output (including from suppressed git errors) is treated conservatively as "nothing to commit" and the step is skipped
 
 ### Copy Env Files Step (inline — no separate skill)
 
