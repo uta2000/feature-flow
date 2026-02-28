@@ -454,7 +454,7 @@ Call all TaskCreate tools in a **single parallel message** — send one message 
 For each step, follow this pattern:
 
 1. **Announce the step:** "Step N: [name]. Invoking [skill name]."
-2. **Mark in progress:** Update the todo item to `in_progress` using `TaskUpdate` (see `../../references/tool-api.md` — Deferred Tools)
+2. **Mark in progress (conditional):** Only set `in_progress` via `TaskUpdate` before starting steps where the work is extended and the user benefits from an active status indicator. **Steps that keep `in_progress`:** study existing patterns, implementation, self-review, code review, generate CHANGELOG entry, final verification, documentation lookup. **Steps that skip `in_progress`:** brainstorming, design document, design verification, create/update issue, implementation plan, verify plan criteria, worktree setup, copy env files, commit planning artifacts, commit and PR, comment and close issue. Note: sub-step 5 (`completed`) is always retained — it is the turn-continuity bridge. Skipping `in_progress` does not affect YOLO Execution Continuity. Note: YOLO propagation (prepending `yolo: true`) applies only to `Skill()` invocations, not to `Task()` dispatches.
 3. **Invoke the skill** using the Skill tool (see mapping below and `../../references/tool-api.md` — Skill Tool for correct parameter names)
 4. **Confirm completion:** Verify the step produced its expected output
 5. **Mark complete:** Update the todo item to `completed` — **always call `TaskUpdate` here.** This tool call is the bridge that keeps your turn alive between steps. If you output only text without a tool call, your turn ends and the user must type "continue" to resume.
