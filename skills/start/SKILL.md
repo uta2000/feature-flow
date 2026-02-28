@@ -812,24 +812,27 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
 This step runs after verify-plan-criteria and before worktree setup. It commits design documents and project config to the base branch so the worktree inherits them via git history, preventing untracked file clutter.
 
 **Process:**
-1. Check if there are planning artifacts to commit:
-   ```bash
-   git status --porcelain docs/plans/*.md .feature-flow.yml 2>/dev/null
+1. Run inline: `git status --porcelain docs/plans/*.md .feature-flow.yml 2>/dev/null`
+   - If output is empty AND exit code is 0: skip — "No planning artifacts to commit."
+   - If output is empty AND exit code is non-zero (error suppressed by `2>/dev/null`): treat conservatively as "artifacts may exist" and proceed to step 2.
+   - If output is non-empty: proceed to step 2.
+2. Dispatch a general-purpose subagent to commit:
+
    ```
-2. If no files are reported (empty output), skip the step: "No planning artifacts to commit — skipping."
-3. Stage the planning artifacts:
-   ```bash
-   git add docs/plans/*.md .feature-flow.yml
-   ```
-4. Commit with a descriptive message using the feature name from Step 1:
-   ```bash
-   git commit -m "docs: add design and implementation plan for [feature-name]"
+   Task(
+     subagent_type: "general-purpose",
+     model: "sonnet",
+     description: "Commit planning artifacts to base branch",
+     prompt: "Commit the following files to git. Files: docs/plans/*.md and .feature-flow.yml (git add is safe on unchanged tracked files — it no-ops). Commit message: 'docs: add design and implementation plan for [feature-name]'. Run: git add docs/plans/*.md .feature-flow.yml && git commit -m '[message]'. If no files are staged after add, report 'nothing to commit'. Return: committed SHA or 'nothing to commit'."
+   )
    ```
 
+3. Announce: "Planning artifacts committed: [SHA]" or "Nothing to commit — skipping."
+
 **Edge cases:**
-- **`.feature-flow.yml` already tracked and unchanged** — `git add` is a no-op for unchanged tracked files, so this is safe
-- **No plan files exist** — handled by the guard check in step 1
-- **Only `.feature-flow.yml` changed (no plan docs)** — still commits; the file should be tracked regardless
+- **`.feature-flow.yml` already tracked and unchanged** — `git add` no-ops on unchanged tracked files
+- **No plan files exist** — git status in step 1 returns empty (exit 0), step skipped
+- **Only `.feature-flow.yml` changed** — still dispatches subagent; file should be tracked regardless
 
 ### Copy Env Files Step (inline — no separate skill)
 
