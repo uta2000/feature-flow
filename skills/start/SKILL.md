@@ -447,13 +447,14 @@ When the platform is mobile, modify the step list:
 Announce the platform-specific additions: "Mobile platform detected. Adding: device matrix testing, beta testing, app store review, and comment and close issue steps."
 
 Use the `TaskCreate` tool to create a todo item for each step (see `../../references/tool-api.md` — Deferred Tools section for loading instructions and correct usage).
+Call all TaskCreate tools in a **single parallel message** — send one message containing all N TaskCreate calls simultaneously. Do NOT call them one at a time; sequential calls waste N-1 parent API turns. This is the most impactful optimization: all steps must be created in one turn.
 
 ### Step 3: Execute Steps in Order
 
 For each step, follow this pattern:
 
 1. **Announce the step:** "Step N: [name]. Invoking [skill name]."
-2. **Mark in progress:** Update the todo item to `in_progress` using `TaskUpdate` (see `../../references/tool-api.md` — Deferred Tools)
+2. **Mark in progress (conditional):** Only set `in_progress` via `TaskUpdate` before starting steps where the work is extended and the user benefits from an active status indicator. **Steps that keep `in_progress`:** study existing patterns, implementation, self-review, code review, generate CHANGELOG entry, final verification, documentation lookup. **Steps that skip `in_progress`:** brainstorming, design document, design verification, create/update issue, implementation plan, verify plan criteria, worktree setup, copy env files, commit planning artifacts, commit and PR, comment and close issue. Note: sub-step 5 (`completed`) is always retained — it is the turn-continuity bridge. Skipping `in_progress` does not affect YOLO Execution Continuity. Note: YOLO propagation (prepending `yolo: true`) applies only to `Skill()` invocations, not to `Task()` dispatches.
 3. **Invoke the skill** using the Skill tool (see mapping below and `../../references/tool-api.md` — Skill Tool for correct parameter names)
 4. **Confirm completion:** Verify the step produced its expected output
 5. **Mark complete:** Update the todo item to `completed` — **always call `TaskUpdate` here.** This tool call is the bridge that keeps your turn alive between steps. If you output only text without a tool call, your turn ends and the user must type "continue" to resume.
@@ -811,24 +812,29 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
 This step runs after verify-plan-criteria and before worktree setup. It commits design documents and project config to the base branch so the worktree inherits them via git history, preventing untracked file clutter.
 
 **Process:**
-1. Check if there are planning artifacts to commit:
-   ```bash
-   git status --porcelain docs/plans/*.md .feature-flow.yml 2>/dev/null
+1. Run inline: `git status --porcelain docs/plans/*.md .feature-flow.yml 2>&1`
+   - If output is empty: skip — "No planning artifacts to commit."
+   - If output is non-empty (changes detected OR git error output): proceed to step 2 — treat conservatively as "artifacts may exist."
+2. Dispatch a general-purpose subagent to commit. **Before dispatching, substitute `[feature-name]` with the actual feature name from Step 1** (e.g., "csv-export", "auth-refresh-token"). The orchestrator holds this value in context:
+
    ```
-2. If no files are reported (empty output), skip the step: "No planning artifacts to commit — skipping."
-3. Stage the planning artifacts:
-   ```bash
-   git add docs/plans/*.md .feature-flow.yml
-   ```
-4. Commit with a descriptive message using the feature name from Step 1:
-   ```bash
-   git commit -m "docs: add design and implementation plan for [feature-name]"
+   Task(
+     subagent_type: "general-purpose",
+     model: "sonnet",
+     description: "Commit planning artifacts to base branch",
+     prompt: "Commit the following files to git. Files: docs/plans/*.md and .feature-flow.yml (git add is safe on unchanged tracked files — it no-ops). Commit message: 'docs: add design and implementation plan for [feature-name]'. Run: git add docs/plans/*.md .feature-flow.yml && git commit -m '[message]'. If no files are staged after add, report 'nothing to commit'. Return: committed SHA or 'nothing to commit'."
+   )
    ```
 
+   If the subagent fails or errors, log the error and continue — commit failure is non-blocking.
+
+3. Announce: "Planning artifacts committed: [SHA returned by subagent]" or "Nothing to commit — skipping."
+
 **Edge cases:**
-- **`.feature-flow.yml` already tracked and unchanged** — `git add` is a no-op for unchanged tracked files, so this is safe
-- **No plan files exist** — handled by the guard check in step 1
-- **Only `.feature-flow.yml` changed (no plan docs)** — still commits; the file should be tracked regardless
+- **`.feature-flow.yml` already tracked and unchanged** — `git add` no-ops on unchanged tracked files
+- **No plan files exist** — git status in step 1 returns empty (exit 0), step skipped
+- **Only `.feature-flow.yml` changed** — still dispatches subagent; file should be tracked regardless
+- **git errors in output** — `2>&1` redirects stderr to stdout; git errors appear as non-empty output and are treated conservatively as "may have artifacts" — the subagent proceeds and determines the actual state
 
 ### Copy Env Files Step (inline — no separate skill)
 
@@ -1316,58 +1322,65 @@ This step runs after "Commit and PR" (or after mobile-specific steps like app st
 
 **Process:**
 
-1. **Check if issue is already closed:**
+1. **Check if issue is already closed** (substitute `[N]` with the actual issue number from Step 1):
    ```bash
-   gh issue view N --json state --jq '.state'
+   gh issue view [N] --json state --jq '.state'
    ```
-   If the state is `CLOSED`, log: `"Issue #N is already closed — skipping."` and skip.
+   - If the state is `CLOSED`, log: `"Issue #[N] is already closed — skipping."` and skip.
+   - If the command fails (non-zero exit, network error, auth failure), log: `"Issue state check failed for #[N] — skipping comment and close step."` and skip.
 
-2. **Generate the comment body** from lifecycle context:
+2. **Gather context inline** (2 bash calls — substitute `[base-branch]` with the base branch detected in Step 0):
+   ```bash
+   git log --format="%s" [base-branch]...HEAD
+   ```
+   → Derive 2-4 "What was built" bullets from commit messages.
+   ```bash
+   git diff --stat [base-branch]...HEAD | head -10
+   ```
+   → Key files changed list.
+   - **PR number:** from conversation context (produced by "Commit and PR" step — already in context)
+   - **Acceptance criteria:** from conversation context (implementation plan tasks + final verification results)
 
-   ```markdown
+3. **Dispatch a general-purpose subagent** with the fully-assembled comment content. **Before dispatching, substitute every bracket placeholder** — `[N]`, `[PR number]`, all `[bullet N from git log]` entries, all `[criterion N]` entries, all `[file path]` entries — using the data gathered in step 2. No bracket placeholders should remain in the prompt string sent to the subagent:
+
+   ```
+   Task(
+     subagent_type: "general-purpose",
+     model: "sonnet",
+     description: "Post issue comment and close issue #[N]",
+     prompt: "Post a comment on GitHub issue #[N], then close it. Use exactly this comment body:
+
    ## Implementation Complete
 
-   **PR:** #[PR number]
+   **PR:** #[PR number from context]
 
    ### What was built
-   - [2-4 bullet points summarizing what was implemented, derived from the design doc and commit history]
+   - [bullet 1 from git log]
+   - [bullet 2 from git log]
+   [up to 4 bullets]
 
    ### Acceptance criteria verified
-   - [x] [Each acceptance criterion from the implementation plan, marked as verified]
+   - [x] [criterion 1 from implementation plan]
+   - [x] [criterion 2 from implementation plan]
+   [all criteria]
 
    ### Key files changed
-   - `[file path]` — [1-line description of change]
-   - `[file path]` — [1-line description of change]
-   [limit to 10 most significant files]
+   - \`[file path]\` — [1-line description]
+   [up to 10 files from git diff --stat]
+
+   Run: gh issue comment [N] --body-file /tmp/ff_issue_comment.md then gh issue close [N] (write the comment body to /tmp/ff_issue_comment.md first to avoid shell quoting issues with apostrophes and special characters). Return 'success' or 'failed: [reason]' so the orchestrator can branch the announcement."
+   )
    ```
 
-   **Content sources:**
-   - "What was built" → derive from design doc overview + `git log --format="%s" [base-branch]...HEAD`
-   - Acceptance criteria → from the implementation plan tasks, verified during the final verification step
-   - Key files → from `git diff --stat [base-branch]...HEAD`, limited to 10 most-changed files
-
-3. **Post the comment:**
-   ```bash
-   gh issue comment N --body "$(cat <<'EOF'
-   [generated comment]
-   EOF
-   )"
-   ```
-   Use a heredoc to safely pass multiline markdown content to `gh`.
-
-4. **Close the issue:**
-   ```bash
-   gh issue close N
-   ```
-
-5. **Announce:** `"Issue #N commented and closed."`
+4. **Announce:**
+   - If subagent returned `'success'`: `"Issue #[N] commented and closed."`
+   - If subagent returned `'failed: [reason]'`: log `"Issue #[N] comment/close failed — [reason]. Continuing."` and skip success announcement.
 
 **Edge cases:**
 - **No issue linked:** Skip this step silently — not all lifecycle runs start from an issue
-- **Issue already closed:** Log warning: `"Issue #N is already closed — skipping."` Do not reopen or double-comment.
-- **`gh` command fails:** Log warning and continue — don't block completion on a comment failure
-
-**YOLO behavior:** No prompt needed — this step is always automated. In YOLO mode, runs silently. In Interactive mode, announce but don't ask for confirmation.
+- **Issue already closed:** Caught in step 1 — skip dispatch. Do not reopen or double-comment.
+- **`gh` command fails:** Subagent logs error and continues — non-blocking
+- **YOLO/mode propagation:** YOLO propagation applies only to `Skill()` invocations, not `Task()` dispatches. These git/gh subagents require no mode flag.
 
 ### Documentation Lookup Step (inline — no separate skill)
 
