@@ -812,9 +812,9 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
 This step runs after verify-plan-criteria and before worktree setup. It commits design documents and project config to the base branch so the worktree inherits them via git history, preventing untracked file clutter.
 
 **Process:**
-1. Run inline: `git status --porcelain docs/plans/*.md .feature-flow.yml 2>/dev/null`
+1. Run inline: `git status --porcelain docs/plans/*.md .feature-flow.yml 2>&1`
    - If output is empty: skip — "No planning artifacts to commit."
-   - If output is non-empty: proceed to step 2.
+   - If output is non-empty (changes detected OR git error output): proceed to step 2 — treat conservatively as "artifacts may exist."
 2. Dispatch a general-purpose subagent to commit. **Before dispatching, substitute `[feature-name]` with the actual feature name from Step 1** (e.g., "csv-export", "auth-refresh-token"). The orchestrator holds this value in context:
 
    ```
@@ -834,7 +834,7 @@ This step runs after verify-plan-criteria and before worktree setup. It commits 
 - **`.feature-flow.yml` already tracked and unchanged** — `git add` no-ops on unchanged tracked files
 - **No plan files exist** — git status in step 1 returns empty (exit 0), step skipped
 - **Only `.feature-flow.yml` changed** — still dispatches subagent; file should be tracked regardless
-- **git errors suppressed** — `2>/dev/null` suppresses stderr; any empty output (including from suppressed git errors) is treated conservatively as "nothing to commit" and the step is skipped
+- **git errors in output** — `2>&1` redirects stderr to stdout; git errors appear as non-empty output and are treated conservatively as "may have artifacts" — the subagent proceeds and determines the actual state
 
 ### Copy Env Files Step (inline — no separate skill)
 
