@@ -816,7 +816,7 @@ This step runs after verify-plan-criteria and before worktree setup. It commits 
    - If output is empty AND exit code is 0: skip — "No planning artifacts to commit."
    - If output is empty AND exit code is non-zero (error suppressed by `2>/dev/null`): treat conservatively as "artifacts may exist" and proceed to step 2.
    - If output is non-empty: proceed to step 2.
-2. Dispatch a general-purpose subagent to commit:
+2. Dispatch a general-purpose subagent to commit. **Before dispatching, substitute `[feature-name]` with the actual feature name from Step 1** (e.g., "csv-export", "auth-refresh-token"). The orchestrator holds this value in context:
 
    ```
    Task(
@@ -827,7 +827,9 @@ This step runs after verify-plan-criteria and before worktree setup. It commits 
    )
    ```
 
-3. Announce: "Planning artifacts committed: [SHA]" or "Nothing to commit — skipping."
+   If the subagent fails or errors, log the error and continue — commit failure is non-blocking.
+
+3. Announce: "Planning artifacts committed: [SHA returned by subagent]" or "Nothing to commit — skipping."
 
 **Edge cases:**
 - **`.feature-flow.yml` already tracked and unchanged** — `git add` no-ops on unchanged tracked files
