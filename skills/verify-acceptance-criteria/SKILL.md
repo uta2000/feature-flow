@@ -36,7 +36,7 @@ gh pr view --json url,state 2>/dev/null
 
 ### Step 1: Find the Plan File
 
-**If `plan_file` is provided in ARGUMENTS** (e.g., `plan_file: /abs/path/to/plan.md`): Parse the value and use that path directly. Skip the Glob and user confirmation. Announce: "Using provided plan file: [path]"
+**If `plan_file` is provided in ARGUMENTS** (e.g., `plan_file: /abs/path/to/plan.md`): Parse the value and attempt to read that path. If the file exists, use it directly — skip the Glob and user confirmation, and announce: "Using provided plan file: [path]". If the file does not exist, announce: "Provided plan_file not found: [path]. Falling back to discovery." and continue with the Otherwise branch below.
 
 **Otherwise, look for the plan file:**
 1. If the user specified a path, use it
