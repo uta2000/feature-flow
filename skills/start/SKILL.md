@@ -750,9 +750,9 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
    4. For files marked `(design-first)` in Quality Constraints (>150 lines): the change plan in sub-step 2 is **mandatory** and must be output before any Edit tool call on that file.
 
 6. **Git Safety Protocol.** Instruct the implementer to never use history-rewriting git operations:
-   - Never use `git commit --amend` — always create a new commit instead
-   - Never use `git rebase -i` — interactive rebase rewrites history
-   - Never use `git push --force` or `git push --force-with-lease` without explicit user instruction
+   - Never use `git commit --amend` — always create a new commit instead (even for wrong messages or forgotten files)
+   - Never use `git rebase -i` — leave the commit history as-is; if cleanup is needed, ask the human user
+   - Never use `git push --force` or `git push --force-with-lease` — if the situation seems to require it, stop and ask the human user directly
    - This aligns with Claude Code's own git safety protocol: "CRITICAL: Always create NEW commits rather than amending"
 
 **Injection format:**
@@ -779,12 +779,14 @@ For each file you modify, follow this protocol:
 3. Write the edit in one pass
 4. MANDATORY for design-first files: Output your change plan before ANY Edit call on: [file list]
 
-### Git Safety
+### Git Safety Protocol
 Never use history-rewriting git operations:
-- `git commit --amend` — always create a new commit instead
-- `git rebase -i` — rewrites history
-- `git push --force` — unless explicitly instructed by the user
-If you forgot to include a file, create a new commit: `git add <file> && git commit -m "chore: add missing file"`
+- `git commit --amend` — always create a new commit instead (even for wrong messages or forgotten files)
+- `git rebase -i` — rewrites history; leave the commit history as-is or ask the user before squashing
+- `git push --force` or `git push --force-with-lease` — never use these; if the situation seems to require it, stop and ask the human user directly
+If you need to add a forgotten file: `git add <file> && git commit -m "chore: add missing file"`
+If the commit message was wrong: create a new commit with a corrective message — do not amend.
+If a pre-commit hook failed: fix the underlying issue and create a NEW commit — do not amend.
 ```
 
 ### Model Routing Defaults
