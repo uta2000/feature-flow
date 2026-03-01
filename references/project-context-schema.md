@@ -24,6 +24,8 @@ gotchas:
   - "WhoisFreaks bulk endpoint has separate RPM bucket from single-domain"
 types_path: src/types/database.types.ts  # Optional: canonical generated types path
 default_branch: staging  # Optional: PR target branch (default: detected via cascade)
+notifications:          # Optional: notification preference written by start skill
+  on_stop: bell         # bell | desktop | none
 ```
 
 ## Fields
@@ -156,6 +158,31 @@ default_branch: staging
 ```
 
 **When needed:** Only when the automatic detection cascade doesn't select the correct branch. Most projects using `main` as their PR target don't need this field.
+
+### `notifications`
+
+Optional notification preference for the `start:` lifecycle. When set, `start` skips the notification prompt on subsequent invocations and applies the saved preference directly.
+
+**Sub-fields:**
+
+| Field | Values | Description |
+|-------|--------|-------------|
+| `on_stop` | `bell \| desktop \| none` | Notification type fired when Claude Code stops and waits for input |
+
+**When set:** After the user answers the Notification Preference prompt in Step 0 of `start:`. Also set when the user confirms a non-`none` preference (bell or desktop) so the Stop hook is already configured in `~/.claude/settings.json`.
+
+**When absent:** `start` presents the Notification Preference prompt during Step 0 pre-flight (on macOS only). If the user selects `none`, the field is not written (absent = no saved preference OR explicitly declined during a session that didn't persist it). If the user selects `bell` or `desktop`, the field is written to avoid re-prompting.
+
+**Format:** Nested mapping.
+
+```yaml
+notifications:
+  on_stop: bell    # terminal bell (osascript -e 'beep 2')
+  # on_stop: desktop  # banner + Glass sound
+  # on_stop: none     # explicitly no notifications
+```
+
+**macOS-only:** The notification commands use `osascript`. On non-macOS systems, `start` skips the prompt and does not write this field.
 
 ## How Skills Use This File
 
