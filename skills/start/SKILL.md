@@ -518,6 +518,30 @@ Skill(skill: "feature-flow:design-document", args: "express: true. scope: [scope
 
 For inline steps (CHANGELOG generation, self-review, code review, study existing patterns), the mode flag is already in the conversation context — no explicit propagation is needed.
 
+**Lifecycle Context Object:** As the lifecycle executes, maintain a context object that accumulates artifact paths as they become known. Include all known paths in the `args` of every subsequent `Skill` invocation, after the mode flag and scope:
+
+| Path key | When it becomes available |
+|----------|--------------------------|
+| `base_branch` | Step 0 — base branch detection |
+| `issue` | Step 1 — when an issue number is linked |
+| `design_doc` | After design document step (the absolute path returned by the skill) |
+| `plan_file` | After implementation plan step (the absolute path of the saved plan file) |
+| `worktree` | After worktree setup (the absolute path to the created worktree) |
+
+Include only paths that are known at the time of each invocation — do not include paths for artifacts that haven't been created yet. Example invocations showing progressive accumulation:
+
+```
+# Before design doc (base_branch and issue known):
+Skill(skill: "superpowers:brainstorming", args: "yolo: true. scope: [scope]. base_branch: main. issue: 119. [original args]")
+
+# Before implementation (plan_file and design_doc known, worktree not yet):
+Skill(skill: "superpowers:writing-plans", args: "yolo: true. scope: [scope]. base_branch: main. issue: 119. design_doc: /abs/path/design.md. [original args]")
+
+# During and after implementation (all paths known):
+Skill(skill: "superpowers:subagent-driven-development", args: "yolo: true. scope: [scope]. plan_file: /abs/path/plan.md. design_doc: /abs/path/design.md. worktree: /abs/path/.worktrees/feat-xyz. base_branch: main. issue: 119. [original args]")
+Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/path/plan.md. [original args]")
+```
+
 **Do not skip steps.** If the user asks to skip a step, explain why it matters and confirm they want to skip. If they insist, mark it as skipped and note the risk.
 
 ### Skill Mapping
@@ -790,6 +814,7 @@ When YOLO **or Express** mode is active and invoking `superpowers:subagent-drive
 **CRITICAL OVERRIDE — the subagent-driven-development skill invokes `superpowers:finishing-a-development-branch` after all tasks complete — the "Finishing a Development Branch YOLO Override" above applies to that invocation.**
 
 Additional YOLO behavior:
+0. **Pass lifecycle context in args.** When invoking this skill, include all known artifact paths: `plan_file`, `design_doc`, `worktree`, `base_branch`, `issue` (per the Lifecycle Context Object section). The skill uses `plan_file` directly to read the plan instead of discovering it via Glob.
 1. If any subagent (implementer, spec reviewer, or code quality reviewer) surfaces questions that would normally require user input, auto-answer them from the implementation plan, design document, and codebase context. Announce each: `YOLO: subagent-driven-development — [question] → [answer from context]`
 2. Do NOT ask the user to answer subagent questions — use available context to provide answers directly
 3. When dispatching implementation subagents, use `model: sonnet` unless the task description contains keywords indicating architectural complexity: "architect", "migration", "schema change", "new data model". For these, use `model: opus`. Announce: `YOLO: subagent-driven-development — Model selection → sonnet (or opus for [keyword])`
