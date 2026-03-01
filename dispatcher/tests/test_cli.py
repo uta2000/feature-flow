@@ -8,7 +8,7 @@ def test_parser_defaults():
     assert args.label is None
     assert args.repo is None
     assert args.auto is False
-    assert args.config == "dispatcher.yml"
+    assert args.config == ".dispatcher/config.yml"
     assert args.dry_run is False
     assert args.resume is None
     assert args.limit is None

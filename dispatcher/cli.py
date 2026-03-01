@@ -13,7 +13,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--label", type=str, default=None, help="Label filter for selection")
     parser.add_argument("--repo", type=str, default=None, help="GitHub repo owner/repo")
     parser.add_argument("--auto", action="store_true", help="Skip all TUIs")
-    parser.add_argument("--config", type=str, default="dispatcher.yml", help="Config file path")
+    parser.add_argument("--config", type=str, default=".dispatcher/config.yml", help="Config file path")
     parser.add_argument("--dry-run", action="store_true", help="Triage + TUIs only, no execution")
     parser.add_argument("--resume", type=str, default=None, help="Resume a previous run by run ID")
     parser.add_argument("--limit", type=int, default=None, help="Max issues in selection TUI")

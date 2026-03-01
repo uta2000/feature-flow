@@ -56,6 +56,8 @@ CREATE INDEX IF NOT EXISTS idx_issues_issue_number ON issues(issue_number);
 
 
 def init_db(path: str) -> sqlite3.Connection:
+    from pathlib import Path
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(path)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")

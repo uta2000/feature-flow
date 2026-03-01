@@ -8,7 +8,7 @@ def test_config_defaults():
     assert cfg.triage_max_turns == 1
     assert cfg.execution_max_turns == 200
     assert cfg.max_resume_attempts == 2
-    assert cfg.db_path == "./dispatcher.db"
+    assert cfg.db_path == ".dispatcher/dispatcher.db"
     assert cfg.selection_limit == 50
     assert cfg.rate_limit_pause_seconds == 300
     assert cfg.rate_limit_batch_pause_seconds == 900

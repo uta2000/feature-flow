@@ -13,7 +13,7 @@ class Config:
     triage_max_turns: int = 1
     execution_max_turns: int = 200
     max_resume_attempts: int = 2
-    db_path: str = "./dispatcher.db"
+    db_path: str = ".dispatcher/dispatcher.db"
     branch_prefix_fix: str = "fix"
     branch_prefix_feat: str = "feat"
     default_label: str = "dispatcher-ready"

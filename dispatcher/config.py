@@ -70,9 +70,10 @@ def _generate_config(config_path: Path) -> dict:
         "execution_max_turns": 200,
         "default_label": "dispatcher-ready",
         "selection_limit": 50,
-        "db_path": "./dispatcher.db",
+        "db_path": ".dispatcher/dispatcher.db",
     }
 
+    config_path.parent.mkdir(parents=True, exist_ok=True)
     with open(config_path, "w") as f:
         yaml.dump(data, f, default_flow_style=False, sort_keys=False)
 
@@ -81,7 +82,7 @@ def _generate_config(config_path: Path) -> dict:
     print(f"  base_branch: {base_branch}")
     print(f"  plugin_path: {plugin_path}")
     if not plugin_path:
-        print("  Warning: could not auto-detect plugin_path. Edit dispatcher.yml to set it.", file=sys.stderr)
+        print("  Warning: could not auto-detect plugin_path. Edit .dispatcher/config.yml to set it.", file=sys.stderr)
     return data
 
 
@@ -104,7 +105,7 @@ def load_config(args: argparse.Namespace) -> Config:
 
     plugin_path = yaml_data.get("plugin_path", "")
     if not plugin_path:
-        print("Error: plugin_path is required in dispatcher.yml", file=sys.stderr)
+        print("Error: plugin_path is required in .dispatcher/config.yml", file=sys.stderr)
         sys.exit(2)
 
     return _build_config(args, yaml_data, plugin_path)
@@ -121,7 +122,7 @@ def _build_config(args: argparse.Namespace, yaml_data: dict, plugin_path: str) -
         triage_max_turns=yaml_data.get("triage_max_turns", 5),
         execution_max_turns=yaml_data.get("execution_max_turns", 200),
         max_resume_attempts=yaml_data.get("max_resume_attempts", 2),
-        db_path=yaml_data.get("db_path", "./dispatcher.db"),
+        db_path=yaml_data.get("db_path", ".dispatcher/dispatcher.db"),
         branch_prefix_fix=yaml_data.get("branch_prefix_fix", "fix"),
         branch_prefix_feat=yaml_data.get("branch_prefix_feat", "feat"),
         default_label=args.label or yaml_data.get("default_label", "dispatcher-ready"),
