@@ -9,6 +9,8 @@ All notable changes to the feature-flow plugin.
 
 ### Fixed
 - **Git Safety Protocol in implementer subagent prompts** — adds item 6 to the Implementer Quality Context Injection section prohibiting `git commit --amend`, `git rebase -i`, and `git push --force`/`--force-with-lease`. Includes positive alternatives for each prohibited operation (wrong message → new commit, forgotten file → new commit, hook failure → new commit, rebase cleanup → ask user, force-push → stop and ask human). Aligns with Claude Code's own git safety protocol. (Closes #107)
+- **Enforce parallel dispatch in study-patterns phase** — adds explicit "Do NOT dispatch agents one at a time" anti-pattern warning to the Study Existing Patterns dispatch instruction, matching the proven TaskCreate pattern. Prevents ~13s wall-clock regression per lifecycle run when multiple exploration agents are dispatched. (Closes #109)
+- **Enforce parallel dispatch in code review pipeline Phase 1** — adds same anti-pattern warning to Code Review Pipeline Phase 1 dispatch instruction for consistency. (Closes #109)
 
 ## [1.22.1] - 2026-02-28
 
