@@ -1451,6 +1451,10 @@ This step runs after CHANGELOG generation and before commit and PR. It verifies 
    ```
    This prevents the stop hook from re-running the same quality gates when the session ends.
 
+4. **Capture diff stats:** Run `git diff --stat [base-branch]...HEAD` to record line counts in the session transcript, substituting the actual detected base branch for `[base-branch]`. The `session-report` analysis script uses this output to populate `cost_per_line_changed`. Run without truncation — do not pipe through `head`.
+   - If the output is empty (no commits on the branch yet), announce: "No commits on branch — skipping diff stats capture." No further action needed.
+   - If the command fails or produces a `fatal:` error, log a warning: "git diff --stat failed — cost_per_line_changed will be null. Error: [output]" Then skip. Do not treat git error output as diff output.
+
 ### Step 4: Handle Interruptions
 
 **Within the same session:**
