@@ -36,7 +36,9 @@ gh pr view --json url,state 2>/dev/null
 
 ### Step 1: Find the Plan File
 
-Look for the plan file:
+**If `plan_file` is provided in ARGUMENTS** (e.g., `plan_file: /abs/path/to/plan.md`): Parse the value and use that path directly. Skip the Glob and user confirmation. Announce: "Using provided plan file: [path]"
+
+**Otherwise, look for the plan file:**
 1. If the user specified a path, use it
 2. Otherwise, find the most recently modified `.md` file in the plans directory:
 
