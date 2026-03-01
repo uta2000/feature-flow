@@ -223,7 +223,7 @@ Use `AskUserQuestion`:
 
 **After selection (or applying saved preference):**
 
-- **If `none`:** Announce: `"No notifications — continuing."` Do not write any hook.
+- **If `none`:** Announce: `"No notifications — continuing."` Do not write any notification hook to `~/.claude/settings.json`, but DO write `notifications.on_stop: none` to `.feature-flow.yml` so future sessions know the user was already prompted.
 - **If `bell` or `desktop`:**
   1. Read `~/.claude/settings.json` — check if a Stop hook already contains `osascript` for notification (substring match on `beep` or `display notification`). If found: skip writing, announce: `"Existing notification hook found in ~/.claude/settings.json — reusing."`
   2. If not found: write the Stop hook to `~/.claude/settings.json` by merging into the existing `hooks.Stop` array (create the file if absent):

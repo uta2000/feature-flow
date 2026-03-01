@@ -171,7 +171,7 @@ Optional notification preference for the `start:` lifecycle. When set, `start` s
 
 **When set:** After the user answers the Notification Preference prompt in Step 0 of `start:`. Also set when the user confirms a non-`none` preference (bell or desktop) so the Stop hook is already configured in `~/.claude/settings.json`.
 
-**When absent:** `start` presents the Notification Preference prompt during Step 0 pre-flight (on macOS only). If the user selects `none`, the field is not written (absent = no saved preference OR explicitly declined during a session that didn't persist it). If the user selects `bell` or `desktop`, the field is written to avoid re-prompting.
+**When absent:** `start` presents the Notification Preference prompt during Step 0 pre-flight (on macOS only). If the user selects `none`, the field IS written as `on_stop: none` — so future sessions know the user was already asked and explicitly chose no notifications. Absent means the user has not yet been prompted. If the user selects `bell` or `desktop`, the field is written to avoid re-prompting.
 
 **Format:** Nested mapping.
 
@@ -179,7 +179,7 @@ Optional notification preference for the `start:` lifecycle. When set, `start` s
 notifications:
   on_stop: bell    # terminal bell (osascript -e 'beep 2')
   # on_stop: desktop  # banner + Glass sound
-  # on_stop: none     # explicitly no notifications
+  # on_stop: none     # user explicitly declined; absent = not yet prompted
 ```
 
 **macOS-only:** The notification commands use `osascript`. On non-macOS systems, `start` skips the prompt and does not write this field.
