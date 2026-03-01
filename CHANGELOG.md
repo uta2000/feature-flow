@@ -6,9 +6,15 @@ All notable changes to the feature-flow plugin.
 
 ### Added
 - **Haiku model for task-verifier dispatch** — `verify-acceptance-criteria` now explicitly passes `model: "haiku"` when dispatching the task-verifier agent, reducing verification cost by ~60%. Verification is checklist-style mechanical work (file existence, grep patterns, command output) that does not require advanced reasoning. (Closes #108)
+- **Notification preference prompt in `start:` lifecycle** — adds an optional bell or macOS desktop notification when Claude Code stops and waits for user input. Prompt runs after Session Model Recommendation in Step 0 pre-flight; users choose "no notifications", terminal bell (`osascript -e 'beep 2'`), or desktop notification with Glass sound. Preference persists in `.feature-flow.yml` as `notifications.on_stop: bell | desktop | none` so future sessions skip the prompt. YOLO/Express modes skip the prompt and default to `none` if no saved preference exists. macOS-only (uses `osascript`). (Closes #113)
 
 ### Fixed
 - **Git Safety Protocol in implementer subagent prompts** — adds item 6 to the Implementer Quality Context Injection section prohibiting `git commit --amend`, `git rebase -i`, and `git push --force`/`--force-with-lease`. Includes positive alternatives for each prohibited operation (wrong message → new commit, forgotten file → new commit, hook failure → new commit, rebase cleanup → ask user, force-push → stop and ask human). Aligns with Claude Code's own git safety protocol. (Closes #107)
+- **Error handling for notification hook writes** — adds explicit fail-open handling for `~/.claude/settings.json` and `.feature-flow.yml` writes; permission errors are logged with a user-visible warning and do not block the lifecycle. Corrupted/unreadable `settings.json` is treated as absent (proceeds to write a new hook). (Closes #113)
+- **`on_stop: none` persistence** — when user explicitly selects "no notifications", `on_stop: none` is persisted to `.feature-flow.yml` so future sessions can distinguish "user was asked and declined" from "user has not been prompted yet" (absent field). (Closes #113)
+
+### Documentation
+- **`notifications` field in `references/project-context-schema.md`** — documents the new `notifications.on_stop` field (`bell | desktop | none`), its read/write semantics, YAML example, and the semantic distinction between `on_stop: none` (explicitly declined) vs field absent (not yet prompted). Updates the `start (reads + writes)` section. (Closes #113)
 
 ## [1.22.1] - 2026-02-28
 
