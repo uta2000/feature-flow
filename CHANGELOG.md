@@ -7,6 +7,9 @@ All notable changes to the feature-flow plugin.
 ### Added
 - **Haiku model for task-verifier dispatch** — `verify-acceptance-criteria` now explicitly passes `model: "haiku"` when dispatching the task-verifier agent, reducing verification cost by ~60%. Verification is checklist-style mechanical work (file existence, grep patterns, command output) that does not require advanced reasoning. (Closes #108)
 
+### Fixed
+- **Git Safety Protocol in implementer subagent prompts** — adds item 6 to the Implementer Quality Context Injection section prohibiting `git commit --amend`, `git rebase -i`, and `git push --force`/`--force-with-lease`. Includes positive alternatives for each prohibited operation (wrong message → new commit, forgotten file → new commit, hook failure → new commit, rebase cleanup → ask user, force-push → stop and ask human). Aligns with Claude Code's own git safety protocol. (Closes #107)
+
 ## [1.22.1] - 2026-02-28
 
 ### Changed
