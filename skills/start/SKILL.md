@@ -199,6 +199,45 @@ After detecting the base branch, detect the current model and recommend Sonnet-f
 
 **Express behavior:** Same as Interactive — show the `AskUserQuestion` prompt. Express auto-selects decisions but model switching requires user action (`/model` command), so it must pause.
 
+**Notification Preference:**
+
+After the Session Model Recommendation, check whether the user wants to be notified when Claude Code stops and waits for input. This fires the preference prompt once per lifecycle session (or skips it if a saved preference exists).
+
+**macOS guard:** If `$OSTYPE` does not match `darwin*`, skip this subsection entirely and announce: `"Notification preference skipped — osascript only available on macOS."`
+
+**Check for saved preference:**
+1. Read `.feature-flow.yml` `notifications.on_stop` field (if present)
+2. If present and non-empty (`bell`, `desktop`, or `none`):
+   - Announce: `"Notification preference loaded from .feature-flow.yml: [value] — skipping prompt."`
+   - If `bell` or `desktop`: apply the saved preference by following the full hook-writing procedure in "After selection" below (including its permission-error fallback)
+   - If `none`: skip both the prompt and any writes — the preference is already recorded
+   - Skip the prompt entirely
+3. If absent: proceed to the preference prompt
+
+**Preference prompt (when no saved preference):**
+
+Use `AskUserQuestion`:
+- Question: `"Notify me when Claude needs your input? (fires on every Stop event while the lifecycle runs)"`
+- Option 1: `"No notifications"` with description: `"(Default) No sound or banner — you check the terminal manually"`
+- Option 2: `"Terminal bell"` with description: `"Runs: osascript -e 'beep 2' — a simple system beep when Claude pauses"`
+- Option 3: `"Desktop notification"` with description: `"Runs: display notification 'Claude Code needs your attention' — banner with Glass sound"`
+
+**After selection (or applying saved preference):**
+
+- **If `none`:** Announce: `"No notifications — continuing."` Do not write any notification hook to `~/.claude/settings.json`, but DO write `notifications.on_stop: none` to `.feature-flow.yml` so future sessions know the user was already prompted. If the write fails (permission error or YAML issue), log the error and continue — announce: `"Warning: could not persist notification preference to .feature-flow.yml — you will be re-prompted next session."`
+- **If `bell` or `desktop`:**
+  1. Read `~/.claude/settings.json` — check if a Stop hook already contains `osascript` for notification (substring match on `beep` or `display notification`). If found: skip writing, announce: `"Existing notification hook found in ~/.claude/settings.json — reusing."` If the file cannot be read or contains invalid JSON, treat it as absent (proceed to write a new hook).
+  2. If not found: write the Stop hook to `~/.claude/settings.json` by merging into the existing `hooks.Stop` array (create the file if absent):
+     - Bell: `{ "type": "command", "command": "osascript -e 'beep 2'" }`
+     - Desktop: `{ "type": "command", "command": "osascript -e 'display notification \"Claude Code needs your attention\" with title \"Claude Code\" sound name \"Glass\"'" }`
+     - If the file cannot be written (permission error), log the error and continue — do not block the lifecycle
+  3. Write `notifications.on_stop: [bell|desktop]` to `.feature-flow.yml` so future sessions skip the prompt. If the write fails, log the error and continue — announce: `"Warning: could not persist notification preference to .feature-flow.yml — you will be re-prompted next session."`
+  4. Announce: `"Notification preference saved ([bell|desktop]). Stop hook written to ~/.claude/settings.json."`
+
+**YOLO behavior:** Skip the prompt. Check `.feature-flow.yml` for `notifications.on_stop` — if present, apply it silently (for `bell` or `desktop`, also perform the duplicate-detection and hook-write steps in "After selection" without additional announcements; if the hook write fails, announce: `YOLO: start — Notification hook write failed: [error] — continuing without hook`). If absent, default to `none` (no hook written, no `.feature-flow.yml` write in YOLO mode — YOLO does not persist a preference on behalf of the user). Announce: `YOLO: start — Notification preference → [loaded: value | no preference, defaulting to none]`
+
+**Express behavior:** Same as YOLO — skip the prompt, use saved preference or default to `none`.
+
 ### Step 1: Determine Scope
 
 Ask the user what they want to build. Then classify the work.

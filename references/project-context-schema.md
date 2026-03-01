@@ -24,6 +24,8 @@ gotchas:
   - "WhoisFreaks bulk endpoint has separate RPM bucket from single-domain"
 types_path: src/types/database.types.ts  # Optional: canonical generated types path
 default_branch: staging  # Optional: PR target branch (default: detected via cascade)
+notifications:          # Optional: notification preference written by start skill
+  on_stop: bell         # bell | desktop | none
 ```
 
 ## Fields
@@ -157,6 +159,31 @@ default_branch: staging
 
 **When needed:** Only when the automatic detection cascade doesn't select the correct branch. Most projects using `main` as their PR target don't need this field.
 
+### `notifications`
+
+Optional notification preference for the `start:` lifecycle. When set, `start` skips the notification prompt on subsequent invocations and applies the saved preference directly.
+
+**Sub-fields:**
+
+| Field | Values | Description |
+|-------|--------|-------------|
+| `on_stop` | `bell \| desktop \| none` | Notification type fired when Claude Code stops and waits for input |
+
+**When set:** After the user answers the Notification Preference prompt in Step 0 of `start:`. Also set when the user confirms a non-`none` preference (bell or desktop) so the Stop hook is already configured in `~/.claude/settings.json`.
+
+**When absent:** `start` presents the Notification Preference prompt during Step 0 pre-flight (on macOS only). If the user selects `none`, the field IS written as `on_stop: none` — so future sessions know the user was already asked and explicitly chose no notifications. Absent means the user has not yet been prompted. If the user selects `bell` or `desktop`, the field is written to avoid re-prompting.
+
+**Format:** Nested mapping.
+
+```yaml
+notifications:
+  on_stop: bell    # terminal bell (osascript -e 'beep 2')
+  # on_stop: desktop  # banner + Glass sound
+  # on_stop: none     # user explicitly declined; absent = not yet prompted
+```
+
+**macOS-only:** The notification commands use `osascript`. On non-macOS systems, `start` skips the prompt and does not write this field.
+
 ## How Skills Use This File
 
 ### start (reads + writes)
@@ -167,6 +194,8 @@ default_branch: staging
 - **Writes** `plugin_version` to current running version on every lifecycle start.
 - **Reads** `context7` field to query relevant documentation before the design phase.
 - **Reads** `default_branch` field to determine the PR target branch. If absent, runs the detection cascade.
+- **Reads** `notifications.on_stop` field to skip the notification preference prompt when a saved preference exists (on macOS only).
+- **Writes** `notifications.on_stop` after the user answers the preference prompt (`bell`, `desktop`, or `none`). Does not write in YOLO/Express mode if no saved preference exists.
 
 ### design-verification (reads + writes)
 - **Reads** base checklist (13 categories), stack-specific checks, platform-specific checks, and project gotchas.
