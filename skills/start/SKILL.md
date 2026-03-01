@@ -892,7 +892,7 @@ This step runs after copy env files and before implementation. It forces reading
 2. Identify the areas of the codebase that will be modified or extended (from the implementation plan)
 3. **Parallel dispatch** — For each identified area, dispatch one Explore agent to read 2-3 example files and extract patterns. Each agent also flags anti-patterns (files >300 lines, mixed concerns, circular dependencies, duplicated logic).
 
-   Use the Task tool with `subagent_type: "Explore"` and `model: "haiku"` (per Model Routing Defaults; see `../../references/tool-api.md` — Task Tool for parameter syntax). Launch all agents in a **single message** to run them concurrently. Announce: "Dispatching N pattern study agents in parallel..."
+   Use the Task tool with `subagent_type: "Explore"` and `model: "haiku"` (per Model Routing Defaults; see `../../references/tool-api.md` — Task Tool for parameter syntax). Launch all agents in a **single message** to run them concurrently. Do NOT dispatch agents one at a time — sequential dispatch defeats the purpose of parallel study and wastes N-1 parent API turns on waiting. All N agents must appear in one message. Announce: "Dispatching N pattern study agents in parallel..."
 
    **Context passed to each agent:**
    - Area name and file paths/directories to examine
