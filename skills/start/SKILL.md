@@ -666,7 +666,14 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
    - **Files modified:** List of existing files this task will edit
    - **Design-first files:** Any listed file >150 lines, flagged with `(design-first)` — the implementer must output a change plan before editing these files
 
-4. **Progress Index header required in every plan.** Every plan file must include a machine-readable Progress Index HTML comment immediately after the plan title line and before any other content. The index lists every task by number and name with STATUS: pending, and sets CURRENT: none. Example format:
+4. **Progress Index header required in every plan.** Every plan file must include a machine-readable Progress Index HTML comment immediately after the plan title line and before any other content. The index lists every task by number and name with STATUS: pending, and sets CURRENT: none. The header specifies:
+   - **Syntax:** Use HTML comment syntax (`<!-- ... -->`) so the index doesn't render in markdown viewers
+   - **Task lines:** Include every task from the plan (one line per task)
+   - **STATUS values:** STATUS accepts three values: `pending`, `in-progress`, `done (commit [SHA])`
+   - **CURRENT field:** CURRENT is `Task N` when a task is active, `none` when between tasks or at start (e.g., `CURRENT: Task 2` when Task 2 is active)
+   - **Callout block:** The `> **For Claude:**` callout is required in every plan file. It must immediately follow the closing `-->` on a new line
+
+   Example:
 
    ```markdown
    # [Feature Name] Implementation Plan
@@ -681,13 +688,6 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
    > **For Claude:** After compaction, read only the PROGRESS INDEX to determine current task.
    > Then read the full section for that specific task only.
    ```
-
-   **Rules:**
-   - Use HTML comment syntax (`<!-- ... -->`) so the index doesn't render in markdown viewers
-   - Include every task from the plan (one line per task)
-   - STATUS values: `pending`, `in-progress`, `done (commit [SHA])`
-   - CURRENT: task number when a task is active (`Task N`), `none` when between tasks or at start
-   - The callout block (`> **For Claude:**`) must immediately follow the closing `-->` on a new line
 
 **Example task with quality constraints:**
 
