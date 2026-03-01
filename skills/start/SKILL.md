@@ -1077,7 +1077,7 @@ Run deterministic tools before dispatching agents to catch issues that linters c
 
 #### Phase 1: Dispatch review agents
 
-Dispatch the tier-selected review agents in parallel (see scope-based agent selection above). For each agent at or below the current tier, use the Task tool with the agent's `subagent_type` and `model` parameter (see table below and `../../references/tool-api.md` — Task Tool for correct syntax). Launch all agents in a single message to run them concurrently.
+Dispatch the tier-selected review agents in parallel (see scope-based agent selection above). For each agent at or below the current tier, use the Task tool with the agent's `subagent_type` and `model` parameter (see table below and `../../references/tool-api.md` — Task Tool for correct syntax). Launch all agents in a single message to run them concurrently. Do NOT dispatch agents one at a time — sequential dispatch defeats the purpose of parallel review and wastes N-1 parent API turns on waiting. All tier-selected agents must appear in one message.
 
 **Each agent's prompt MUST include all of the following:**
 
