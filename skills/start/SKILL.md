@@ -749,6 +749,12 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
    3. **Write the edit in one pass** — do not edit, run typecheck, re-read, and edit again. If the first edit has issues, re-read the file to understand what went wrong before making a second edit.
    4. For files marked `(design-first)` in Quality Constraints (>150 lines): the change plan in sub-step 2 is **mandatory** and must be output before any Edit tool call on that file.
 
+6. **Git Safety Protocol.** Instruct the implementer to never use history-rewriting git operations:
+   - Never use `git commit --amend` — always create a new commit instead
+   - Never use `git rebase -i` — interactive rebase rewrites history
+   - Never use `git push --force` or `git push --force-with-lease` without explicit user instruction
+   - This aligns with Claude Code's own git safety protocol: "CRITICAL: Always create NEW commits rather than amending"
+
 **Injection format:**
 
 ```
@@ -772,6 +778,13 @@ For each file you modify, follow this protocol:
 2. Output your change plan (which functions change, what's added/removed)
 3. Write the edit in one pass
 4. MANDATORY for design-first files: Output your change plan before ANY Edit call on: [file list]
+
+### Git Safety
+Never use history-rewriting git operations:
+- `git commit --amend` — always create a new commit instead
+- `git rebase -i` — rewrites history
+- `git push --force` — unless explicitly instructed by the user
+If you forgot to include a file, create a new commit: `git add <file> && git commit -m "chore: add missing file"`
 ```
 
 ### Model Routing Defaults
