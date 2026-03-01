@@ -1,9 +1,9 @@
 # Compact Progress Index Implementation Plan
 
 <!-- PROGRESS INDEX (updated by implementation skills)
-Task 1: Add Progress Index format to Writing Plans Quality Context Injection — STATUS: pending
-Task 2: Add Progress Index Update Protocol to Subagent-Driven Development handling — STATUS: pending
-Task 3: Update post-compaction recovery to read index first — STATUS: pending
+Task 1: Add Progress Index format to Writing Plans Quality Context Injection — STATUS: done (commit 6043b11)
+Task 2: Add Progress Index Update Protocol to Subagent-Driven Development handling — STATUS: done (commit 02546f6)
+Task 3: Update post-compaction recovery to read index first — STATUS: done (commit 458873c)
 CURRENT: none
 -->
 
