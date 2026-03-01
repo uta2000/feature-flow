@@ -673,7 +673,7 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
 
 4. **Progress Index header required in every plan.** Every plan file must include a machine-readable Progress Index HTML comment immediately after the plan title line and before any other content. The index lists every task by number and name with STATUS: pending, and sets CURRENT: none. The header specifies:
    - **Syntax:** Use HTML comment syntax (`<!-- ... -->`) so the index doesn't render in markdown viewers
-   - **Task lines:** Include every task from the plan (one line per task)
+   - **Task lines:** Include every task from the plan (one line per task); if the plan has no tasks, omit task lines entirely — the index block is still required with only `CURRENT: none`
    - **STATUS values:** STATUS accepts three values: `pending`, `in-progress`, `done (commit [SHA])`
    - **CURRENT field:** CURRENT is `Task N` when a task is active, `none` when between tasks or at start (e.g., `CURRENT: Task 2` when Task 2 is active)
    - **Callout block:** The `> **For Claude:**` callout is required in every plan file. It must immediately follow the closing `-->` on a new line
