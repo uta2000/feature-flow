@@ -194,6 +194,8 @@ notifications:
 - **Writes** `plugin_version` to current running version on every lifecycle start.
 - **Reads** `context7` field to query relevant documentation before the design phase.
 - **Reads** `default_branch` field to determine the PR target branch. If absent, runs the detection cascade.
+- **Reads** `notifications.on_stop` field to skip the notification preference prompt when a saved preference exists (on macOS only).
+- **Writes** `notifications.on_stop` after the user answers the preference prompt (`bell`, `desktop`, or `none`). Does not write in YOLO/Express mode if no saved preference exists.
 
 ### design-verification (reads + writes)
 - **Reads** base checklist (13 categories), stack-specific checks, platform-specific checks, and project gotchas.
