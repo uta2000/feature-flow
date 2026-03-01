@@ -4,6 +4,9 @@ All notable changes to the feature-flow plugin.
 
 ## [Unreleased]
 
+### Added
+- **Haiku model for task-verifier dispatch** — `verify-acceptance-criteria` now explicitly passes `model: "haiku"` when dispatching the task-verifier agent, reducing verification cost by ~60%. Verification is checklist-style mechanical work (file existence, grep patterns, command output) that does not require advanced reasoning. (Closes #108)
+
 ## [1.22.1] - 2026-02-28
 
 ### Changed
