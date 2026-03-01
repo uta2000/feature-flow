@@ -931,7 +931,7 @@ This step runs after copy env files and before implementation. It forces reading
 2. Identify the areas of the codebase that will be modified or extended (from the implementation plan)
 3. **Parallel dispatch** — For each identified area, dispatch one Explore agent to read 2-3 example files and extract patterns. Each agent also flags anti-patterns (files >300 lines, mixed concerns, circular dependencies, duplicated logic).
 
-   Use the Task tool with `subagent_type: "Explore"` and `model: "haiku"` (per Model Routing Defaults; see `../../references/tool-api.md` — Task Tool for parameter syntax). Launch all agents in a **single message** to run them concurrently. Announce: "Dispatching N pattern study agents in parallel..."
+   Use the Task tool with `subagent_type: "Explore"` and `model: "haiku"` (per Model Routing Defaults; see `../../references/tool-api.md` — Task Tool for parameter syntax). Launch all agents in a **single message** to run them concurrently. Do NOT dispatch agents one at a time — sequential dispatch defeats the purpose of parallel study and wastes N-1 parent API turns on waiting. All N agents must appear in one message. Announce: "Dispatching N pattern study agents in parallel..."
 
    **Context passed to each agent:**
    - Area name and file paths/directories to examine
@@ -1116,7 +1116,7 @@ Run deterministic tools before dispatching agents to catch issues that linters c
 
 #### Phase 1: Dispatch review agents
 
-Dispatch the tier-selected review agents in parallel (see scope-based agent selection above). For each agent at or below the current tier, use the Task tool with the agent's `subagent_type` and `model` parameter (see table below and `../../references/tool-api.md` — Task Tool for correct syntax). Launch all agents in a single message to run them concurrently.
+Dispatch the tier-selected review agents in parallel (see scope-based agent selection above). For each agent at or below the current tier, use the Task tool with the agent's `subagent_type` and `model` parameter (see table below and `../../references/tool-api.md` — Task Tool for correct syntax). Launch all agents in a single message to run them concurrently. Do NOT dispatch agents one at a time — sequential dispatch defeats the purpose of parallel review and wastes N-1 parent API turns on waiting. All tier-selected agents must appear in one message.
 
 **Each agent's prompt MUST include all of the following:**
 
@@ -1489,6 +1489,10 @@ This step runs after CHANGELOG generation and before commit and PR. It verifies 
    git rev-parse HEAD > "$(git rev-parse --git-dir)/feature-flow-verified"
    ```
    This prevents the stop hook from re-running the same quality gates when the session ends.
+
+4. **Capture diff stats:** Run `git diff --stat [base-branch]...HEAD` to record line counts in the session transcript, substituting the actual detected base branch for `[base-branch]`. The `session-report` analysis script uses this output to populate `cost_per_line_changed`. Run without truncation — do not pipe through `head`.
+   - If the output is empty (no commits on the branch yet), announce: "No commits on branch — skipping diff stats capture." No further action needed.
+   - If the command fails or produces a `fatal:` error, log a warning: "git diff --stat failed — cost_per_line_changed will be null. Error: [output]" Then skip. Do not treat git error output as diff output.
 
 ### Step 4: Handle Interruptions
 
