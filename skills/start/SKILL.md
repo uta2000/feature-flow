@@ -754,9 +754,7 @@ Additional YOLO behavior:
 
 ### Subagent-Driven Development Context Injection
 
-This section applies unconditionally in all modes (YOLO, Express, Interactive). When `subagent-driven-development` is executing the task loop, maintain the Progress Index in the plan file after each task's status changes.
-
-**Protocol (orchestrator runs these Edit operations after each task status change):**
+This section applies unconditionally in all modes (YOLO, Express, Interactive). When `subagent-driven-development` is executing the task loop, maintain the Progress Index in the plan file after each task's status changes by running the Edit operations below.
 
 **When starting a task (before dispatching the implementer subagent):**
 1. Check if the plan file contains `<!-- PROGRESS INDEX` — if not, skip all index updates silently (backward compatibility for plans without an index)
@@ -766,13 +764,17 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
 Example edits (starting Task 2):
 - old_string: `Task 2: [name] — STATUS: pending`
 - new_string: `Task 2: [name] — STATUS: in-progress`
-- old_string: `CURRENT: none` (in the PROGRESS INDEX block only)
+- old_string: `CURRENT: none`
+  *(Target only the PROGRESS INDEX block — if this string appears elsewhere in the file, add surrounding context lines from the index block to make old_string unique.)*
 - new_string: `CURRENT: Task 2`
 
 **When completing a task (after both spec and code quality reviews pass):**
-1. Get the final commit SHA: `git rev-parse HEAD`
-2. Edit the plan file to update STATUS: `in-progress` → `done (commit [SHA])`
-3. Edit the plan file to update CURRENT: `CURRENT: Task N` → `CURRENT: none` (or the next task's number if proceeding immediately)
+1. Check if the plan file contains `<!-- PROGRESS INDEX` — if not, skip all index updates silently.
+2. Get the final commit SHA: `git rev-parse HEAD`
+3. Edit the plan file to update STATUS: `in-progress` → `done (commit [SHA])`
+4. Edit the plan file to update CURRENT: `CURRENT: Task N` → `CURRENT: none` (or the next task's number if proceeding immediately)
+
+   > **Note:** If you are proceeding immediately to the next task, set `CURRENT: Task [N+1]` instead of `CURRENT: none` (the "starting a task" protocol above handles this case if run in sequence).
 
 Example edits (completing Task 2 with commit abc1234):
 - old_string: `Task 2: [name] — STATUS: in-progress`
