@@ -609,7 +609,11 @@ Or type "continue" to skip compaction and proceed.
 **Handling the response:**
 When the user responds after a checkpoint:
 - If the user types "continue", "skip", "next", or "proceed" → resume the lifecycle at the next step
-- If the user ran `/compact` and then sends any message → the context has been compressed. Check the todo list (via `TaskList` if available, or from the last printed checklist) to determine the current step and announce: "Resuming lifecycle. Last completed step: [N]. Next: [N+1] — [name]."
+- If the user ran `/compact` and then sends any message → the context has been compressed. Check the todo list (via `TaskList` if available, or from the last printed checklist) to determine the current lifecycle step.
+  - **If the current lifecycle step is "Implement":** Read only lines 1-30 of the plan file (the PROGRESS INDEX block) to determine which task is current. Parse the `CURRENT: Task N` field. Then read only the full Task N section from the plan file for implementation details. Announce: "Resuming implementation. Reading progress index... CURRENT: Task [N]. Loading Task [N] details."
+  - **If `CURRENT: none` in the index (between tasks):** Start from the first task with STATUS: `pending`.
+  - **If no PROGRESS INDEX found in lines 1-30:** Fall back to reading the full plan file to determine which task to resume.
+  - Announce: "Resuming lifecycle. Last completed step: [N]. Next: [N+1] — [name]."
 - Any other response → treat as "continue" and resume
 
 ### Express Design Approval Checkpoint
