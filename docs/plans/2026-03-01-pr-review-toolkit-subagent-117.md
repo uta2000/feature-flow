@@ -13,8 +13,8 @@
 <!-- PROGRESS INDEX
 | Task | Title | Status |
 |------|-------|--------|
-| 1 | Replace Phase 1 pr-review-toolkit agents with single Task subagent | pending |
-| 2 | Update Phases 2-5 and PR override to handle subagent summary | pending |
+| 1 | Replace Phase 1 pr-review-toolkit agents with single Task subagent | completed |
+| 2 | Update Phases 2-5 and PR override to handle subagent summary | completed |
 -->
 
 ---
