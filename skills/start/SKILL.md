@@ -652,7 +652,8 @@ Or type "continue" to skip compaction and proceed.
 |---|-----------|-------------|------------|
 | 1 | Documentation lookup | Design Document | `focus on brainstorming decisions and documentation patterns` |
 | 2 | Design Verification (or Design Document for small enhancements, or Documentation Lookup for fast-track small enhancements) | Create Issue + Implementation Plan | `focus on the approved design and implementation plan` |
-| 3 | Commit Planning Artifacts | Worktree Setup + Implementation | `focus on the implementation plan and acceptance criteria` |
+| 3 | Worktree Setup + Copy Env Files | subagent-driven-development | `focus on the implementation plan, acceptance criteria, and worktree path` |
+| 4 | Implementation complete (last task done) | Self-review + Code Review | `focus on the implementation commit SHAs, acceptance criteria, and any known issues from implementation` |
 
 **Scope-based filtering:**
 
