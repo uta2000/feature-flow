@@ -194,6 +194,7 @@ Common patterns to check:
 - **Sequential subagents** — independent tasks dispatched one-by-one instead of in parallel
 - **Tool error recovery** — time between error and successful retry
 - **Context compaction** — when it happened and whether work was lost/repeated after
+- **Edit rework files** — files with `is_plan_tracking: true` in `thrashing_signals.edit_rework_files` are **not thrashing** — they are living task-tracking documents intentionally edited many times. Only flag entries where `is_plan_tracking` is false.
 
 ### 3I: Tool Error & Permission Denial Analysis
 
@@ -509,10 +510,11 @@ Write the report to `docs/plans/session-report-<session-id-first-8-chars>.md`:
 
 ### Thrashing Detection
 
-> Include only if thrashing signals are non-empty.
+> Include only if non-plan-tracking thrashing signals are non-empty. Omit the section entirely if all edit_rework_files have `is_plan_tracking: true`.
 
 - **Bash near-duplicates:** <commands with same prefix run >2x — likely retry loops>
-- **Edit rework:** <files edited at 3+ different points — possible scope creep or error recovery>
+- **Edit rework (code files):** <files with `is_plan_tracking: false` edited at 3+ different points — possible scope creep or error recovery>
+- **Plan tracking (expected):** <count of files with `is_plan_tracking: true` — note count only, do not flag as thrashing>
 
 ---
 
