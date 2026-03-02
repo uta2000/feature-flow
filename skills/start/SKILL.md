@@ -1208,12 +1208,12 @@ Task(
   subagent_type: "general-purpose",
   model: "sonnet",
   description: "Run pr-review-toolkit code review — isolated context",
-  prompt: "Run the pr-review-toolkit:review-pr skill on the current branch. Use the Skill tool: Skill(skill: 'pr-review-toolkit:review-pr').
+  prompt: "Use the Skill tool to run pr-review-toolkit:review-pr: Skill(skill: 'pr-review-toolkit:review-pr').
 
 Subagent prompt context for the review:
 - Base branch: [base-branch]
-- HEAD SHA (subagent prompt): [git rev-parse HEAD]
-- Changed files (subagent prompt, --name-only): [git diff --name-only [base-branch]...HEAD]
+- HEAD SHA: [output of git rev-parse HEAD]
+- Changed files: [output of git diff --name-only <base-branch>...HEAD]
 - Scope: [scope]
 - Acceptance criteria: [acceptance criteria from implementation plan tasks]
 - Pre-filter results: [Phase 0 output — issues already caught and fixed]
@@ -1275,6 +1275,8 @@ Agents must name the specific rule violated from their checklist. Findings witho
 
 #### Phase 2: Review direct fixes
 
+The pr-review-toolkit subagent returns an `### Auto-Fixed` section — use that as the source for its direct-fix summary below.
+
 After all agents complete, review the direct-fix agents that were dispatched in this tier. Summarize what they changed:
 
 1. **`silent-failure-hunter`** (Tier 1+) — If dispatched: auto-fixed common patterns (`catch {}` → `catch (e) { console.error(...) }`). Summarize what changed. Flag anything complex it couldn't auto-fix. If skipped (plugin unavailable): announce "silent-failure-hunter was unavailable — silent failure patterns were not automatically reviewed."
@@ -1284,7 +1286,7 @@ At Tier 1, only `silent-failure-hunter` (item 1) applies — `code-simplifier` w
 
 #### Phase 3: Consolidate and fix reported findings
 
-Collect findings from the reporting agents dispatched in Phase 1. Consolidate them:
+Collect findings from the reporting agents dispatched in Phase 1. Also include the `### Critical`, `### Important`, and `### Minor` findings from the pr-review-toolkit subagent's structured summary. Consolidate them:
 
 0. **Reject non-compliant findings** — applies only to **reporting agents** (Fix Mode = "Report"). Direct-fix agent summaries from Phase 2 are not subject to this filter. Before any other processing, filter out findings from reporting agents that do not meet the structured output requirement from Phase 1:
    - Discard findings missing any required field (`file`, `line`, `rule`, `severity`, `description`, `fix`)
