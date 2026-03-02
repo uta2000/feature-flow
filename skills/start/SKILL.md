@@ -331,7 +331,7 @@ When the recommended mode is Interactive AND the context pressure for Interactiv
 ```
 This looks like a **[scope]** ([N] steps).
 [If issue linked: "Found issue #N: [title] — [richness summary]."]
-Context note: Interactive mode at this scope typically requires 2-3 /compact pauses. Express auto-selects decisions while preserving those checkpoints.
+Context note: Interactive mode at this scope typically requires 3-4 /compact pauses. Express auto-selects decisions while preserving those checkpoints.
 
 Run mode?
 ```
@@ -661,8 +661,8 @@ Or type "continue" to skip compaction and proceed.
 |-------|------------------|
 | Quick fix | None (too few steps) |
 | Small enhancement | 2 and 3 only (checkpoint 2 triggers after Design Document, or after Documentation Lookup if fast-track) |
-| Feature | All 3 |
-| Major feature | All 3 |
+| Feature | All 4 |
+| Major feature | All 4 |
 
 **Suppression rules:**
 - **YOLO mode:** All checkpoints suppressed — do not output the checkpoint block, do not end your turn. Proceed immediately to the next step (see **YOLO Execution Continuity** in Step 3).
