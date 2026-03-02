@@ -1199,19 +1199,57 @@ Run deterministic tools before dispatching agents to catch issues that linters c
 
 #### Phase 1: Dispatch review agents
 
-Dispatch the tier-selected review agents in parallel (see scope-based agent selection above). For each agent at or below the current tier, use the Task tool with the agent's `subagent_type` and `model` parameter (see table below and `../../references/tool-api.md` — Task Tool for correct syntax). Launch all agents in a single message to run them concurrently. Do NOT dispatch agents one at a time — sequential dispatch defeats the purpose of parallel review and wastes N-1 parent API turns on waiting. All tier-selected agents must appear in one message.
+Dispatch the pr-review-toolkit review as a **single isolated Task subagent** and the remaining tier-selected non-pr-review-toolkit agents as separate Task subagents. Launch all in a single message to run concurrently.
 
-**Each agent's prompt MUST include all of the following:**
+**pr-review-toolkit subagent (always when pr-review-toolkit is installed and scope ≠ Quick fix):**
 
-1. **Branch diff:** `git diff [base-branch]...HEAD`
-2. **Agent checklist:** The specific rules from the Checklist column in the table below — these are the ONLY things the agent should check
-3. **Relevant coding standards:** Extract the sections mapped to this agent from `references/coding-standards.md` (see the Agent-Section Mapping table at the bottom of that file) and include them verbatim
-4. **Stack patterns:** If `.feature-flow.yml` has a `stack` field, include applicable rules from `references/stacks/*.md` for the project's stack
-5. **Acceptance criteria:** From the implementation plan tasks, so agents can verify spec compliance
-6. **Anti-patterns and reference examples:** From the Study Existing Patterns output (carried through lifecycle context), so agents know what NOT to accept and what "known good" code looks like
-7. **Pre-filter exclusion context:** From Phase 0, so agents skip issues already caught by deterministic tools
+```
+Task(
+  subagent_type: "general-purpose",
+  model: "sonnet",
+  description: "Run pr-review-toolkit code review — isolated context",
+  prompt: "Run the pr-review-toolkit:review-pr skill on the current branch. Use the Skill tool: Skill(skill: 'pr-review-toolkit:review-pr').
 
-**Structured output requirement:** Instruct each **reporting** agent (Fix Mode = "Report") to return findings in this format. Direct-fix agents should summarize what they changed in free-form text (their output is consumed in Phase 2, not Phase 3). Findings that do not follow this format will be discarded in Phase 3:
+Subagent prompt context for the review:
+- Base branch: [base-branch]
+- HEAD SHA (subagent prompt): [git rev-parse HEAD]
+- Changed files (subagent prompt, --name-only): [git diff --name-only [base-branch]...HEAD]
+- Scope: [scope]
+- Acceptance criteria: [acceptance criteria from implementation plan tasks]
+- Pre-filter results: [Phase 0 output — issues already caught and fixed]
+- Anti-patterns to avoid: [from Study Existing Patterns step]
+- Reference examples (known-good): [from Study Existing Patterns step]
+
+After the review-pr skill completes, return a structured summary in EXACTLY this format (no other prose):
+
+## PR Review Toolkit Summary
+
+### Auto-Fixed
+- [file:line] [what was auto-fixed by the review agents]
+(or '(none)' if nothing was auto-fixed)
+
+### Critical
+- file: [exact path]
+  line: [N]
+  rule: [rule name]
+  description: [what's wrong]
+  fix: |
+    [concrete code change]
+(or '(none)' if no critical findings)
+
+### Important
+[same format as Critical, or '(none)']
+
+### Minor
+[same format as Critical, or '(none)']"
+)
+```
+
+**Non-pr-review-toolkit agents (dispatch in the same message as the pr-review-toolkit subagent):**
+
+For each agent at or below the current tier, dispatch as a Task subagent using the agent's `subagent_type` and `model`. Each prompt must include: branch diff (`git diff [base-branch]...HEAD`), the agent's checklist (from the table below), relevant coding standards sections, stack patterns, acceptance criteria, anti-patterns and reference examples from Study Existing Patterns, and pre-filter exclusion context from Phase 0.
+
+**Structured output requirement for reporting agents:** Instruct each agent (Fix Mode = "Report") to return findings in this format. Findings that do not follow this format will be discarded in Phase 3:
 
 ```
 - file: [exact file path]
@@ -1227,17 +1265,13 @@ Agents must name the specific rule violated from their checklist. Findings witho
 
 | Agent | Plugin | Checklist | Fix Mode | Model | Tier |
 |-------|--------|-----------|----------|-------|------|
-| `pr-review-toolkit:code-simplifier` | pr-review-toolkit | (1) No duplicated logic blocks across files, (2) extract shared utilities at 2 repetitions, (3) data fetching separate from rendering, (4) business logic separate from I/O, (5) constants used for magic values | **Direct** — writes fixes to files | sonnet | 2 |
-| `pr-review-toolkit:silent-failure-hunter` | pr-review-toolkit | (1) Every catch block logs or re-throws, (2) no `.catch(() => {})` or `catch {}`, (3) no fallback that silently returns default, (4) every Promise has rejection handling, (5) no error swallowing in event handlers | **Direct** — auto-fixes common patterns | sonnet | 1 |
 | `feature-dev:code-reviewer` | feature-dev | (1) Every external call has error handling, (2) inputs validated at system boundaries, (3) no SQL/command injection vectors, (4) race conditions in async code, (5) off-by-one in loops/pagination | **Report** → Claude fixes | sonnet | 2 |
 | `superpowers:code-reviewer` | superpowers | (1) Every function ≤30 lines, (2) no nesting >3 levels, (3) guard clauses for error cases, (4) naming matches conventions, (5) no god files >300 lines, (6) all acceptance criteria met | **Report** → Claude fixes | sonnet | 1 |
-| `pr-review-toolkit:pr-test-analyzer` | pr-review-toolkit | (1) Every public function has a test, (2) error paths tested, (3) edge cases from acceptance criteria covered, (4) no mock-only tests skipping real code, (5) one behavior per test | **Report** → Claude fixes | sonnet | 3 |
 | `backend-api-security:backend-security-coder` | backend-api-security | (1) Every user input validated before use, (2) auth checked on every route, (3) no secrets in code, (4) CORS configured correctly, (5) rate limiting on public endpoints | **Report** → Claude fixes | opus | 3 |
-| `pr-review-toolkit:type-design-analyzer` | pr-review-toolkit | (1) No `any` types, (2) literal unions where applicable, (3) discriminated unions for variants, (4) generated types for external data, (5) exported types enforce invariants | **Report** → Claude fixes | sonnet | 3 |
 
-**Availability check:** Before dispatching, filter the table to agents matching the current tier (or lower), then check which of those agents' plugins are installed. Skip agents whose plugins are missing. Announce: "Running N code review agents in parallel (Tier T — [scope])..." (where N is the count of available tier-filtered agents and T is the tier number).
+**Availability check:** Before dispatching, check which agents' plugins are installed. Skip unavailable agents. Announce: "Running pr-review-toolkit subagent + N direct agents in parallel (Tier T — [scope])..."
 
-**Agent failure handling:** If an agent fails, crashes, or doesn't return, skip it and continue with available results. Do not stall the pipeline for a single agent failure. Log: "Agent [name] failed — skipping. Continuing with N remaining agents (Tier T — [scope])."
+**Agent failure handling:** If the pr-review-toolkit subagent fails, skip it and log: "pr-review-toolkit subagent failed — pr-review-toolkit agents skipped. Continuing with N remaining agents." If any other agent fails, skip it and continue. Do not stall the pipeline for a single failure.
 
 #### Phase 2: Review direct fixes
 
