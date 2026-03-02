@@ -36,7 +36,7 @@ All notable changes to the feature-flow plugin.
 - **`notifications` field in `references/project-context-schema.md`** — documents the new `notifications.on_stop` field (`bell | desktop | none`), its read/write semantics, YAML example, and the semantic distinction between `on_stop: none` (explicitly declined) vs field absent (not yet prompted). Updates the `start (reads + writes)` section. (Closes #113)
 
 ### Maintenance
-- **Bump version to 1.22.2** — `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, and `.feature-flow.yml` updated to reflect the new plugin version.
+- **Bump version to 1.22.3** — `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, and `.feature-flow.yml` updated to reflect the new plugin version.
 
 ## [1.22.1] - 2026-02-28
 
