@@ -40,12 +40,12 @@ Do not proceed with the lifecycle if Context7 is missing — documentation looku
 
 ### pr-review-toolkit (recommended)
 
-Check for its presence by looking for `pr-review-toolkit:code-simplifier` in the loaded skill list. If not found, warn but continue:
+Check for its presence by looking for `pr-review-toolkit:review-pr` in the loaded skill list. If not found, warn but continue:
 
 ```
 The pr-review-toolkit plugin is recommended for full code review coverage.
 Install it: claude plugins add pr-review-toolkit
-Without it, the code review pipeline will skip: code-simplifier, silent-failure-hunter, pr-test-analyzer, and type-design-analyzer.
+Without it, the pr-review-toolkit subagent will not run — the code review pipeline will skip the pr-review-toolkit agents (silent-failure-hunter, code-simplifier, pr-test-analyzer, type-design-analyzer) that it dispatches internally.
 ```
 
 ### feature-dev (recommended)
@@ -804,7 +804,7 @@ Instead:
 2. **Completion strategy:** Auto-select "Push and create a Pull Request" (Option 2). Announce: `YOLO: finishing-a-development-branch — Completion strategy → Push and create PR (auto-selected)`
 3. Proceed with the push + PR creation flow without presenting the 4-option menu
 4. **Issue reference in PR body:** When a GitHub issue is linked to the lifecycle, include `Related: #N` in the PR body to link the PR to the issue. Do NOT use `Closes #N` — the lifecycle closes the issue explicitly in the "Comment and Close Issue" step with a detailed comment.
-5. For PR title/body, use the feature description and lifecycle context to generate them automatically
+5. For PR title/body, use the feature description and lifecycle context to generate them automatically. **Include the aggregated code review summary in the PR body** — append the PR Review Toolkit Summary (from the Phase 1 subagent output, including the `### Auto-Fixed` section from Phase 2), any findings fixed by the Claude-fixes phase (Phase 3), and any remaining minor findings. Use this section heading in the PR body: `## Code Review Summary`.
 6. **Test failure during completion:** If tests fail, log the failures as a warning and proceed with PR creation. Announce: `YOLO: finishing-a-development-branch — Tests failing → Proceeding with PR (N failures logged)`. Do NOT block on test failures — the code review pipeline already ran verification.
 
 ### Subagent-Driven Development YOLO Override
@@ -1155,11 +1155,11 @@ This step runs after self-review and before final verification. It dispatches mu
 | Scope | Tier | Agents to Dispatch |
 |-------|------|--------------------|
 | Quick fix | — | Code review step not included for this scope |
-| Small enhancement | 1 | `superpowers:code-reviewer`, `pr-review-toolkit:silent-failure-hunter` |
-| Feature | 2 | Tier 1 + `pr-review-toolkit:code-simplifier`, `feature-dev:code-reviewer` |
-| Major feature | 3 | All agents in the table below |
+| Small enhancement | 1 | `superpowers:code-reviewer` + pr-review-toolkit subagent (handles `silent-failure-hunter` internally) |
+| Feature | 2 | Tier 1 + `feature-dev:code-reviewer` + pr-review-toolkit subagent (handles `code-simplifier` internally) |
+| Major feature | 3 | Tier 2 + `backend-api-security:backend-security-coder` + pr-review-toolkit subagent (handles `pr-test-analyzer`, `type-design-analyzer` internally) |
 
-Only dispatch agents that belong to the current tier (or lower). The availability check still applies — if a tier-selected agent's plugin is missing, skip it as before.
+Only dispatch non-pr-review-toolkit agents that belong to the current tier (or lower). The pr-review-toolkit subagent always runs when pr-review-toolkit is installed and scope ≠ Quick fix — it handles all applicable pr-review-toolkit agents internally based on the scope.
 
 #### Phase 0: Deterministic pre-filter
 
@@ -1199,19 +1199,57 @@ Run deterministic tools before dispatching agents to catch issues that linters c
 
 #### Phase 1: Dispatch review agents
 
-Dispatch the tier-selected review agents in parallel (see scope-based agent selection above). For each agent at or below the current tier, use the Task tool with the agent's `subagent_type` and `model` parameter (see table below and `../../references/tool-api.md` — Task Tool for correct syntax). Launch all agents in a single message to run them concurrently. Do NOT dispatch agents one at a time — sequential dispatch defeats the purpose of parallel review and wastes N-1 parent API turns on waiting. All tier-selected agents must appear in one message.
+Dispatch the pr-review-toolkit review as a **single isolated Task subagent** and the remaining tier-selected non-pr-review-toolkit agents as separate Task subagents. Launch all in a single message to run concurrently.
 
-**Each agent's prompt MUST include all of the following:**
+**pr-review-toolkit subagent (always when pr-review-toolkit is installed and scope ≠ Quick fix):**
 
-1. **Branch diff:** `git diff [base-branch]...HEAD`
-2. **Agent checklist:** The specific rules from the Checklist column in the table below — these are the ONLY things the agent should check
-3. **Relevant coding standards:** Extract the sections mapped to this agent from `references/coding-standards.md` (see the Agent-Section Mapping table at the bottom of that file) and include them verbatim
-4. **Stack patterns:** If `.feature-flow.yml` has a `stack` field, include applicable rules from `references/stacks/*.md` for the project's stack
-5. **Acceptance criteria:** From the implementation plan tasks, so agents can verify spec compliance
-6. **Anti-patterns and reference examples:** From the Study Existing Patterns output (carried through lifecycle context), so agents know what NOT to accept and what "known good" code looks like
-7. **Pre-filter exclusion context:** From Phase 0, so agents skip issues already caught by deterministic tools
+```
+Task(
+  subagent_type: "general-purpose",
+  model: "sonnet",
+  description: "Run pr-review-toolkit code review — isolated context",
+  prompt: "Use the Skill tool to run pr-review-toolkit:review-pr: Skill(skill: 'pr-review-toolkit:review-pr').
 
-**Structured output requirement:** Instruct each **reporting** agent (Fix Mode = "Report") to return findings in this format. Direct-fix agents should summarize what they changed in free-form text (their output is consumed in Phase 2, not Phase 3). Findings that do not follow this format will be discarded in Phase 3:
+Subagent prompt context for the review:
+- Base branch: [base-branch]
+- HEAD SHA: [output of git rev-parse HEAD]
+- Changed files: [output of git diff --name-only <base-branch>...HEAD]
+- Scope: [scope]
+- Acceptance criteria: [acceptance criteria from implementation plan tasks]
+- Pre-filter results: [Phase 0 output — issues already caught and fixed]
+- Anti-patterns to avoid: [from Study Existing Patterns step]
+- Reference examples (known-good): [from Study Existing Patterns step]
+
+After the review-pr skill completes, return a structured summary in EXACTLY this format (no other prose):
+
+## PR Review Toolkit Summary
+
+### Auto-Fixed
+- [file:line] [what was auto-fixed by the review agents]
+(or '(none)' if nothing was auto-fixed)
+
+### Critical
+- file: [exact path]
+  line: [N]
+  rule: [rule name]
+  description: [what's wrong]
+  fix: |
+    [concrete code change]
+(or '(none)' if no critical findings)
+
+### Important
+[same format as Critical, or '(none)']
+
+### Minor
+[same format as Critical, or '(none)']"
+)
+```
+
+**Non-pr-review-toolkit agents (dispatch in the same message as the pr-review-toolkit subagent):**
+
+For each agent at or below the current tier, dispatch as a Task subagent using the agent's `subagent_type` and `model`. Each prompt must include: branch diff (`git diff [base-branch]...HEAD`), the agent's checklist (from the table below), relevant coding standards sections, stack patterns, acceptance criteria, anti-patterns and reference examples from Study Existing Patterns, and pre-filter exclusion context from Phase 0.
+
+**Structured output requirement for reporting agents:** Instruct each agent (Fix Mode = "Report") to return findings in this format. Findings that do not follow this format will be discarded in Phase 3:
 
 ```
 - file: [exact file path]
@@ -1227,30 +1265,27 @@ Agents must name the specific rule violated from their checklist. Findings witho
 
 | Agent | Plugin | Checklist | Fix Mode | Model | Tier |
 |-------|--------|-----------|----------|-------|------|
-| `pr-review-toolkit:code-simplifier` | pr-review-toolkit | (1) No duplicated logic blocks across files, (2) extract shared utilities at 2 repetitions, (3) data fetching separate from rendering, (4) business logic separate from I/O, (5) constants used for magic values | **Direct** — writes fixes to files | sonnet | 2 |
-| `pr-review-toolkit:silent-failure-hunter` | pr-review-toolkit | (1) Every catch block logs or re-throws, (2) no `.catch(() => {})` or `catch {}`, (3) no fallback that silently returns default, (4) every Promise has rejection handling, (5) no error swallowing in event handlers | **Direct** — auto-fixes common patterns | sonnet | 1 |
 | `feature-dev:code-reviewer` | feature-dev | (1) Every external call has error handling, (2) inputs validated at system boundaries, (3) no SQL/command injection vectors, (4) race conditions in async code, (5) off-by-one in loops/pagination | **Report** → Claude fixes | sonnet | 2 |
 | `superpowers:code-reviewer` | superpowers | (1) Every function ≤30 lines, (2) no nesting >3 levels, (3) guard clauses for error cases, (4) naming matches conventions, (5) no god files >300 lines, (6) all acceptance criteria met | **Report** → Claude fixes | sonnet | 1 |
-| `pr-review-toolkit:pr-test-analyzer` | pr-review-toolkit | (1) Every public function has a test, (2) error paths tested, (3) edge cases from acceptance criteria covered, (4) no mock-only tests skipping real code, (5) one behavior per test | **Report** → Claude fixes | sonnet | 3 |
 | `backend-api-security:backend-security-coder` | backend-api-security | (1) Every user input validated before use, (2) auth checked on every route, (3) no secrets in code, (4) CORS configured correctly, (5) rate limiting on public endpoints | **Report** → Claude fixes | opus | 3 |
-| `pr-review-toolkit:type-design-analyzer` | pr-review-toolkit | (1) No `any` types, (2) literal unions where applicable, (3) discriminated unions for variants, (4) generated types for external data, (5) exported types enforce invariants | **Report** → Claude fixes | sonnet | 3 |
 
-**Availability check:** Before dispatching, filter the table to agents matching the current tier (or lower), then check which of those agents' plugins are installed. Skip agents whose plugins are missing. Announce: "Running N code review agents in parallel (Tier T — [scope])..." (where N is the count of available tier-filtered agents and T is the tier number).
+**Availability check:** Before dispatching, check which agents' plugins are installed. Skip unavailable agents. Announce: "Running pr-review-toolkit subagent + N direct agents in parallel (Tier T — [scope])..."
 
-**Agent failure handling:** If an agent fails, crashes, or doesn't return, skip it and continue with available results. Do not stall the pipeline for a single agent failure. Log: "Agent [name] failed — skipping. Continuing with N remaining agents (Tier T — [scope])."
+**Agent failure handling:** If the pr-review-toolkit subagent fails, skip it and log: "pr-review-toolkit subagent failed — pr-review-toolkit agents skipped. Continuing with N remaining agents." If any other agent fails, skip it and continue. Do not stall the pipeline for a single failure.
 
 #### Phase 2: Review direct fixes
 
+The pr-review-toolkit subagent returns an `### Auto-Fixed` section — use that as the source for its direct-fix summary below.
+
 After all agents complete, review the direct-fix agents that were dispatched in this tier. Summarize what they changed:
 
-1. **`silent-failure-hunter`** (Tier 1+) — If dispatched: auto-fixed common patterns (`catch {}` → `catch (e) { console.error(...) }`). Summarize what changed. Flag anything complex it couldn't auto-fix. If skipped (plugin unavailable): announce "silent-failure-hunter was unavailable — silent failure patterns were not automatically reviewed."
-2. **`code-simplifier`** (Tier 2+) — If dispatched: applied structural improvements directly (DRY extraction, separation of concerns, magic value extraction). Summarize what changed. If skipped (plugin unavailable): announce "code-simplifier was unavailable — DRY/clarity improvements were not automatically applied."
-
-At Tier 1, only `silent-failure-hunter` (item 1) applies — `code-simplifier` was not dispatched at this tier.
+1. **Auto-Fixed from pr-review-toolkit subagent** — Summarize what the subagent auto-fixed (from the `### Auto-Fixed` section of the subagent summary). Flag any complex issues it could not auto-fix. If the subagent was unavailable or failed, announce: "pr-review-toolkit subagent was unavailable — direct-fix agents (code-simplifier, silent-failure-hunter) did not run."
 
 #### Phase 3: Consolidate and fix reported findings
 
-Collect findings from the reporting agents dispatched in Phase 1. Consolidate them:
+Collect findings from the reporting agents dispatched in Phase 1. Also include the `### Critical`, `### Important`, and `### Minor` findings from the pr-review-toolkit subagent's structured summary. Consolidate them:
+
+**Malformed subagent response guard:** If the pr-review-toolkit subagent response is missing any of the required sections (`### Auto-Fixed`, `### Critical`, `### Important`, `### Minor`), treat it as a subagent failure: announce "pr-review-toolkit subagent returned a malformed summary — findings from that subagent skipped." and proceed with the remaining agents' findings only.
 
 0. **Reject non-compliant findings** — applies only to **reporting agents** (Fix Mode = "Report"). Direct-fix agent summaries from Phase 2 are not subject to this filter. Before any other processing, filter out findings from reporting agents that do not meet the structured output requirement from Phase 1:
    - Discard findings missing any required field (`file`, `line`, `rule`, `severity`, `description`, `fix`)
@@ -1258,16 +1293,15 @@ Collect findings from the reporting agents dispatched in Phase 1. Consolidate th
    - Announce: "Rejected N findings (M missing required fields, K vague fixes). Proceeding with R valid findings."
 
 1. **Deduplicate by file path + line number** — if two agents flag the same location, keep the higher-severity finding
-2. **If same severity**, prefer the more specific agent (among those dispatched): security > type-design > test-analyzer > feature-dev > superpowers
+2. **If same severity**, prefer the more specific agent (among those dispatched): security > pr-review-toolkit subagent > feature-dev > superpowers
 3. **Classify by severity:** Critical, Important, Minor
 4. **Fix in order:** Critical → Important. Minor issues are logged as informational but not blocking.
 
 For each Critical and Important finding, read the agent's recommendation and apply the fix. Specific agent fix patterns:
+- **From the pr-review-toolkit subagent summary** (all tiers): Apply the concrete `fix:` code change specified in the finding's `fix:` field
 - **`superpowers:code-reviewer`** (Tier 1+): Fix bugs, logic errors, and convention violations
 - **`feature-dev:code-reviewer`** (Tier 2+): Fix bugs, logic errors, and convention violations
-- **`pr-test-analyzer`** (Tier 3 only): Add missing test cases, strengthen weak assertions, add edge case coverage
 - **`backend-security-coder`** (Tier 3 only): Fix injection, validation, and auth issues. Critical security issues are always fixed.
-- **`type-design-analyzer`** (Tier 3 only): Improve type definitions based on encapsulation and invariant feedback
 
 #### Phase 4: Re-verify (fix-verify loop)
 
