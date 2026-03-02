@@ -198,6 +198,13 @@ def parse_subagent_usage(text):
     return result if result else None
 
 
+# Paths that are legitimately edited many times as living task-tracking documents.
+# These should not be flagged as thrashing — they are intentional plan-as-scratchpad usage.
+PLAN_TRACKING_PATTERNS = [
+    "/docs/plans/",
+]
+
+
 # Friction keyword patterns (word-boundary to avoid false positives)
 FRICTION_PATTERNS = [
     (r"\bno,", "no,"),
@@ -1250,7 +1257,11 @@ def analyze_session(filepath):
         if count > 2
     ]
     edit_rework = [
-        {"file_path": fp, "edit_indices": indices}
+        {
+            "file_path": fp,
+            "edit_indices": indices,
+            "is_plan_tracking": any(pat in fp for pat in PLAN_TRACKING_PATTERNS),
+        }
         for fp, indices in file_edit_indices.items()
         if len(indices) >= 3
     ]
