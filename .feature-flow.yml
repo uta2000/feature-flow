@@ -7,3 +7,5 @@ context7:
   node-js: /vercel/next.js
   python: /textualize/textual
 gotchas: []
+notifications:
+  on_stop: bell
