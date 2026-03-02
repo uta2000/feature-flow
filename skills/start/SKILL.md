@@ -45,7 +45,7 @@ Check for its presence by looking for `pr-review-toolkit:review-pr` in the loade
 ```
 The pr-review-toolkit plugin is recommended for full code review coverage.
 Install it: claude plugins add pr-review-toolkit
-Without it, the code review pipeline will skip: code-simplifier, silent-failure-hunter, pr-test-analyzer, and type-design-analyzer.
+Without it, the pr-review-toolkit subagent will not run — the code review pipeline will skip the pr-review-toolkit agents (silent-failure-hunter, code-simplifier, pr-test-analyzer, type-design-analyzer) that it dispatches internally.
 ```
 
 ### feature-dev (recommended)
@@ -1284,6 +1284,8 @@ After all agents complete, review the direct-fix agents that were dispatched in 
 #### Phase 3: Consolidate and fix reported findings
 
 Collect findings from the reporting agents dispatched in Phase 1. Also include the `### Critical`, `### Important`, and `### Minor` findings from the pr-review-toolkit subagent's structured summary. Consolidate them:
+
+**Malformed subagent response guard:** If the pr-review-toolkit subagent response is missing any of the required sections (`### Auto-Fixed`, `### Critical`, `### Important`, `### Minor`), treat it as a subagent failure: announce "pr-review-toolkit subagent returned a malformed summary — findings from that subagent skipped." and proceed with the remaining agents' findings only.
 
 0. **Reject non-compliant findings** — applies only to **reporting agents** (Fix Mode = "Report"). Direct-fix agent summaries from Phase 2 are not subject to this filter. Before any other processing, filter out findings from reporting agents that do not meet the structured output requirement from Phase 1:
    - Discard findings missing any required field (`file`, `line`, `rule`, `severity`, `description`, `fix`)
