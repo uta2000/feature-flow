@@ -1720,6 +1720,7 @@ If the lifecycle ran in YOLO or Express mode, append the decision log after the 
 | N | start | Compact checkpoint 1 | /compact (or skipped) |
 | N | start | Compact checkpoint 2 | /compact (or skipped) |
 | N | start | Compact checkpoint 3 | /compact (or skipped) |
+| N | start | Compact checkpoint 4 | /compact (or skipped) |
 | N | design-document | Design approval | ✋ User reviewed (approved / adjusted) |
 | N | brainstorming | Design questions (self-answered) | [count decisions auto-answered] |
 | N | writing-plans | Execution choice | Subagent-Driven (auto-selected) |
