@@ -15,6 +15,7 @@ All notable changes to the feature-flow plugin.
 - **Git diff stats capture in Final Verification Step** — `start` skill now runs `git diff --stat [base-branch]...HEAD` as step 4 of the Final Verification Step, capturing line counts in the session transcript before PR creation. The `session-report` analysis script uses this output to populate the `cost_per_line_changed` metric. Distinguishes command failures (`fatal:` errors) from empty output (no commits) with explicit log warnings. (Closes #110)
 - **pr-review-toolkit review phase dispatched as an isolated Task subagent** — `start` skill's Code Review Pipeline Phase 1 now dispatches `pr-review-toolkit:review-pr` as a single general-purpose Task subagent with its own isolated context window. The subagent receives base branch, HEAD SHA, changed files, scope, and acceptance criteria; it returns a structured Critical/Important/Minor summary. Non-pr-review-toolkit agents (`superpowers:code-reviewer`, `feature-dev:code-reviewer`, `backend-api-security:backend-security-coder`) continue to run as direct Task subagents in the parent. Eliminates context accumulation from individual pr-review-toolkit agent reports (~2 compactions per major feature session). (Closes #117)
 - **Aggregated code review summary in PR body** — `start` skill's YOLO override for `finishing-a-development-branch` now explicitly instructs including the PR Review Toolkit Summary (Phase 1 subagent output, Phase 2 auto-fixed, Phase 3 Claude-fixes, and remaining minor findings) in the PR body under a `## Code Review Summary` section. (Closes #117)
+- **Compaction checkpoints 3 and 4 to bracket the implementation phase** — Checkpoint 3 repositioned from "after Commit Planning Artifacts" to "after Worktree Setup + Copy Env Files", firing immediately before implementation begins. New Checkpoint 4 added after implementation completes (last subagent task done), before self-review + code review. Focus hint for checkpoint 3 includes worktree path; checkpoint 4 includes implementation commit SHAs and known issues. Scope filtering updated: Feature and Major Feature now show all 4 checkpoints (Small Enhancement unchanged at "2 and 3 only"). Context note updated from "2-3" to "3-4" /compact pauses. Express Decision Log updated with checkpoint 4 row. (Closes #114)
 
 ### Fixed
 - **Error handling for Phase 3 commit failure, test ENOENT/timeout, and agent re-dispatch crash** — code review pipeline now explicitly handles and reports these failure modes instead of proceeding silently. (Closes #118)
@@ -26,9 +27,13 @@ All notable changes to the feature-flow plugin.
 - **Enforce parallel dispatch in study-patterns phase** — adds explicit "Do NOT dispatch agents one at a time" anti-pattern warning to the Study Existing Patterns dispatch instruction, matching the proven TaskCreate pattern. Prevents ~13s wall-clock regression per lifecycle run when multiple exploration agents are dispatched. (Closes #109)
 - **Enforce parallel dispatch in code review pipeline Phase 1** — adds same anti-pattern warning to Code Review Pipeline Phase 1 dispatch instruction for consistency. (Closes #109)
 - **Code review pipeline updated for subagent architecture** — scope table, Phase 2 auto-fix sourcing, Phase 3 deduplication preference order (`security > pr-review-toolkit subagent > feature-dev > superpowers`), Phase 3 fix patterns, malformed summary guard clause (announces and skips when subagent returns a response missing required sections), and plugin warning message updated to reflect the isolated subagent dispatch. (Closes #117)
+- **Checkpoint 3 "Before Step" label uses natural language step name** — changed from raw skill identifier to "Implement", consistent with the naming convention used across all other checkpoint rows.
 
 ### Documentation
 - **`notifications` field in `references/project-context-schema.md`** — documents the new `notifications.on_stop` field (`bell | desktop | none`), its read/write semantics, YAML example, and the semantic distinction between `on_stop: none` (explicitly declined) vs field absent (not yet prompted). Updates the `start (reads + writes)` section. (Closes #113)
+
+### Maintenance
+- **Bump version to 1.22.2** — `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, and `.feature-flow.yml` updated to reflect the new plugin version.
 
 ## [1.22.1] - 2026-02-28
 

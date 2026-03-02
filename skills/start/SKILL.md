@@ -331,7 +331,7 @@ When the recommended mode is Interactive AND the context pressure for Interactiv
 ```
 This looks like a **[scope]** ([N] steps).
 [If issue linked: "Found issue #N: [title] — [richness summary]."]
-Context note: Interactive mode at this scope typically requires 2-3 /compact pauses. Express auto-selects decisions while preserving those checkpoints.
+Context note: Interactive mode at this scope typically requires 3-4 /compact pauses. Express auto-selects decisions while preserving those checkpoints.
 
 Run mode?
 ```
@@ -652,7 +652,8 @@ Or type "continue" to skip compaction and proceed.
 |---|-----------|-------------|------------|
 | 1 | Documentation lookup | Design Document | `focus on brainstorming decisions and documentation patterns` |
 | 2 | Design Verification (or Design Document for small enhancements, or Documentation Lookup for fast-track small enhancements) | Create Issue + Implementation Plan | `focus on the approved design and implementation plan` |
-| 3 | Commit Planning Artifacts | Worktree Setup + Implementation | `focus on the implementation plan and acceptance criteria` |
+| 3 | Worktree Setup + Copy Env Files | Implement | `focus on the implementation plan, acceptance criteria, and worktree path` |
+| 4 | Implementation complete (last task done) | Self-review + Code Review | `focus on the implementation commit SHAs, acceptance criteria, and any known issues from implementation` |
 
 **Scope-based filtering:**
 
@@ -660,8 +661,8 @@ Or type "continue" to skip compaction and proceed.
 |-------|------------------|
 | Quick fix | None (too few steps) |
 | Small enhancement | 2 and 3 only (checkpoint 2 triggers after Design Document, or after Documentation Lookup if fast-track) |
-| Feature | All 3 |
-| Major feature | All 3 |
+| Feature | All 4 |
+| Major feature | All 4 |
 
 **Suppression rules:**
 - **YOLO mode:** All checkpoints suppressed — do not output the checkpoint block, do not end your turn. Proceed immediately to the next step (see **YOLO Execution Continuity** in Step 3).
@@ -1719,6 +1720,7 @@ If the lifecycle ran in YOLO or Express mode, append the decision log after the 
 | N | start | Compact checkpoint 1 | /compact (or skipped) |
 | N | start | Compact checkpoint 2 | /compact (or skipped) |
 | N | start | Compact checkpoint 3 | /compact (or skipped) |
+| N | start | Compact checkpoint 4 | /compact (or skipped) |
 | N | design-document | Design approval | ✋ User reviewed (approved / adjusted) |
 | N | brainstorming | Design questions (self-answered) | [count decisions auto-answered] |
 | N | writing-plans | Execution choice | Subagent-Driven (auto-selected) |
