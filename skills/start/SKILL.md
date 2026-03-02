@@ -1155,11 +1155,11 @@ This step runs after self-review and before final verification. It dispatches mu
 | Scope | Tier | Agents to Dispatch |
 |-------|------|--------------------|
 | Quick fix | — | Code review step not included for this scope |
-| Small enhancement | 1 | `superpowers:code-reviewer`, `pr-review-toolkit:silent-failure-hunter` |
-| Feature | 2 | Tier 1 + `pr-review-toolkit:code-simplifier`, `feature-dev:code-reviewer` |
-| Major feature | 3 | All agents in the table below |
+| Small enhancement | 1 | `superpowers:code-reviewer` + pr-review-toolkit subagent (handles `silent-failure-hunter` internally) |
+| Feature | 2 | Tier 1 + `feature-dev:code-reviewer` + pr-review-toolkit subagent (handles `code-simplifier` internally) |
+| Major feature | 3 | Tier 2 + `backend-api-security:backend-security-coder` + pr-review-toolkit subagent (handles `pr-test-analyzer`, `type-design-analyzer` internally) |
 
-Only dispatch agents that belong to the current tier (or lower). The availability check still applies — if a tier-selected agent's plugin is missing, skip it as before.
+Only dispatch non-pr-review-toolkit agents that belong to the current tier (or lower). The pr-review-toolkit subagent always runs when pr-review-toolkit is installed and scope ≠ Quick fix — it handles all applicable pr-review-toolkit agents internally based on the scope.
 
 #### Phase 0: Deterministic pre-filter
 
