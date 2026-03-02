@@ -1273,10 +1273,14 @@ For each Critical and Important finding, read the agent's recommendation and app
 
 After applying all Critical and Important fixes from Phase 3, commit them as a **single commit** before re-verification. This ensures all review fixes land in one commit, not one per reviewer.
 
+Run `git status --porcelain` first to confirm only expected source files are staged. Then:
+
 ```bash
 git add -A
 git commit -m "fix: apply code review fixes"
 ```
+
+If `git commit` fails (non-zero exit): stop. Announce: "Phase 3 commit failed: [error]. Manual intervention required — do not proceed to Phase 4 until resolved."
 
 If nothing was modified in Phase 3 (all agents returned clean): skip this commit. Announce: "No review fixes to commit — code was already clean."
 
@@ -1294,19 +1298,19 @@ From the Phase 3 fix log, identify which targeted checks apply. Multiple checks 
 |------------------------------|-------------------------|
 | `pr-test-analyzer` had Critical/Important findings | Run the project test suite |
 | `superpowers:code-reviewer` flagged rule 6 ("all acceptance criteria met") | Run `verify-acceptance-criteria` |
-| Any reporting agent had Critical/Important findings | Re-dispatch ONLY that specific agent on changed files only (`git diff [base-branch]...HEAD`) |
+| Any *other* reporting agent (not covered by rows above) had Critical/Important findings | Re-dispatch ONLY that specific agent on changed files only (`git diff [base-branch]...HEAD`) |
 | `silent-failure-hunter` or `code-simplifier` made direct fixes | Read back the changed files to confirm the fix is correct (no regression, no silent swallow introduced) |
 | No Critical/Important findings from any agent (all clean) | Run `verify-acceptance-criteria` only as a baseline sanity check |
 
-*Note: Multiple rows may apply simultaneously — run all matching targeted checks, not just one.*
+*Note: Rows are evaluated top-to-bottom; a more specific row takes precedence over the catch-all (row 3). Multiple non-overlapping rows may apply — run all matching targeted checks.*
 
 **Step 2: Run targeted checks (parallel where possible)**
 
 Run only the targeted checks from Step 1. Announce which checks are being run: "Targeted re-verification: [check list]."
 
-- **Tests:** Detect test runner from project (`package.json` scripts.test → `npm test` | `Cargo.toml` → `cargo test` | `go.mod` → `go test ./...` | `mix.exs` → `mix test` | `pyproject.toml`/`pytest.ini`/`setup.cfg`/`tox.ini` → `python -m pytest` | `deno.json`/`deno.jsonc` → `deno test` | `bun.lockb`/`bun.lock`/`bunfig.toml` → `bun test`). If no runner detected, skip with log. Timeout: 60 seconds.
+- **Tests:** Detect test runner from project (`package.json` scripts.test → `npm test` | `Cargo.toml` → `cargo test` | `go.mod` → `go test ./...` | `mix.exs` → `mix test` | `pyproject.toml`/`pytest.ini`/`setup.cfg`/`tox.ini` → `python -m pytest` | `deno.json`/`deno.jsonc` → `deno test` | `bun.lockb`/`bun.lock`/`bunfig.toml` → `bun test`). If no runner detected, skip with log: "No test runner detected — skipping." If runner is detected but the binary is not installed (ENOENT / exit code 127), log a warning and skip: "Test binary not installed — skipping test verification." Do not count a missing binary as a test failure. Timeout: 60 seconds — if the suite times out, log a warning and skip (do not count as a failure).
 - **verify-acceptance-criteria:** Run the `feature-flow:verify-acceptance-criteria` skill with the plan file path.
-- **Agent re-dispatch:** Dispatch only the specific agent(s) that had Critical/Important findings, with `git diff [base-branch]...HEAD` for context. Use the same model as the original Phase 1 dispatch. All re-dispatched agents launch in a single parallel message.
+- **Agent re-dispatch:** Dispatch only the specific agent(s) that had Critical/Important findings, with `git diff [base-branch]...HEAD` for context. Use the same model as the original Phase 1 dispatch. All re-dispatched agents launch in a single parallel message. If an agent crashes or produces no output, do not treat it as clean — log: "Agent [name] re-dispatch produced no result — listing as unresolved in Phase 5."
 - **Read-back verification:** Read the specific files modified by direct-fix agents and confirm the fix is syntactically correct and no regression is visible.
 
 **Step 3: If all targeted checks pass → pipeline is clean**
@@ -1315,7 +1319,7 @@ Announce: "Targeted re-verification clean ([checks run]). Proceeding to Phase 5.
 
 **Step 4: If any targeted check fails → one additional fix pass**
 
-Apply fixes for the remaining failures. Commit: `fix: address re-verification failures`. Re-run the same targeted checks once more.
+Apply fixes for the remaining failures. Commit: `fix: address re-verification failures`. If this commit fails (non-zero exit), report to the developer and proceed directly to Phase 5 without re-running targeted checks. Re-run the same targeted checks once more.
 (This is the final allowed iteration — **maximum 2 total fix-verify iterations**.)
 
 If still failing after this additional pass → report remaining issues to the developer with context for manual resolution. Proceed to Phase 5 — the developer decides whether to fix manually.
