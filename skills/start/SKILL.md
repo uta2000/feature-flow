@@ -1269,6 +1269,19 @@ For each Critical and Important finding, read the agent's recommendation and app
 - **`backend-security-coder`** (Tier 3 only): Fix injection, validation, and auth issues. Critical security issues are always fixed.
 - **`type-design-analyzer`** (Tier 3 only): Improve type definitions based on encapsulation and invariant feedback
 
+#### After Phase 3: Commit review fixes (single commit)
+
+After applying all Critical and Important fixes from Phase 3, commit them as a **single commit** before re-verification. This ensures all review fixes land in one commit, not one per reviewer.
+
+```bash
+git add -A
+git commit -m "fix: apply code review fixes"
+```
+
+If nothing was modified in Phase 3 (all agents returned clean): skip this commit. Announce: "No review fixes to commit — code was already clean."
+
+Otherwise announce: "Review fixes committed as single commit (N Critical, M Important findings addressed)."
+
 #### Phase 4: Re-verify (fix-verify loop)
 
 After all fixes are applied, re-verify:
