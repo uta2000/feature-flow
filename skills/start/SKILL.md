@@ -1280,7 +1280,7 @@ git commit -m "fix: apply code review fixes"
 
 If nothing was modified in Phase 3 (all agents returned clean): skip this commit. Announce: "No review fixes to commit — code was already clean."
 
-Otherwise announce: "Review fixes committed as single commit (N Critical, M Important findings addressed)."
+Otherwise Announce: "Review fixes committed as single commit (N Critical, M Important findings addressed)."
 
 #### Phase 4: Re-verify (fix-verify loop)
 
