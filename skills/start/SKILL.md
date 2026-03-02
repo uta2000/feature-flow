@@ -40,7 +40,7 @@ Do not proceed with the lifecycle if Context7 is missing — documentation looku
 
 ### pr-review-toolkit (recommended)
 
-Check for its presence by looking for `pr-review-toolkit:code-simplifier` in the loaded skill list. If not found, warn but continue:
+Check for its presence by looking for `pr-review-toolkit:review-pr` in the loaded skill list. If not found, warn but continue:
 
 ```
 The pr-review-toolkit plugin is recommended for full code review coverage.
@@ -1291,7 +1291,7 @@ Collect findings from the reporting agents dispatched in Phase 1. Also include t
    - Announce: "Rejected N findings (M missing required fields, K vague fixes). Proceeding with R valid findings."
 
 1. **Deduplicate by file path + line number** — if two agents flag the same location, keep the higher-severity finding
-2. **If same severity**, prefer the more specific agent (among those dispatched): security > type-design > test-analyzer > feature-dev > superpowers
+2. **If same severity**, prefer the more specific agent (among those dispatched): security > pr-review-toolkit subagent > feature-dev > superpowers
 3. **Classify by severity:** Critical, Important, Minor
 4. **Fix in order:** Critical → Important. Minor issues are logged as informational but not blocking.
 
