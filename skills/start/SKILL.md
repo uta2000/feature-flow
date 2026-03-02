@@ -1282,32 +1282,42 @@ If nothing was modified in Phase 3 (all agents returned clean): skip this commit
 
 Otherwise Announce: "Review fixes committed as single commit (N Critical, M Important findings addressed)."
 
-#### Phase 4: Re-verify (fix-verify loop)
+#### Phase 4: Targeted re-verification
 
-After all fixes are applied, re-verify:
+After review fixes are committed (step above), re-verify **only what was changed** — do not re-run the full review suite.
 
-**Parallelization:** When running quality checks inline, dispatch typecheck, lint, and type-sync as parallel Bash commands in a single message. These are independent checks. Only run tests after typecheck passes (tests depend on valid types).
+**Step 1: Determine targeted checks**
 
-**Skip if clean:** Before running quality checks in each iteration, check `git status --porcelain`. If no files changed (output is empty) since the last successful quality gate pass within this pipeline, skip the quality gate re-run and announce: "Quality gates passed at [commit] — no changes since last check. Skipping re-verify." Only run `verify-acceptance-criteria` (step 2 below).
+From the Phase 3 fix log, identify which targeted checks apply. Multiple checks may apply — run all that apply.
 
-1. **Run tests:** Detect the test runner from the project (matching the quality gate's `detectTestCommand()` in `hooks/scripts/quality-gate.js`):
-   - `package.json` with `scripts.test` (not the npm default placeholder) → `npm test`. If `node_modules` doesn't exist, skip with warning.
-   - `Cargo.toml` → `cargo test`
-   - `go.mod` → `go test ./...`
-   - `mix.exs` → `mix test`
-   - `pyproject.toml` / `pytest.ini` / `setup.cfg` / `tox.ini` → `python -m pytest`
-   - `deno.json` / `deno.jsonc` → `deno test` (verify `deno` is installed first; if not, skip with warning)
-   - `bun.lockb` / `bun.lock` / `bunfig.toml` → `bun test` (verify `bun` is installed first; if not, skip with warning)
-   - If no test runner detected, skip and log: "No test runner detected — skipping test verification."
-   - **Timeout:** 60 seconds. If the test suite times out, log a warning and skip (do not count as a failure).
-   - **Error handling:** If the test command is not found (ENOENT / exit code 127), log a warning and skip. Do not fail the pipeline for a missing tool.
-2. **Run `verify-acceptance-criteria`:** Check all acceptance criteria from the implementation plan still pass.
+| If this was true in Phase 3… | Run this targeted check |
+|------------------------------|-------------------------|
+| `pr-test-analyzer` had Critical/Important findings | Run the project test suite |
+| `superpowers:code-reviewer` flagged an acceptance criteria rule violation | Run `verify-acceptance-criteria` |
+| Any reporting agent had Critical/Important findings | Re-dispatch ONLY that specific agent on changed files only (`git diff [base-branch]...HEAD`) |
+| `silent-failure-hunter` or `code-simplifier` made direct fixes | Read back the changed files to confirm the fix is correct (no regression, no silent swallow introduced) |
+| No Critical/Important findings from any agent (all clean) | Run `verify-acceptance-criteria` only as a baseline sanity check |
 
-If both pass → pipeline is clean. Proceed to the next lifecycle step.
+**Step 2: Run targeted checks (parallel where possible)**
 
-If either fails → collect the failures as new findings and loop. **Maximum 3 iterations.** Announce: "Iteration N/3: M issues remaining, fixing..."
+Run only the targeted checks from Step 1. Announce which checks are being run: "Targeted re-verification: [check list]."
 
-If still failing after 3 iterations → report remaining issues to the developer with context for manual resolution. Proceed to the next lifecycle step — the developer decides whether to fix manually.
+- **Tests:** Detect test runner from project (`package.json` scripts.test → `npm test` | `Cargo.toml` → `cargo test` | `go.mod` → `go test ./...` | `mix.exs` → `mix test` | `pyproject.toml`/`pytest.ini`/`setup.cfg`/`tox.ini` → `python -m pytest` | `deno.json`/`deno.jsonc` → `deno test` | `bun.lockb`/`bun.lock`/`bunfig.toml` → `bun test`). If no runner detected, skip with log. Timeout: 60 seconds.
+- **verify-acceptance-criteria:** Run the `feature-flow:verify-acceptance-criteria` skill with the plan file path.
+- **Agent re-dispatch:** Dispatch only the specific agent(s) that had Critical/Important findings, with `git diff [base-branch]...HEAD` for context. Use the same model as the original Phase 1 dispatch. All re-dispatched agents launch in a single parallel message.
+- **Read-back verification:** Read the specific files modified by direct-fix agents and confirm the fix is syntactically correct and no regression is visible.
+
+**Step 3: If all targeted checks pass → pipeline is clean**
+
+Announce: "Targeted re-verification clean ([checks run]). Proceeding to Phase 5."
+
+**Step 4: If any targeted check fails → one additional fix pass**
+
+Apply fixes for the remaining failures. Commit: `fix: address re-verification failures`. Re-run the same targeted checks once more.
+
+If still failing after this additional pass → report remaining issues to the developer with context for manual resolution. Proceed to Phase 5 — the developer decides whether to fix manually.
+
+**Maximum 2 total fix-verify iterations** after Phase 3 (targeted re-verify → optional 1 additional pass). Do NOT loop beyond 2 iterations.
 
 #### Phase 5: Report
 
