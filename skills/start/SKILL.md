@@ -1333,7 +1333,7 @@ Output a summary:
 
 **Agents dispatched:** N (Tier T — [scope])
 **Model override:** [None | user-requested: \<model\>]
-**Iterations:** M/3
+**Iterations:** M/2
 
 ### Fixed (auto)
 - [agent] [file:line] [what was fixed]
@@ -1344,7 +1344,7 @@ Output a summary:
 ### Remaining (Minor — not blocking)
 - [file:line] [description]
 
-### Remaining (unfixed after 3 iterations)
+### Remaining (unfixed after 2 iterations)
 - [file:line] [description + context for manual resolution]
 
 **Status:** Clean / N issues remaining
