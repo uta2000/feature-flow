@@ -1293,10 +1293,12 @@ From the Phase 3 fix log, identify which targeted checks apply. Multiple checks 
 | If this was true in Phase 3… | Run this targeted check |
 |------------------------------|-------------------------|
 | `pr-test-analyzer` had Critical/Important findings | Run the project test suite |
-| `superpowers:code-reviewer` flagged an acceptance criteria rule violation | Run `verify-acceptance-criteria` |
+| Any reporting agent flagged an acceptance criteria rule violation | Run `verify-acceptance-criteria` |
 | Any reporting agent had Critical/Important findings | Re-dispatch ONLY that specific agent on changed files only (`git diff [base-branch]...HEAD`) |
 | `silent-failure-hunter` or `code-simplifier` made direct fixes | Read back the changed files to confirm the fix is correct (no regression, no silent swallow introduced) |
 | No Critical/Important findings from any agent (all clean) | Run `verify-acceptance-criteria` only as a baseline sanity check |
+
+*Note: Multiple rows may apply simultaneously — run all matching targeted checks, not just one.*
 
 **Step 2: Run targeted checks (parallel where possible)**
 
@@ -1314,6 +1316,7 @@ Announce: "Targeted re-verification clean ([checks run]). Proceeding to Phase 5.
 **Step 4: If any targeted check fails → one additional fix pass**
 
 Apply fixes for the remaining failures. Commit: `fix: address re-verification failures`. Re-run the same targeted checks once more.
+(This is the final allowed iteration — **maximum 2 total fix-verify iterations**.)
 
 If still failing after this additional pass → report remaining issues to the developer with context for manual resolution. Proceed to Phase 5 — the developer decides whether to fix manually.
 
