@@ -1,4 +1,4 @@
-plugin_version: 1.22.2
+plugin_version: 1.22.3
 platform: cli
 stack:
   - node-js
@@ -7,3 +7,5 @@ context7:
   node-js: /vercel/next.js
   python: /textualize/textual
 gotchas: []
+notifications:
+  on_stop: bell
