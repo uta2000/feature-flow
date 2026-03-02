@@ -804,7 +804,7 @@ Instead:
 2. **Completion strategy:** Auto-select "Push and create a Pull Request" (Option 2). Announce: `YOLO: finishing-a-development-branch — Completion strategy → Push and create PR (auto-selected)`
 3. Proceed with the push + PR creation flow without presenting the 4-option menu
 4. **Issue reference in PR body:** When a GitHub issue is linked to the lifecycle, include `Related: #N` in the PR body to link the PR to the issue. Do NOT use `Closes #N` — the lifecycle closes the issue explicitly in the "Comment and Close Issue" step with a detailed comment.
-5. For PR title/body, use the feature description and lifecycle context to generate them automatically
+5. For PR title/body, use the feature description and lifecycle context to generate them automatically. **Include the aggregated code review summary in the PR body** — append the PR Review Toolkit Summary (from the Phase 1 subagent output) and any findings fixed by the Claude-fixes phase (Phase 3). Use this section heading in the PR body: `## Code Review Summary`.
 6. **Test failure during completion:** If tests fail, log the failures as a warning and proceed with PR creation. Announce: `YOLO: finishing-a-development-branch — Tests failing → Proceeding with PR (N failures logged)`. Do NOT block on test failures — the code review pipeline already ran verification.
 
 ### Subagent-Driven Development YOLO Override
@@ -1279,10 +1279,7 @@ The pr-review-toolkit subagent returns an `### Auto-Fixed` section — use that 
 
 After all agents complete, review the direct-fix agents that were dispatched in this tier. Summarize what they changed:
 
-1. **`silent-failure-hunter`** (Tier 1+) — If dispatched: auto-fixed common patterns (`catch {}` → `catch (e) { console.error(...) }`). Summarize what changed. Flag anything complex it couldn't auto-fix. If skipped (plugin unavailable): announce "silent-failure-hunter was unavailable — silent failure patterns were not automatically reviewed."
-2. **`code-simplifier`** (Tier 2+) — If dispatched: applied structural improvements directly (DRY extraction, separation of concerns, magic value extraction). Summarize what changed. If skipped (plugin unavailable): announce "code-simplifier was unavailable — DRY/clarity improvements were not automatically applied."
-
-At Tier 1, only `silent-failure-hunter` (item 1) applies — `code-simplifier` was not dispatched at this tier.
+1. **Auto-Fixed from pr-review-toolkit subagent** — Summarize what the subagent auto-fixed (from the `### Auto-Fixed` section of the subagent summary). Flag any complex issues it could not auto-fix. If the subagent was unavailable or failed, announce: "pr-review-toolkit subagent was unavailable — direct-fix agents (code-simplifier, silent-failure-hunter) did not run."
 
 #### Phase 3: Consolidate and fix reported findings
 
@@ -1299,11 +1296,10 @@ Collect findings from the reporting agents dispatched in Phase 1. Also include t
 4. **Fix in order:** Critical → Important. Minor issues are logged as informational but not blocking.
 
 For each Critical and Important finding, read the agent's recommendation and apply the fix. Specific agent fix patterns:
+- **From the pr-review-toolkit subagent summary** (all tiers): Apply the concrete `fix:` code change specified in the finding's `fix:` field
 - **`superpowers:code-reviewer`** (Tier 1+): Fix bugs, logic errors, and convention violations
 - **`feature-dev:code-reviewer`** (Tier 2+): Fix bugs, logic errors, and convention violations
-- **`pr-test-analyzer`** (Tier 3 only): Add missing test cases, strengthen weak assertions, add edge case coverage
 - **`backend-security-coder`** (Tier 3 only): Fix injection, validation, and auth issues. Critical security issues are always fixed.
-- **`type-design-analyzer`** (Tier 3 only): Improve type definitions based on encapsulation and invariant feedback
 
 #### Phase 4: Re-verify (fix-verify loop)
 
