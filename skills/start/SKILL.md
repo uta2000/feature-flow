@@ -852,6 +852,8 @@ Example edits (completing Task 2 with commit abc1234):
 - old_string: `CURRENT: Task 2`
 - new_string: `CURRENT: none`
 
+**Task transition batching:** When completing implementation task N and starting task N+1, batch both `TaskUpdate` calls into a single parallel message before dispatching the next implementer subagent: `[TaskUpdate(N, completed), TaskUpdate(N+1, in_progress)]`. This saves one API round-trip per task transition.
+
 ### Implementer Quality Context Injection
 
 This section applies unconditionally in all modes (YOLO, Express, Interactive). When `subagent-driven-development` dispatches implementer subagents, prepend quality context to each implementer's prompt so they write code that follows standards from the start.
