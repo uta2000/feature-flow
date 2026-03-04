@@ -4,6 +4,10 @@ All notable changes to the feature-flow plugin.
 
 ## [Unreleased]
 
+### Fixed
+- **YOLO mode pauses from `ACTION REQUIRED` hook message** — `PostToolUse Write` hook on `plans/*.md` files previously emitted `ACTION REQUIRED: Plan file written...`, which Claude interpreted as a blocking imperative and stopped to act on. Changed to `[feature-flow]` prefix with explicit note that YOLO mode should continue without pausing. (Closes #135)
+- **YOLO mode pauses from step 4 standalone text output** — Step 4 "Confirm completion" in the execution loop could produce a text-only response that ends the turn, forcing the user to type "continue". Added explicit instruction that confirmation notes must be included alongside the `TaskUpdate` call in step 5, not as a standalone text response. (Closes #135)
+
 ### Added
 - **Targeted re-verification in code review pipeline** — Phase 4 re-verify loop replaced with a decision table mapping the Phase 3 fix log to targeted checks: test suite runs only if `pr-test-analyzer` flagged findings, `verify-acceptance-criteria` only if `superpowers:code-reviewer` flagged acceptance criteria rule violation, specific agent re-dispatch only for that agent. Maximum iterations reduced from 3 to 2. Reduces token consumption by running only relevant quality checks instead of all gates every iteration. (Closes #118)
 - **Single-commit step for review fixes after Phase 3** — all Critical and Important findings from Phase 3 are committed as one atomic commit before Phase 4 re-verification, ensuring review fixes land in a single commit rather than scattered across the lifecycle. Includes `git status --porcelain` guard before staging and explicit error handling if the commit fails. (Closes #118)

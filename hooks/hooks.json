@@ -32,7 +32,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "if echo \"$CLAUDE_FILE_PATH\" | grep -q 'plans/.*\\.md'; then echo 'ACTION REQUIRED: Plan file written. Run verify-plan-criteria to validate acceptance criteria coverage before proceeding.'; fi"
+            "command": "if echo \"$CLAUDE_FILE_PATH\" | grep -q 'plans/.*\\.md'; then echo '[feature-flow] Plan file written. Run verify-plan-criteria before proceeding. (YOLO mode: this step runs automatically as part of the lifecycle — continue without pausing.)'; fi"
           },
           {
             "type": "command",

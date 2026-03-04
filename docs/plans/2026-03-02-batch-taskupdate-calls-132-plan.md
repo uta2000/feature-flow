@@ -1,8 +1,8 @@
 # Batch TaskUpdate Calls — Implementation Plan
 
 <!-- PROGRESS INDEX (updated by implementation skills)
-Task 1: Add lifecycle step transition batching rule to Step 3 sub-step 5 — STATUS: pending
-Task 2: Add implementation task transition batching rule to Subagent-Driven Development Context Injection — STATUS: pending
+Task 1: Add lifecycle step transition batching rule to Step 3 sub-step 5 — STATUS: done (commit 7f8e07a)
+Task 2: Add implementation task transition batching rule to Subagent-Driven Development Context Injection — STATUS: done (commit 522c121)
 CURRENT: none
 -->
 
