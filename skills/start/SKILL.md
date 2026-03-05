@@ -104,11 +104,36 @@ Reviewer availability (stack: [stack list]):
     - [reviewer] ([affinity]) — install: claude plugins add [plugin]
   Irrelevant (skipped for this stack):
     - [reviewer] ([affinity] — not matching stack)
+  Marketplace suggestions:
+    - [plugin-name] (found via search, not installed)
 ```
 
 **YOLO behavior:** No prompt — always auto-detected. Announce: `YOLO: start — Reviewer audit → [N] relevant ([M] installed, [K] missing), [J] irrelevant`
 
 **Express behavior:** Same as YOLO — announce inline, no prompt.
+
+### Marketplace Discovery
+
+After the reviewer audit, discover additional code review plugins from the marketplace that may be relevant for the project's stack.
+
+**Process:**
+1. Run: `claude plugins search "code review"` (single CLI call)
+2. Parse results for plugins not already installed
+3. Cross-reference discovered plugins against the Reviewer Stack Affinity Table:
+   - If a discovered plugin has known stack affinity that matches the project → suggest with install command
+   - If a discovered plugin is not in the affinity table → present as "discovered — may be relevant"
+4. Append marketplace suggestions to the reviewer audit output:
+   ```
+   Marketplace suggestions:
+     - [plugin-name] (found via search, not installed) — install: claude plugins add [plugin-name]
+   ```
+   If no relevant suggestions found: omit this section from the audit output.
+
+**Failure handling:** If `claude plugins search` fails (network error, CLI not available, non-zero exit), log a warning and continue: "Marketplace search failed — skipping plugin discovery. Continuing with installed plugins." This must never block the lifecycle.
+
+**YOLO behavior:** No prompt — always auto-run. Announce: `YOLO: start — Marketplace discovery → [N] suggestions (or "search failed — skipped")`
+
+**Express behavior:** Same as YOLO.
 
 ## Purpose
 
