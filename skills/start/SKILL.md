@@ -108,9 +108,9 @@ Reviewer availability (stack: [stack list]):
     - [plugin-name] (found via search, not installed)
 ```
 
-**YOLO behavior:** No prompt — always auto-detected. Announce: `YOLO: start — Reviewer audit → [N] relevant ([M] installed, [K] missing), [J] irrelevant`
+**YOLO behavior:** No prompt for the audit display — always auto-run. Announce: `YOLO: start — Reviewer audit → [N] relevant ([M] installed, [K] missing), [J] irrelevant`
 
-**Express behavior:** Same as YOLO — announce inline, no prompt.
+**Express behavior:** Same as YOLO for the audit display — announce inline.
 
 ### Marketplace Discovery
 
@@ -131,9 +131,35 @@ After the reviewer audit, discover additional code review plugins from the marke
 
 **Failure handling:** If `claude plugins search` fails (network error, CLI not available, non-zero exit), log a warning and continue: "Marketplace search failed — skipping plugin discovery. Continuing with installed plugins." This must never block the lifecycle.
 
-**YOLO behavior:** No prompt — always auto-run. Announce: `YOLO: start — Marketplace discovery → [N] suggestions (or "search failed — skipped")`
+### Install Missing Plugins Prompt
 
-**Express behavior:** Same as YOLO.
+After displaying the reviewer audit (including marketplace suggestions), if there are any **Relevant + missing** or **Marketplace suggestions** plugins, prompt the user to install them before continuing.
+
+Use `AskUserQuestion`:
+- Question: `"Install missing/suggested review plugins for better coverage?"`
+- Option 1: `"Install all"` with description: `"Runs claude plugins add for each missing/suggested plugin, then re-runs the reviewer audit"`
+- Option 2: `"Let me pick"` with description: `"I'll choose which plugins to install"`
+- Option 3: `"Skip — continue without installing"` with description: `"Proceed with currently installed plugins only"`
+
+**If "Install all":**
+1. For each missing/suggested plugin, run: `claude plugins add [plugin-name]`
+2. If any install fails, log the failure and continue with remaining installs
+3. Re-run the reviewer audit to reflect the updated plugin state
+4. Announce: "Installed N plugins. Updated reviewer audit above."
+
+**If "Let me pick":**
+1. Present the list of missing/suggested plugins with numbers
+2. User selects which to install (e.g., "1, 3" or "all except 2")
+3. Install selected plugins, re-run audit
+
+**If "Skip":**
+Continue the lifecycle with currently installed plugins. No further action.
+
+**If no plugins are missing or suggested:** Skip this prompt entirely — no need to ask.
+
+**YOLO behavior:** Skip the prompt. Auto-select "Skip — continue without installing." Announce: `YOLO: start — Install missing plugins → Skipped (YOLO mode)`
+
+**Express behavior:** Same as YOLO — skip the prompt, continue with installed plugins.
 
 ## Purpose
 
