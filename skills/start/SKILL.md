@@ -136,21 +136,23 @@ After the reviewer audit, discover additional code review plugins from the marke
 After displaying the reviewer audit (including marketplace suggestions), if there are any **Relevant + missing** or **Marketplace suggestions** plugins, prompt the user to install them before continuing.
 
 Use `AskUserQuestion`:
-- Question: `"Install missing/suggested review plugins for better coverage?"`
-- Option 1: `"Install all"` with description: `"Runs claude plugins add for each missing/suggested plugin, then re-runs the reviewer audit"`
+- Question: `"Missing/suggested review plugins found. Install them for better coverage? (Requires Claude Code restart to take effect)"`
+- Option 1: `"Install all and restart"` with description: `"Installs plugins, then you restart Claude Code and re-run start: to get full coverage"`
 - Option 2: `"Let me pick"` with description: `"I'll choose which plugins to install"`
 - Option 3: `"Skip — continue without installing"` with description: `"Proceed with currently installed plugins only"`
 
-**If "Install all":**
+**If "Install all and restart":**
 1. For each missing/suggested plugin, run: `claude plugins add [plugin-name]`
 2. If any install fails, log the failure and continue with remaining installs
-3. Re-run the reviewer audit to reflect the updated plugin state
-4. Announce: "Installed N plugins. Updated reviewer audit above."
+3. Announce which plugins were installed
+4. Instruct the user: `"Plugins installed. Restart Claude Code for them to take effect, then re-run start: to resume with full review coverage. The lifecycle will pick up from where it left off using existing artifacts (design doc, plan, worktree)."`
+5. **Stop the lifecycle.** Do not continue — the new plugins will not be available until restart.
 
 **If "Let me pick":**
 1. Present the list of missing/suggested plugins with numbers
 2. User selects which to install (e.g., "1, 3" or "all except 2")
-3. Install selected plugins, re-run audit
+3. Install selected plugins
+4. Same restart instruction and lifecycle stop as "Install all and restart"
 
 **If "Skip":**
 Continue the lifecycle with currently installed plugins. No further action.
