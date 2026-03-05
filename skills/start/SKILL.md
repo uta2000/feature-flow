@@ -1471,14 +1471,18 @@ Output a summary:
 ## Code Review Pipeline Results
 
 **Agents dispatched:** N (Tier T — [scope])
+**Stack filter:** [stack entries used for filtering]
 **Model override:** [None | user-requested: \<model\>]
 **Iterations:** M/2
 
-### Fixed (auto)
-- [agent] [file:line] [what was fixed]
+### Fixed (pr-review-toolkit pre-pass)
+- [agent] [file:line] [what was auto-fixed]
 
-### Fixed (Claude)
+### Fixed (report-only → single pass)
 - [severity] [file:line] [what was fixed]
+
+### Conflicts Resolved
+- [file:line] [kept agent] over [skipped agent] — [reason]
 
 ### Remaining (Minor — not blocking)
 - [file:line] [description]
