@@ -82,7 +82,7 @@ A static mapping of each code reviewer to the tech stacks it is relevant for. Th
 | `type-design-analyzer` | pr-review-toolkit | `typescript`, `node-js` | 3 |
 | `backend-api-security:backend-security-coder` | backend-api-security | `node-js`, `python`, `go`, `ruby`, `java`, `supabase` | 3 |
 
-Internal agents marked `(internal)` run inside their parent plugin's subagent — they are listed for audit visibility but are not dispatched independently during the code review pipeline.
+Internal agents marked `(internal)` run inside their parent plugin's subagent and are not dispatched independently during the code review pipeline. They are excluded from the reviewer audit process (step 2 skips internal agents) but remain in this table as a reference for which agents each plugin provides.
 
 ### Pre-Flight Reviewer Audit
 
@@ -104,8 +104,6 @@ Reviewer availability (stack: [stack list]):
     - [reviewer] ([affinity]) — install: claude plugins add [plugin]
   Irrelevant (skipped for this stack):
     - [reviewer] ([affinity] — not matching stack)
-  Marketplace suggestions:
-    - [plugin-name] (found via search, not installed)
 ```
 
 **YOLO behavior:** No prompt for the audit display — always auto-run. Announce: `YOLO: start — Reviewer audit → [N] relevant ([M] installed, [K] missing), [J] irrelevant`
@@ -122,14 +120,19 @@ After the reviewer audit, discover additional code review plugins from the marke
 3. Cross-reference discovered plugins against the Reviewer Stack Affinity Table:
    - If a discovered plugin has known stack affinity that matches the project → suggest with install command
    - If a discovered plugin is not in the affinity table → present as "discovered — may be relevant"
-4. Append marketplace suggestions to the reviewer audit output:
+4. Display marketplace results as a separate output block after the reviewer audit:
    ```
-   Marketplace suggestions:
-     - [plugin-name] (found via search, not installed) — install: claude plugins add [plugin-name]
+   Marketplace suggestions (stack: [stack list]):
+     - [plugin-name] (matches stack) — install: claude plugins add [plugin-name]
+     - [plugin-name] (discovered — may be relevant) — install: claude plugins add [plugin-name]
    ```
-   If no relevant suggestions found: omit this section from the audit output.
+   If no relevant suggestions found: announce "Marketplace search complete — no new plugins found." and continue.
 
 **Failure handling:** If `claude plugins search` fails (network error, CLI not available, non-zero exit), log a warning and continue: "Marketplace search failed — skipping plugin discovery. Continuing with installed plugins." This must never block the lifecycle.
+
+**YOLO behavior:** Skip marketplace search entirely (install prompt will auto-skip anyway). Announce: `YOLO: start — Marketplace discovery → Skipped (YOLO mode)`
+
+**Express behavior:** Same as YOLO — skip marketplace search.
 
 ### Install Missing Plugins Prompt
 
@@ -145,8 +148,10 @@ Use `AskUserQuestion`:
 1. For each missing/suggested plugin, run: `claude plugins add [plugin-name]`
 2. If any install fails, log the failure and continue with remaining installs
 3. Announce which plugins were installed
-4. Instruct the user: `"Plugins installed. Restart Claude Code for them to take effect, then re-run start: to resume with full review coverage. The lifecycle will pick up from where it left off using existing artifacts (design doc, plan, worktree)."`
+4. Instruct the user: `"Plugins installed. Restart Claude Code for them to take effect, then re-run start: with the same arguments. The lifecycle will restart from pre-flight and detect the newly installed plugins."`
 5. **Stop the lifecycle.** Do not continue — the new plugins will not be available until restart.
+
+**Note:** If the user re-runs `start:` without restarting Claude Code, newly installed plugins will NOT be detected by pre-flight checks (they check loaded skills, not installed-on-disk plugins). The audit will still show them as missing. This is expected — remind the user to restart if they appear stuck in a loop.
 
 **If "Let me pick":**
 1. Present the list of missing/suggested plugins with numbers
