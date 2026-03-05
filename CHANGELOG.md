@@ -5,6 +5,7 @@ All notable changes to the feature-flow plugin.
 ## [Unreleased]
 
 ### Fixed
+- **Pre-flight reviewer audit code review fixes** — removed marketplace suggestions from audit template (separate output block), added YOLO/Express behavior to marketplace discovery (skip entirely), fixed restart instruction to not promise artifact-based resume, added restart-without-restart loop guard, clarified internal agent exclusion from audit. (Related: #143)
 - **YOLO mode pauses from `ACTION REQUIRED` hook message** — `PostToolUse Write` hook on `plans/*.md` files previously emitted `ACTION REQUIRED: Plan file written...`, which Claude interpreted as a blocking imperative and stopped to act on. Changed to `[feature-flow]` prefix with explicit note that YOLO mode should continue without pausing. (Closes #135)
 - **YOLO mode pauses from step 4 standalone text output** — Step 4 "Confirm completion" in the execution loop could produce a text-only response that ends the turn, forcing the user to type "continue". Added explicit instruction that confirmation notes must be included alongside the `TaskUpdate` call in step 5, not as a standalone text response. (Closes #135)
 
