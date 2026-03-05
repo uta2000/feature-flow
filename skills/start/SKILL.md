@@ -1260,9 +1260,9 @@ Run deterministic tools before dispatching agents to catch issues that linters c
    Parse output for file paths and line numbers. Categorize as type errors, lint violations, or anti-pattern violations.
 
 4. **Fix pre-filter findings:**
-   Before proceeding to Phase 1, fix the deterministic findings directly (type errors → fix types, lint errors → auto-fix with `--fix` flag or manual fix). This runs sequentially before agent dispatch to avoid race conditions.
+   Before proceeding to Phase 1a, fix the deterministic findings directly (type errors → fix types, lint errors → auto-fix with `--fix` flag or manual fix). This runs sequentially before agent dispatch to avoid race conditions.
 
-5. **Build exclusion context for Phase 1:**
+5. **Build exclusion context for Phase 1a/1b:**
    Generate a "Pre-Filter Results" summary to include in each agent's prompt:
    ```
    ## Pre-Filter Results (already caught and fixed — skip these areas)
