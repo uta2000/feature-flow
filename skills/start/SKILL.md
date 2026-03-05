@@ -68,6 +68,48 @@ Install it: claude plugins add backend-api-security
 Without it, the code review pipeline will skip: backend-security-coder.
 ```
 
+### Reviewer Stack Affinity Table
+
+A static mapping of each code reviewer to the tech stacks it is relevant for. The orchestrator reads the `stack` field from `.feature-flow.yml` and uses this table for both the pre-flight audit and the code review pipeline dispatch.
+
+| Reviewer | Plugin | Stack Affinity | Tier |
+|----------|--------|---------------|------|
+| `superpowers:code-reviewer` | superpowers | `*` (universal — all stacks) | 1 |
+| `silent-failure-hunter` | pr-review-toolkit (internal) | `*` (universal) | 1 |
+| `code-simplifier` | pr-review-toolkit (internal) | `*` (universal) | 2 |
+| `feature-dev:code-reviewer` | feature-dev | `*` (universal) | 2 |
+| `pr-test-analyzer` | pr-review-toolkit | `*` (universal) | 3 |
+| `type-design-analyzer` | pr-review-toolkit | `typescript`, `node-js` | 3 |
+| `backend-api-security:backend-security-coder` | backend-api-security | `node-js`, `python`, `go`, `ruby`, `java`, `supabase` | 3 |
+
+Internal agents marked `(internal)` run inside their parent plugin's subagent — they are listed for audit visibility but are not dispatched independently during the code review pipeline.
+
+### Pre-Flight Reviewer Audit
+
+After loading `.feature-flow.yml` and completing the recommended plugin checks above, cross-reference installed plugins against the Reviewer Stack Affinity Table to report review coverage for the current stack.
+
+**Process:**
+1. Read the `stack` field from `.feature-flow.yml`
+2. For each non-internal reviewer in the affinity table:
+   a. Check if the reviewer's plugin is installed (from the plugin checks above)
+   b. Check if the reviewer's stack affinity includes `*` OR intersects with the project's `stack` list
+   c. Classify as: relevant+installed, relevant+missing, or irrelevant
+3. Report to the user:
+
+```
+Reviewer availability (stack: [stack list]):
+  Relevant + installed:
+    - [reviewer] ([affinity])
+  Relevant + missing:
+    - [reviewer] ([affinity]) — install: claude plugins add [plugin]
+  Irrelevant (skipped for this stack):
+    - [reviewer] ([affinity] — not matching stack)
+```
+
+**YOLO behavior:** No prompt — always auto-detected. Announce: `YOLO: start — Reviewer audit → [N] relevant ([M] installed, [K] missing), [J] irrelevant`
+
+**Express behavior:** Same as YOLO — announce inline, no prompt.
+
 ## Purpose
 
 Ensure the lifecycle is followed from start to finish. Track which steps are complete, invoke the right skill at each stage, and do not advance until the current step is done.
