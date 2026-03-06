@@ -902,10 +902,9 @@ The subagent-driven-development skill invokes `finishing-a-development-branch` a
 Additional YOLO behavior:
 0. **Pass lifecycle context in args.** When invoking this skill, include all known artifact paths: `plan_file`, `design_doc`, `worktree`, `base_branch`, `issue` (per the Lifecycle Context Object section). The skill uses `plan_file` directly to read the plan instead of discovering it via Glob.
 1. If any subagent (implementer, spec reviewer, or code quality reviewer) surfaces questions that would normally require user input, auto-answer them from the implementation plan, design document, and codebase context. Announce each: `YOLO: subagent-driven-development — [question] → [answer from context]`
-2. Auto-answer subagent questions from the implementation plan, design document, and codebase context rather than surfacing them to the user.
-3. When dispatching implementation subagents, use `model: sonnet` unless the task description contains keywords indicating architectural complexity: "architect", "migration", "schema change", "new data model". For these, use `model: opus`. Announce: `YOLO: subagent-driven-development — Model selection → sonnet (or opus for [keyword])`
-4. When dispatching spec review or consumer verification subagents, use `model: sonnet`. These agents compare implementation against acceptance criteria or verify existing code is unchanged — checklist work that does not require deep reasoning.
-5. When dispatching Explore agents during implementation, follow the Model Routing Defaults section below (`haiku`).
+2. When dispatching implementation subagents, use `model: sonnet` unless the task description contains keywords indicating architectural complexity: "architect", "migration", "schema change", "new data model". For these, use `model: opus`. Announce: `YOLO: subagent-driven-development — Model selection → sonnet (or opus for [keyword])`
+3. When dispatching spec review or consumer verification subagents, use `model: sonnet`. These agents compare implementation against acceptance criteria or verify existing code is unchanged — checklist work that does not require deep reasoning.
+4. When dispatching Explore agents during implementation, follow the Model Routing Defaults section below (`haiku`).
 
 ### Subagent-Driven Development Context Injection
 
