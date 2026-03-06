@@ -595,7 +595,7 @@ For each step, follow this pattern:
 1. **Announce the step:** "Step N: [name]. Invoking [skill name]."
 2. **Mark in progress (conditional):** Only set `in_progress` via `TaskUpdate` before starting steps where the work is extended and the user benefits from an active status indicator. **Steps that keep `in_progress`:** study existing patterns, implementation, self-review, code review, generate CHANGELOG entry, final verification, documentation lookup. **Steps that skip `in_progress`:** brainstorming, design document, design verification, create/update issue, implementation plan, verify plan criteria, worktree setup, copy env files, commit planning artifacts, commit and PR, comment and close issue. Note: sub-step 5 (`completed`) is always retained — it is the turn-continuity bridge. Skipping `in_progress` does not affect YOLO Execution Continuity. Note: YOLO propagation (prepending `yolo: true`) applies only to `Skill()` invocations, not to `Task()` dispatches.
 3. **Invoke the skill** using the Skill tool (see mapping below and `../../references/tool-api.md` — Skill Tool for correct parameter names)
-4. **Confirm completion:** Verify the step produced its expected output — **do not output standalone confirmation text.** Any notes about the step's output must be included alongside the `TaskUpdate` call in step 5, not as a separate text-only response. A text-only response here ends your turn and breaks YOLO continuity.
+4. **Confirm completion:** Verify the step produced its expected output. *(Turn Bridge Rule — include any confirmation notes alongside the `TaskUpdate` call in step 5, not as a separate text-only response.)*
 5. **Mark complete:** Update the todo item to `completed` — **always call `TaskUpdate` here.** This tool call is the bridge that keeps your turn alive between steps. If you output only text without a tool call, your turn ends and the user must type "continue" to resume. **Batching optimization:** When the next step (N+1) is in the `in_progress`-eligible list (study existing patterns, implementation, self-review, code review, generate CHANGELOG entry, final verification, documentation lookup), send both `TaskUpdate` calls as a single parallel message: `[TaskUpdate(N, completed), TaskUpdate(N+1, in_progress)]`. This saves one API round-trip per eligible step transition. If N is the final lifecycle step, no N+1 exists — skip the batch and call only `TaskUpdate(N, completed)` as usual.
 6. **Check for context checkpoint:** If the just-completed step is a checkpoint trigger (see Context Window Checkpoints section), and the current mode is not YOLO, and the current scope includes this checkpoint — output the checkpoint block and wait for the user to respond before announcing the next step.
 7. **Announce next step and loop:** "Step N complete. Next: Step N+1 — [name]." Then **immediately loop back to sub-step 1 (Announce the step)** for the next lifecycle step.
@@ -731,7 +731,7 @@ Instead:
 4. After self-answering all questions, present the design as a single block — do NOT break it into sections and do NOT ask "does this look right?" after each section
 5. Do NOT ask "Ready to set up for implementation?" — the lifecycle continues automatically to the next step
 6. Ensure all self-answered decisions are captured when passing context to the design document step
-7. **After outputting the brainstorming results, immediately call `TaskUpdate` to mark brainstorming complete** — do NOT end your turn with only text output. The tool call keeps your turn alive so you can proceed to the next lifecycle step.
+7. **After outputting the brainstorming results, immediately call `TaskUpdate` to mark brainstorming complete.** *(Turn Bridge Rule applies.)*
 
 This is the most complex YOLO interaction — the LLM makes design-level decisions. The user reviews these via the design document output rather than each micro-decision.
 
@@ -1237,7 +1237,7 @@ This step runs after implementation and before formal code review. It catches "i
 - [area] follows existing patterns
 ```
 
-**YOLO continuity:** After outputting self-review results, immediately call `TaskUpdate` to mark this step complete — do not end your turn with only text output.
+*(Turn Bridge Rule applies — call `TaskUpdate` immediately after outputting self-review results.)*
 
 ### Code Review Pipeline Step (inline — no separate skill)
 
@@ -1528,7 +1528,7 @@ Output a summary:
 **Status:** Clean / N issues remaining
 ```
 
-**YOLO continuity:** After outputting the code review report, immediately call `TaskUpdate` to mark this step complete — do not end your turn with only text output.
+*(Turn Bridge Rule applies — call `TaskUpdate` immediately after outputting the code review report.)*
 
 ### Generate CHANGELOG Entry Step (inline — no separate skill)
 
@@ -1655,7 +1655,7 @@ After writing, announce: "CHANGELOG.md updated with N entries across M categorie
 **Action:** Written to CHANGELOG.md / Skipped by user
 ```
 
-**YOLO continuity:** After outputting CHANGELOG results, immediately call `TaskUpdate` to mark this step complete — do not end your turn with only text output.
+*(Turn Bridge Rule applies — call `TaskUpdate` immediately after outputting CHANGELOG results.)*
 
 ### Comment and Close Issue Step (inline — no separate skill)
 
