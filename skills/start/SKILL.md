@@ -55,7 +55,7 @@ Check for its presence by looking for any skill starting with `feature-dev:` in 
 ```
 The feature-dev plugin is recommended for code review.
 Install it: claude plugins add feature-dev
-Without it, the code review pipeline will skip: feature-dev:code-reviewer.
+Without it, the code review pipeline will skip: feature-dev reviewers.
 ```
 
 ### backend-api-security (recommended)
@@ -65,7 +65,7 @@ Check for its presence by looking for any skill starting with `backend-api-secur
 ```
 The backend-api-security plugin is recommended for security review.
 Install it: claude plugins add backend-api-security
-Without it, the code review pipeline will skip: backend-security-coder.
+Without it, the code review pipeline will skip: backend-api-security reviewers.
 ```
 
 ### Reviewer Stack Affinity Table
