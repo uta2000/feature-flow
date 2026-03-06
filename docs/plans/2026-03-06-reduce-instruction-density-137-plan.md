@@ -1,12 +1,12 @@
 # Refactor Start Skill to Progressive Disclosure — Implementation Plan
 
 <!-- PROGRESS INDEX (updated by implementation skills)
-Task 1: Extract inline steps to references/inline-steps.md — STATUS: pending
-Task 2: Extract code review pipeline to references/code-review-pipeline.md — STATUS: pending
-Task 3: Extract YOLO/Express overrides to references/yolo-overrides.md — STATUS: pending
-Task 4: Extract model routing to references/model-routing.md — STATUS: pending
-Task 5: Extract step lists and pre-flight reviewer details — STATUS: pending
-Task 6: Final pointer cleanup and line count verification — STATUS: pending
+Task 1: Extract inline steps to references/inline-steps.md — STATUS: done (commit 93d24b2)
+Task 2: Extract code review pipeline to references/code-review-pipeline.md — STATUS: done (commit 41cf68f)
+Task 3: Extract YOLO/Express overrides to references/yolo-overrides.md — STATUS: done (commit 6f552f8)
+Task 4: Extract model routing to references/model-routing.md — STATUS: done (commit 3990c05)
+Task 5: Extract step lists and pre-flight reviewer details — STATUS: done (commit 3bc8b72)
+Task 6: Final pointer cleanup and line count verification — STATUS: done (commit 4c8c83d)
 CURRENT: none
 -->
 
