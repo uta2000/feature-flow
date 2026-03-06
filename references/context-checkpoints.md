@@ -1,6 +1,15 @@
 # Context Checkpoint Recovery
 
-This reference file contains the post-compaction recovery procedure. It is referenced by the Context Window Checkpoints section in `skills/start/SKILL.md`.
+This reference file contains the checkpoint output format and post-compaction recovery procedure. It is referenced by the Context Window Checkpoints section in `skills/start/SKILL.md`.
+
+## Checkpoint Format
+
+```
+--- Context Checkpoint ---
+[Phase name] complete. Consider running:
+/compact focus on [context-specific focus hint]
+Or type "continue" to skip compaction and proceed.
+```
 
 ## Handling the Response
 

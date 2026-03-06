@@ -741,14 +741,7 @@ This is the most complex YOLO interaction — the LLM makes design-level decisio
 
 At specific phase transitions, output a checkpoint prompt suggesting the user run `/compact` to free context window space. The lifecycle pauses — the user must respond before the next step begins. `/compact` is a client-side Claude Code command that cannot be invoked programmatically — the skill can only suggest it.
 
-**Checkpoint format:**
-
-```
---- Context Checkpoint ---
-[Phase name] complete. Consider running:
-/compact focus on [context-specific focus hint]
-Or type "continue" to skip compaction and proceed.
-```
+**Checkpoint format and recovery procedure:** See `../../references/context-checkpoints.md`.
 
 **Checkpoint locations:**
 
@@ -773,9 +766,6 @@ Or type "continue" to skip compaction and proceed.
 - **Express mode:** Checkpoints are shown — output the checkpoint block and wait
 - **Interactive mode:** Checkpoints are shown — output the checkpoint block and wait
 - **Quick fix scope:** No checkpoints regardless of mode
-
-**Handling the response:**
-When the user responds after a checkpoint, follow the recovery procedure in `../../references/context-checkpoints.md`.
 
 ### Express Design Approval Checkpoint
 
