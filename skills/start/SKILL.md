@@ -1804,7 +1804,7 @@ What to do next:
 
 **Decision Log (if YOLO or Express mode was active):**
 
-If the lifecycle ran in YOLO or Express mode, read `references/decision-log-templates.md` and append the appropriate decision log template (YOLO or Express) after the standard completion summary. Interactive mode does not produce a decision log.
+If the lifecycle ran in YOLO or Express mode, read `../../references/decision-log-templates.md` and append the appropriate decision log template (YOLO or Express) after the standard completion summary. Interactive mode does not produce a decision log.
 
 **Cancellation:** There is no formal YOLO/Express cancellation mechanism. Inline announcements (`YOLO: [skill] — [decision] → [option]` or `Express: [skill] — [decision] → [option]`) serve as an "emergency brake" — the user sees each decision as it's made and can interrupt the lifecycle at any point by sending a message. The lifecycle will pause at the current step, and the user can redirect from there.
 
