@@ -45,6 +45,9 @@ All notable changes to the feature-flow plugin.
 - **Checkpoint 3 "Before Step" label uses natural language step name** — changed from raw skill identifier to "Implement", consistent with the naming convention used across all other checkpoint rows.
 - **Edge case guards for last step/task in TaskUpdate batching** — both batching notes (lifecycle step transitions and implementation task transitions) include explicit guidance that when N is the final step or final task, only `TaskUpdate(N, completed)` should be called without batching. Prevents attempting to reference a non-existent N+1. (Closes #132)
 
+### Changed
+- **Deduplicate YOLO execution continuity instructions into Turn Bridge Rule** — the "always call `TaskUpdate` to keep your turn alive" pattern was repeated 5+ times throughout the `start:` skill. Consolidated into a single named **Turn Bridge Rule** defined in Step 3's YOLO Execution Continuity section, with all inline occurrences replaced by one-line references. Reduces token overhead and improves scannability. (Closes #139)
+
 ### Documentation
 - **`notifications` field in `references/project-context-schema.md`** — documents the new `notifications.on_stop` field (`bell | desktop | none`), its read/write semantics, YAML example, and the semantic distinction between `on_stop: none` (explicitly declined) vs field absent (not yet prompted). Updates the `start (reads + writes)` section. (Closes #113)
 
