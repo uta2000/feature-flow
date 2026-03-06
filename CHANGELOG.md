@@ -6,6 +6,7 @@ All notable changes to the feature-flow plugin.
 
 ### Changed
 - **Deduplicated inline documentation in `start` SKILL.md** — replaced 14-item self-review checklist with reference to `../../references/coding-standards.md` (source of truth), extracted YOLO/Express decision log templates (~50 lines) to `references/decision-log-templates.md`, and added scope-guide.md pointer. Net reduction: 65 lines from SKILL.md. (Closes #140)
+- **Post-compaction recovery logic extracted to reference file** — moved the 4 CURRENT field edge cases and checkpoint format template from `skills/start/SKILL.md` to `references/context-checkpoints.md`. SKILL.md retains checkpoint locations table, scope-based filtering, and suppression rules with a single pointer to the reference file. Net 18-line reduction from SKILL.md. (Closes #141)
 
 ### Fixed
 - **Pre-flight reviewer audit code review fixes** — removed marketplace suggestions from audit template (separate output block), added YOLO/Express behavior to marketplace discovery (skip entirely), fixed restart instruction to not promise artifact-based resume, added restart-without-restart loop guard, clarified internal agent exclusion from audit. (Related: #143)
