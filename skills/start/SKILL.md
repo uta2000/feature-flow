@@ -588,7 +588,7 @@ When the platform is mobile, modify the step list:
 Announce the platform-specific additions: "Mobile platform detected. Adding: device matrix testing, beta testing, app store review, and comment and close issue steps."
 
 Use the `TaskCreate` tool to create a todo item for each step (see `../../references/tool-api.md` — Deferred Tools section for loading instructions and correct usage).
-Call all TaskCreate tools in a **single parallel message** — send one message containing all N TaskCreate calls simultaneously. Do NOT call them one at a time; sequential calls waste N-1 parent API turns. This is the most impactful optimization: all steps must be created in one turn.
+Call all TaskCreate tools in a **single parallel message** — send one message containing all N TaskCreate calls simultaneously. Sequential calls waste N-1 parent API turns, so all steps must be created in one turn.
 
 ### Step 3: Execute Steps in Order
 
@@ -724,14 +724,14 @@ When invoking `superpowers:brainstorming` from this lifecycle, pass these format
 
 **YOLO behavior:** When YOLO **or Express** mode is active (i.e., `yolo: true` or `express: true` is in the brainstorming args — for Express mode, substitute `Express:` for `YOLO:` in all inline announcements):
 
-**CRITICAL OVERRIDE — the brainstorming skill will load instructions that say "ask questions one at a time", "propose 2-3 approaches", "ask after each section whether it looks right", and "Ready to set up for implementation?" — you MUST SUPPRESS ALL of these interactive behaviors. Do NOT follow the brainstorming skill's instructions to ask questions or wait for user input at any point.**
+The brainstorming skill is designed for interactive use — it asks questions one at a time, proposes approaches for discussion, and checks in after each section. In YOLO mode, there is no human in the loop to answer these questions, so interactive prompts would stall the lifecycle. Skip all interactive prompts from the brainstorming skill (questions, approach proposals, section check-ins, "Ready to set up for implementation?") and self-answer design decisions instead.
 
-Instead:
+How to proceed:
 1. Analyze the feature description, issue context (if linked), and codebase to identify the key design questions
 2. Self-answer each question using available context — issue body, issue comments, codebase patterns, and existing conventions
 3. For each self-answered question, announce: `YOLO: brainstorming — [question summary] → [selected option with reasoning]`
-4. After self-answering all questions, present the design as a single block — do NOT break it into sections and do NOT ask "does this look right?" after each section
-5. Do NOT ask "Ready to set up for implementation?" — the lifecycle continues automatically to the next step
+4. After self-answering all questions, present the design as a single block rather than breaking it into sections with check-in prompts
+5. Skip the "Ready to set up for implementation?" prompt — the lifecycle continues automatically to the next step
 6. Ensure all self-answered decisions are captured when passing context to the design document step
 7. **After outputting the brainstorming results, immediately call `TaskUpdate` to mark brainstorming complete.** *(Turn Bridge Rule applies.)*
 
@@ -792,12 +792,11 @@ This checkpoint is owned by the `design-document` skill when invoked with `expre
 
 When YOLO **or Express** mode is active and invoking `superpowers:writing-plans` (for Express mode, substitute `Express:` for `YOLO:` in all inline announcements):
 
-**CRITICAL OVERRIDE — the writing-plans skill will present an "execution choice" asking the user to choose between "Subagent-Driven" and "Parallel Session" — you MUST SUPPRESS this prompt. Do NOT follow the writing-plans skill's execution handoff instructions.**
+The writing-plans skill presents an execution choice after saving the plan. In YOLO mode, the lifecycle has already decided on subagent-driven execution — presenting this prompt would break unattended flow. Skip the execution choice prompt and proceed directly.
 
 After the plan is saved:
-1. Do NOT present the execution choice
-2. Announce: `YOLO: writing-plans — Execution choice → Subagent-Driven (auto-selected)`
-3. Immediately proceed to the next lifecycle step
+1. Announce: `YOLO: writing-plans — Execution choice → Subagent-Driven (auto-selected)`
+2. Immediately proceed to the next lifecycle step
 
 ### Writing Plans Quality Context Injection
 
@@ -868,45 +867,44 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
 
 When YOLO **or Express** mode is active and invoking `superpowers:using-git-worktrees` (for Express mode, substitute `Express:` for `YOLO:` in all inline announcements):
 
-**CRITICAL OVERRIDE — the using-git-worktrees skill may ask "Where should I create worktrees?" and may ask "proceed or investigate?" if baseline tests fail — you MUST SUPPRESS both prompts. Do NOT follow the skill's instructions to ask the user.**
+The using-git-worktrees skill asks where to create worktrees and whether to proceed when baseline tests fail. In YOLO mode, these prompts would stall unattended execution — the lifecycle uses a standard directory (`.worktrees/`) and defers test failures to later verification steps. Auto-select the worktree directory and proceed past baseline test failures.
 
-Instead:
+How to proceed:
 1. **Worktree directory:** Auto-select `.worktrees/` (project-local, hidden).
    Check existence with:
    ```bash
    test -d .worktrees && echo "exists" || echo "creating"
    ```
-   If it doesn't exist, create it. Do NOT use `ls -d` for existence checks — it returns non-zero when the directory doesn't exist, causing false tool errors.
+   If it doesn't exist, create it. Use `test -d` instead of `ls -d` for existence checks — `ls -d` returns non-zero for missing directories, causing false tool errors.
    Announce: `YOLO: using-git-worktrees — Worktree directory → .worktrees/ (auto-selected)`
-2. **Baseline test failure:** If tests fail during baseline verification, log the failures as a warning and proceed. Announce: `YOLO: using-git-worktrees — Baseline tests failed → Proceeding with warning (N failures logged)`. Do NOT ask the user whether to proceed or investigate — the lifecycle will catch test issues during implementation and verification steps.
+2. **Baseline test failure:** If tests fail during baseline verification, log the failures as a warning and proceed. Announce: `YOLO: using-git-worktrees — Baseline tests failed → Proceeding with warning (N failures logged)`. The lifecycle will catch test issues during implementation and verification steps.
 
 ### Finishing a Development Branch YOLO Override
 
 When YOLO **or Express** mode is active and invoking `superpowers:finishing-a-development-branch` (for Express mode, substitute `Express:` for `YOLO:` in all inline announcements):
 
-**CRITICAL OVERRIDE — the finishing-a-development-branch skill will present 4 options (merge locally, create PR, keep as-is, discard) and may ask "This branch split from [branch] — is that correct?" — you MUST SUPPRESS both prompts. Do NOT follow the skill's instructions to present options or ask for confirmation.**
+The finishing-a-development-branch skill presents a 4-option completion menu and a base branch confirmation prompt. In YOLO mode, the lifecycle always creates a PR targeting the detected base branch — presenting options or confirmations would stall unattended flow. Auto-confirm the base branch and auto-select "Push and create a Pull Request."
 
-Instead:
-1. **Base branch:** Auto-confirm the detected base branch (from Step 0 base branch detection). Do NOT ask the user. Announce: `YOLO: finishing-a-development-branch — Base branch → [detected base branch]`
+How to proceed:
+1. **Base branch:** Auto-confirm the detected base branch (from Step 0 base branch detection). Announce: `YOLO: finishing-a-development-branch — Base branch → [detected base branch]`
 2. **Completion strategy:** Auto-select "Push and create a Pull Request" (Option 2). Announce: `YOLO: finishing-a-development-branch — Completion strategy → Push and create PR (auto-selected)`
 3. Proceed with the push + PR creation flow without presenting the 4-option menu
-4. **Issue reference in PR body:** When a GitHub issue is linked to the lifecycle, include `Related: #N` in the PR body to link the PR to the issue. Do NOT use `Closes #N` — the lifecycle closes the issue explicitly in the "Comment and Close Issue" step with a detailed comment.
+4. **Issue reference in PR body:** When a GitHub issue is linked to the lifecycle, use `Related: #N` instead of `Closes #N` in the PR body — the lifecycle closes the issue explicitly in the "Comment and Close Issue" step with a detailed comment.
 5. For PR title/body, use the feature description and lifecycle context to generate them automatically. **Include the aggregated code review summary in the PR body** — append the PR Review Toolkit Summary (from the Phase 1a subagent output, including the `### Auto-Fixed` section from Phase 1a), any findings fixed by the single-pass fix phase (Phase 3), and any remaining minor findings. Use this section heading in the PR body: `## Code Review Summary`.
-6. **Test failure during completion:** If tests fail, log the failures as a warning and proceed with PR creation. Announce: `YOLO: finishing-a-development-branch — Tests failing → Proceeding with PR (N failures logged)`. Do NOT block on test failures — the code review pipeline already ran verification.
+6. **Test failure during completion:** If tests fail, log the failures as a warning and proceed with PR creation. Announce: `YOLO: finishing-a-development-branch — Tests failing → Proceeding with PR (N failures logged)`. Proceed past test failures — the code review pipeline already ran verification.
 
 ### Subagent-Driven Development YOLO Override
 
 When YOLO **or Express** mode is active and invoking `superpowers:subagent-driven-development` (for Express mode, substitute `Express:` for `YOLO:` in all inline announcements):
 
-**CRITICAL OVERRIDE — the subagent-driven-development skill invokes `superpowers:finishing-a-development-branch` after all tasks complete — the "Finishing a Development Branch YOLO Override" above applies to that invocation.**
+The subagent-driven-development skill invokes `finishing-a-development-branch` after all tasks complete. The same YOLO rationale applies: auto-confirm the base branch and auto-select PR creation per the "Finishing a Development Branch YOLO Override" above.
 
 Additional YOLO behavior:
 0. **Pass lifecycle context in args.** When invoking this skill, include all known artifact paths: `plan_file`, `design_doc`, `worktree`, `base_branch`, `issue` (per the Lifecycle Context Object section). The skill uses `plan_file` directly to read the plan instead of discovering it via Glob.
 1. If any subagent (implementer, spec reviewer, or code quality reviewer) surfaces questions that would normally require user input, auto-answer them from the implementation plan, design document, and codebase context. Announce each: `YOLO: subagent-driven-development — [question] → [answer from context]`
-2. Do NOT ask the user to answer subagent questions — use available context to provide answers directly
-3. When dispatching implementation subagents, use `model: sonnet` unless the task description contains keywords indicating architectural complexity: "architect", "migration", "schema change", "new data model". For these, use `model: opus`. Announce: `YOLO: subagent-driven-development — Model selection → sonnet (or opus for [keyword])`
-4. When dispatching spec review or consumer verification subagents, use `model: sonnet`. These agents compare implementation against acceptance criteria or verify existing code is unchanged — checklist work that does not require deep reasoning.
-5. When dispatching Explore agents during implementation, follow the Model Routing Defaults section below (`haiku`).
+2. When dispatching implementation subagents, use `model: sonnet` unless the task description contains keywords indicating architectural complexity: "architect", "migration", "schema change", "new data model". For these, use `model: opus`. Announce: `YOLO: subagent-driven-development — Model selection → sonnet (or opus for [keyword])`
+3. When dispatching spec review or consumer verification subagents, use `model: sonnet`. These agents compare implementation against acceptance criteria or verify existing code is unchanged — checklist work that does not require deep reasoning.
+4. When dispatching Explore agents during implementation, follow the Model Routing Defaults section below (`haiku`).
 
 ### Subagent-Driven Development Context Injection
 
@@ -1103,7 +1101,7 @@ This step runs after copy env files and before implementation. It forces reading
 2. Identify the areas of the codebase that will be modified or extended (from the implementation plan)
 3. **Parallel dispatch** — For each identified area, dispatch one Explore agent to read 2-3 example files and extract patterns. Each agent also flags anti-patterns (files >300 lines, mixed concerns, circular dependencies, duplicated logic).
 
-   Use the Task tool with `subagent_type: "Explore"` and `model: "haiku"` (per Model Routing Defaults; see `../../references/tool-api.md` — Task Tool for parameter syntax). Launch all agents in a **single message** to run them concurrently. Do NOT dispatch agents one at a time — sequential dispatch defeats the purpose of parallel study and wastes N-1 parent API turns on waiting. All N agents must appear in one message. Announce: "Dispatching N pattern study agents in parallel..."
+   Use the Task tool with `subagent_type: "Explore"` and `model: "haiku"` (per Model Routing Defaults; see `../../references/tool-api.md` — Task Tool for parameter syntax). Launch all agents in a **single message** to run them concurrently. Sequential dispatch wastes N-1 parent API turns — all N agents must appear in one message. Announce: "Dispatching N pattern study agents in parallel..."
 
    **Context passed to each agent:**
    - Area name and file paths/directories to examine
@@ -1462,7 +1460,7 @@ Apply fixes for the remaining failures. Commit: `fix: address re-verification fa
 
 If still failing after this additional pass → report remaining issues to the developer with context for manual resolution. Proceed to Phase 5 — the developer decides whether to fix manually.
 
-**Maximum 2 total fix-verify iterations** after Phase 3 (targeted re-verify → optional 1 additional pass). Do NOT loop beyond 2 iterations.
+**Maximum 2 total fix-verify iterations** after Phase 3 (targeted re-verify → optional 1 additional pass). Stop after 2 iterations — report remaining issues for manual resolution.
 
 #### Phase 5: Report
 

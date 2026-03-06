@@ -5,6 +5,7 @@ All notable changes to the feature-flow plugin.
 ## [Unreleased]
 
 ### Changed
+- **Replaced CRITICAL OVERRIDEs with reasoning-first overrides** — all 5 `CRITICAL OVERRIDE` blocks in `start` SKILL.md rewritten to lead with rationale (why the override exists) before stating intent (what to do). Negative directives (`Do NOT`, `MUST SUPPRESS`) replaced with positive phrasing (`Skip...`, `Proceed past...`, `Use X instead of Y`). Residual instruction density reduced in parallelism and iteration-limit directives. (Closes #138)
 - **Deduplicated inline documentation in `start` SKILL.md** — replaced 14-item self-review checklist with reference to `../../references/coding-standards.md` (source of truth), extracted YOLO/Express decision log templates (~50 lines) to `references/decision-log-templates.md`, and added scope-guide.md pointer. Net reduction: 65 lines from SKILL.md. (Closes #140)
 - **Post-compaction recovery logic extracted to reference file** — moved the 4 CURRENT field edge cases and checkpoint format template from `skills/start/SKILL.md` to `references/context-checkpoints.md`. SKILL.md retains checkpoint locations table, scope-based filtering, and suppression rules with a single pointer to the reference file. Net 18-line reduction from SKILL.md. (Closes #141)
 

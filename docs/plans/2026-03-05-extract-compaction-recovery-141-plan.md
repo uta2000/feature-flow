@@ -1,10 +1,10 @@
 # Extract Post-Compaction Recovery Logic Implementation Plan
 
 <!-- PROGRESS INDEX (updated by implementation skills)
-Task 1: Create references/context-checkpoints.md — STATUS: in-progress
-Task 2: Replace recovery logic in SKILL.md with pointer — STATUS: pending
-Task 3: Verify line reduction and correctness — STATUS: pending
-CURRENT: Task 1
+Task 1: Create references/context-checkpoints.md — STATUS: done (commit 7b53c22)
+Task 2: Replace recovery logic in SKILL.md with pointer — STATUS: done (commit 04c0eb3)
+Task 3: Verify line reduction and correctness — STATUS: done (inline verification)
+CURRENT: none
 -->
 
 > **For Claude:** After compaction, read only the PROGRESS INDEX to determine current task.
