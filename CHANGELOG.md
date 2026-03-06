@@ -4,6 +4,9 @@ All notable changes to the feature-flow plugin.
 
 ## [Unreleased]
 
+### Changed
+- **Deduplicated inline documentation in `start` SKILL.md** — replaced 14-item self-review checklist with reference to `../../references/coding-standards.md` (source of truth), extracted YOLO/Express decision log templates (~50 lines) to `references/decision-log-templates.md`, and added scope-guide.md pointer. Net reduction: 65 lines from SKILL.md. (Closes #140)
+
 ### Fixed
 - **Pre-flight reviewer audit code review fixes** — removed marketplace suggestions from audit template (separate output block), added YOLO/Express behavior to marketplace discovery (skip entirely), fixed restart instruction to not promise artifact-based resume, added restart-without-restart loop guard, clarified internal agent exclusion from audit. (Related: #143)
 - **YOLO mode pauses from `ACTION REQUIRED` hook message** — `PostToolUse Write` hook on `plans/*.md` files previously emitted `ACTION REQUIRED: Plan file written...`, which Claude interpreted as a blocking imperative and stopped to act on. Changed to `[feature-flow]` prefix with explicit note that YOLO mode should continue without pausing. (Closes #135)

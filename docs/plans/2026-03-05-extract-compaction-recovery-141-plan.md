@@ -1,10 +1,10 @@
 # Extract Post-Compaction Recovery Logic Implementation Plan
 
 <!-- PROGRESS INDEX (updated by implementation skills)
-Task 1: Create references/context-checkpoints.md — STATUS: pending
+Task 1: Create references/context-checkpoints.md — STATUS: in-progress
 Task 2: Replace recovery logic in SKILL.md with pointer — STATUS: pending
 Task 3: Verify line reduction and correctness — STATUS: pending
-CURRENT: none
+CURRENT: Task 1
 -->
 
 > **For Claude:** After compaction, read only the PROGRESS INDEX to determine current task.

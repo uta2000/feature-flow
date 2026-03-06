@@ -392,6 +392,8 @@ Fast-track detection runs after scope classification and before the combined sco
 | **Feature** | Multiple files, new UI or API, possible data model changes | "Add CSV export to the results page" |
 | **Major feature** | New page/workflow, data model changes, external API integration, pipeline changes | "Build a creative domain generator with LLM" |
 
+See `references/scope-guide.md` for detailed criteria, examples, and edge cases.
+
 **Smart recommendation logic:**
 
 Determine the recommended mode using three signals:
@@ -1200,23 +1202,7 @@ This step runs after implementation and before formal code review. It catches "i
 **Process:**
 1. Read `../../references/coding-standards.md` to load the review criteria
 2. Get the full diff of all files changed during implementation: `git diff`
-3. Review every changed file against these criteria:
-
-**Self-Review Checklist:**
-- [ ] **Functions:** No function exceeds 30 lines. Each has a single responsibility.
-- [ ] **Naming:** All functions, variables, and files follow the naming conventions found in "Study Existing Patterns"
-- [ ] **Error handling:** No empty catch blocks. All external calls have error handling. Errors are typed.
-- [ ] **Types:** No `any` types. Types are narrow and specific. Generated types used for external data.
-- [ ] **DRY:** No duplicated logic. Shared utilities extracted. Constants defined for magic values.
-- [ ] **Pattern adherence:** New code follows the patterns documented in "Study Existing Patterns"
-- [ ] **Separation of concerns:** Data fetching is separate from rendering. Business logic is separate from I/O.
-- [ ] **Guard clauses:** No nesting deeper than 3 levels. Early returns used for error cases.
-- [ ] **No debug artifacts:** No `console.log`, `debugger`, or commented-out code left behind.
-- [ ] **Imports organized:** External, internal, relative, types — in that order.
-- [ ] **No god files:** No new file exceeds 300 lines or handles more than 2-3 responsibilities.
-- [ ] **No circular dependencies:** New imports don't create cycles. If file A imports from file B, file B does not import (directly or transitively) from file A.
-- [ ] **Dependency direction:** New code depends on abstractions (interfaces, types, shared utilities), not on implementation details of other features.
-- [ ] **Duplication across files:** No logic block is copy-pasted from another file. If similar logic exists, import from the canonical source or extract a shared utility.
+3. Review every changed file against the checklist in `../../references/coding-standards.md`.
 
 4. For each violation found, fix it immediately. Do not proceed to code review with known violations.
 5. If a violation cannot be fixed without significant rework, document it as tech debt with a TODO referencing the issue.
@@ -1820,58 +1806,7 @@ What to do next:
 
 **Decision Log (if YOLO or Express mode was active):**
 
-If the lifecycle ran in YOLO or Express mode, append the decision log after the standard completion summary:
-
-**YOLO (all scopes):**
-
-```
-## YOLO Decision Log
-
-**Mode:** YOLO ([scope] scope)
-
-| # | Skill | Decision | Auto-Selected |
-|---|-------|----------|---------------|
-| 1 | start | Scope + mode | [scope], YOLO |
-| N | start | Fast-track detection | Activated (issue richness: [score]/4) — skipped: brainstorming, design document, verify-plan-criteria |
-| ... | ... | ... | ... |
-| N | brainstorming | Design questions (self-answered) | [count decisions auto-answered] |
-| N | writing-plans | Execution choice | Subagent-Driven (auto-selected) |
-| N | using-git-worktrees | Worktree directory | .worktrees/ (auto-selected) |
-| N | finishing-a-dev-branch | Completion strategy | Push and create PR (auto-selected) |
-
-**Total decisions auto-selected:** N (includes feature-flow decisions + superpowers overrides)
-**Quality gates preserved:** hooks, tests, verification, code review
-```
-
-**Express (all scopes):**
-
-```
-## Express Decision Log
-
-**Mode:** Express ([scope] scope)
-**Checkpoints:** N presented (M design approval, K compaction)
-
-| # | Skill | Decision | Auto-Selected |
-|---|-------|----------|---------------|
-| 1 | start | Scope + mode | [scope], Express |
-| N | start | Fast-track detection | Activated (issue richness: [score]/4) — skipped: brainstorming, design document, verify-plan-criteria |
-| ... | ... | ... | ... |
-| N | start | Compact checkpoint 1 | /compact (or skipped) |
-| N | start | Compact checkpoint 2 | /compact (or skipped) |
-| N | start | Compact checkpoint 3 | /compact (or skipped) |
-| N | start | Compact checkpoint 4 | /compact (or skipped) |
-| N | design-document | Design approval | ✋ User reviewed (approved / adjusted) |
-| N | brainstorming | Design questions (self-answered) | [count decisions auto-answered] |
-| N | writing-plans | Execution choice | Subagent-Driven (auto-selected) |
-| N | using-git-worktrees | Worktree directory | .worktrees/ (auto-selected) |
-| N | finishing-a-dev-branch | Completion strategy | Push and create PR (auto-selected) |
-
-**Total decisions auto-selected:** N (includes feature-flow decisions + superpowers overrides)
-**Checkpoints presented:** M (K compaction, J design approval)
-**Quality gates preserved:** hooks, tests, verification, code review
-```
-
-Interactive mode does not produce a decision log — all decisions were made interactively.
+If the lifecycle ran in YOLO or Express mode, read `../../references/decision-log-templates.md` and append the appropriate decision log template (YOLO or Express) after the standard completion summary. Interactive mode does not produce a decision log.
 
 **Cancellation:** There is no formal YOLO/Express cancellation mechanism. Inline announcements (`YOLO: [skill] — [decision] → [option]` or `Express: [skill] — [decision] → [option]`) serve as an "emergency brake" — the user sees each decision as it's made and can interrupt the lifecycle at any point by sending a message. The lifecycle will pause at the current step, and the user can redirect from there.
 
