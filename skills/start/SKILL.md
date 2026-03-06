@@ -447,10 +447,17 @@ When adjusting, announce: "Adjusting scope from [old] to [new]. Adding/removing 
 
 ### Reference Files
 
-For detailed scope classification guidance and step descriptions:
-- **`references/scope-guide.md`** — Detailed criteria for classifying work scope, with examples and edge cases
+Extracted reference files (read on-demand during lifecycle execution):
+- **`references/project-context.md`** — Step 0: YOLO triggers, .feature-flow.yml, base branch, model recommendation, notifications
+- **`references/step-lists.md`** — Step 2: scope-specific step lists, mobile adjustments, pre-flight reviewer audit/marketplace/install
+- **`references/orchestration-overrides.md`** — Phase-boundary hints, brainstorming interview format, context checkpoints, Express design approval
+- **`references/yolo-overrides.md`** — YOLO/Express overrides for writing-plans, git-worktrees, finishing-branch, subagent-driven-dev; quality context injections
+- **`references/code-review-pipeline.md`** — Code review pipeline Phases 0-5
+- **`references/inline-steps.md`** — 8 inline step definitions (documentation lookup, commit artifacts, copy env, study patterns, self-review, CHANGELOG, final verification, comment/close issue)
+- **`references/model-routing.md`** — Model routing defaults (orchestrator phases + subagent dispatches)
+- **`references/scope-guide.md`** — Detailed criteria for classifying work scope
 
-For project context and platform-specific lifecycle adjustments:
+External reference files:
 - **`../../references/project-context-schema.md`** — Schema for `.feature-flow.yml`
 - **`../../references/platforms/mobile.md`** — Mobile lifecycle adjustments, required sections, beta testing checklist
 - **`../../references/platforms/web.md`** — Web lifecycle adjustments
