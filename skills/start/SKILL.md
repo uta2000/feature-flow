@@ -602,6 +602,8 @@ For each step, follow this pattern:
 
 **YOLO Execution Continuity (CRITICAL):** In YOLO mode, the execution loop must be **uninterrupted**. After completing one step, proceed directly to the next step in the same turn — do NOT end your turn between steps. The most common failure mode is: a skill outputs text (e.g., brainstorming decisions table), the assistant's turn ends because there are no pending tool calls, and the user must type "continue" to resume — this defeats the purpose of YOLO ("fully unattended, no pauses"). To prevent this: after a skill finishes outputting results, **always make the `TaskUpdate` tool call (step 5) in the same response** to keep the turn alive, then continue to step 7 and loop back to step 1 for the next step.
 
+**Turn Bridge Rule:** After outputting results for any inline step, **immediately call `TaskUpdate` to mark that step complete in the same response** — do not end your turn with only text output. A text-only response ends your turn and forces the user to type "continue" to resume, which breaks YOLO continuity. The `TaskUpdate` tool call is the bridge that keeps your turn alive between lifecycle steps.
+
 **YOLO Propagation:** When YOLO mode is active, prepend `yolo: true. scope: [scope].` to the `args` parameter of every `Skill` invocation. Scope context is required because design-document uses it to determine checkpoint behavior. For example:
 
 ```
