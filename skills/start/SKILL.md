@@ -16,7 +16,7 @@ Before starting, verify required and recommended plugins are available.
 
 ### superpowers (required)
 
-Check for its presence by looking for superpowers skills in the loaded skill list — do NOT invoke a superpowers skill just to test availability. If superpowers is not found, stop and tell the user:
+Check for its presence by looking for any skill starting with `superpowers:` in the loaded skill list (namespace-prefix detection) — do NOT invoke a superpowers skill just to test availability. If superpowers is not found, stop and tell the user:
 
 ```
 The superpowers plugin is required but doesn't appear to be installed.
@@ -40,7 +40,7 @@ Do not proceed with the lifecycle if Context7 is missing — documentation looku
 
 ### pr-review-toolkit (recommended)
 
-Check for its presence by looking for `pr-review-toolkit:review-pr` in the loaded skill list. If not found, warn but continue:
+Check for its presence by looking for any skill starting with `pr-review-toolkit:` in the loaded skill list (namespace-prefix detection). If not found, warn but continue:
 
 ```
 The pr-review-toolkit plugin is recommended for full code review coverage.
@@ -50,7 +50,7 @@ Without it, the pr-review-toolkit subagent will not run — the code review pipe
 
 ### feature-dev (recommended)
 
-Check for its presence by looking for `feature-dev:code-reviewer` in the loaded skill list. If not found, warn but continue:
+Check for its presence by looking for any skill starting with `feature-dev:` in the loaded skill list (namespace-prefix detection). If not found, warn but continue:
 
 ```
 The feature-dev plugin is recommended for code review.
@@ -60,7 +60,7 @@ Without it, the code review pipeline will skip: feature-dev:code-reviewer.
 
 ### backend-api-security (recommended)
 
-Check for its presence by looking for `backend-api-security:backend-security-coder` in the loaded skill list. If not found, warn but continue:
+Check for its presence by looking for any skill starting with `backend-api-security:` in the loaded skill list (namespace-prefix detection). If not found, warn but continue:
 
 ```
 The backend-api-security plugin is recommended for security review.
