@@ -1,9 +1,9 @@
 # Remove Duplicate Documentation from SKILL.md — Implementation Plan
 
 <!-- PROGRESS INDEX (updated by implementation skills)
-Task 1: Create decision-log-templates.md reference file — STATUS: pending
-Task 2: Replace inline content in SKILL.md — STATUS: pending
-Task 3: Verify net line reduction — STATUS: pending
+Task 1: Create decision-log-templates.md reference file — STATUS: done (commit 9e2efac)
+Task 2: Replace inline content in SKILL.md — STATUS: done (commit 828c02f)
+Task 3: Verify net line reduction — STATUS: done (verification passed)
 CURRENT: none
 -->
 
