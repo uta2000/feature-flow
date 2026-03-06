@@ -1,8 +1,8 @@
 # Deduplicate YOLO Execution Continuity Instructions — Implementation Plan
 
 <!-- PROGRESS INDEX (updated by implementation skills)
-Task 1: Define Turn Bridge Rule in Step 3 — STATUS: pending
-Task 2: Replace inline repetitions with one-line references — STATUS: pending
+Task 1: Define Turn Bridge Rule in Step 3 — STATUS: done (commit 387d2cf)
+Task 2: Replace inline repetitions with one-line references — STATUS: done (commit ddbf183)
 CURRENT: none
 -->
 
