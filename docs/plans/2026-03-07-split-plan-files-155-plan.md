@@ -1,9 +1,9 @@
 # Split Large Implementation Plans Implementation Plan
 
 <!-- PROGRESS INDEX (updated by implementation skills)
-Task 1: Add plan size constraint to Writing Plans Quality Context Injection — STATUS: pending
-Task 2: Update Subagent-Driven Development injection for multi-file plan reading — STATUS: pending
-Task 3: Update verify-acceptance-criteria to handle split plan discovery — STATUS: pending
+Task 1: Add plan size constraint to Writing Plans Quality Context Injection — STATUS: done (commit 1fd5f7f)
+Task 2: Update Subagent-Driven Development injection for multi-file plan reading — STATUS: done (commit a5e0743)
+Task 3: Update verify-acceptance-criteria to handle split plan discovery — STATUS: done (commit 6a98768)
 CURRENT: none
 -->
 
