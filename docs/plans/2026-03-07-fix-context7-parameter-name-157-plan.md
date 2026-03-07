@@ -1,7 +1,7 @@
 # Fix context7 Parameter Name Mismatch Implementation Plan
 
 <!-- PROGRESS INDEX (updated by implementation skills)
-Task 1: Add parameter documentation to tool-api.md — STATUS: pending
+Task 1: Add parameter documentation to tool-api.md — STATUS: done (commit 93a81b7)
 CURRENT: none
 -->
 
