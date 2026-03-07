@@ -129,6 +129,31 @@ Additional YOLO behavior:
 2. When dispatching implementation subagents, use `model: sonnet` unless the task description contains keywords indicating architectural complexity: "architect", "migration", "schema change", "new data model". For these, use `model: opus`. Announce: `YOLO: subagent-driven-development — Model selection → sonnet (or opus for [keyword])`
 3. When dispatching spec review or consumer verification subagents, use `model: sonnet`. These agents compare implementation against acceptance criteria or verify existing code is unchanged — checklist work that does not require deep reasoning.
 4. When dispatching Explore agents during implementation, follow the Model Routing Defaults section below (`haiku`).
+5. **Parallelization Protocol.** Before starting the task loop, analyze the plan to maximize parallel dispatch. Never implement tasks inline — the orchestrator's role is analysis and dispatch only.
+
+   **Phase A — Dependency analysis:**
+   - For each task, read its `Parallelizable:` field from Quality Constraints
+   - If `Parallelizable: yes`: task is independent (safe to parallelize)
+   - If `Parallelizable: no` or absent: check "Files modified" lists — two tasks conflict if they share any listed file; tasks with no shared files are treated as independent
+   - `Parallelizable: unknown` defaults to sequential
+
+   **Phase B — Mechanical classification:**
+   A task is **mechanical** if ALL hold:
+   - "Files modified" lists ≤2 files
+   - Description matches at least one pattern: type generation, schema regeneration, config edit, nav item, isolated UI primitive, database type update, single-file utility
+   - Description contains NONE of: "integrate", "orchestrate", "refactor", "migrate", "architect", "coordinate", "pipeline"
+
+   **Phase C — Execution waves:**
+   - **Wave 1:** all independent + mechanical tasks → dispatch as parallel `Task()` calls in a **single message**
+   - **Wave 2+:** remaining tasks in dependency order; tasks within a wave with no mutual file conflicts may also be dispatched in parallel (single message per wave)
+   - A task in Wave N+1 waits for all Wave N tasks to complete before dispatch
+
+   **Phase D — Minimum threshold:**
+   When the plan has >5 tasks:
+   - If (parallel-dispatched tasks) / (total tasks) < 0.50, promote additional border-case tasks (those with `Parallelizable: unknown` and no obvious file conflicts) from sequential to independent
+   - Announce: `YOLO: subagent-driven-development — Parallelization → Wave 1: [N tasks], Wave 2: [M tasks], total [K/T] dispatched to subagents`
+
+   **Safety (CRITICAL):** Only dispatch in parallel when tasks have zero shared file dependencies. Never dispatch two tasks that modify the same file concurrently — this causes irrecoverable git conflicts. The dependency analysis in Phase A enforces this. When in doubt, default to sequential.
 
 ## Subagent-Driven Development Context Injection
 
