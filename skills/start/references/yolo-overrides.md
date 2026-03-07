@@ -134,8 +134,9 @@ Additional YOLO behavior:
    **Phase A — Dependency analysis:**
    - For each task, read its `Parallelizable:` field from Quality Constraints
    - If `Parallelizable: yes`: task is independent (safe to parallelize)
-   - If `Parallelizable: no` or absent: check "Files modified" lists — two tasks conflict if they share any listed file; tasks with no shared files are treated as independent
-   - `Parallelizable: unknown` defaults to sequential
+   - If `Parallelizable: no`: treat as sequential — respect the planner's explicit declaration (including logic dependencies that file analysis cannot infer)
+   - If field is absent: check "Files modified" lists — two tasks conflict if they share any listed file; tasks with no shared files are treated as independent
+   - `Parallelizable: unknown` defaults to sequential, unless promoted by Phase D's minimum threshold rule
 
    **Phase B — Mechanical classification:**
    A task is **mechanical** if ALL hold:
@@ -151,7 +152,8 @@ Additional YOLO behavior:
    **Phase D — Minimum threshold:**
    When the plan has >5 tasks:
    - If (parallel-dispatched tasks) / (total tasks) < 0.50, promote additional border-case tasks (those with `Parallelizable: unknown` and no obvious file conflicts) from sequential to independent
-   - Announce: `YOLO: subagent-driven-development — Parallelization → Wave 1: [N tasks], Wave 2: [M tasks], total [K/T] dispatched to subagents`
+
+   Announce after completing all phases: `YOLO: subagent-driven-development — Parallelization → Wave 1: [N tasks], Wave 2: [M tasks], total [K/T] dispatched to subagents`
 
    **Safety (CRITICAL):** Only dispatch in parallel when tasks have zero shared file dependencies. Never dispatch two tasks that modify the same file concurrently — this causes irrecoverable git conflicts. The dependency analysis in Phase A enforces this. When in doubt, default to sequential.
 
