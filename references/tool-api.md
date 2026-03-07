@@ -115,10 +115,19 @@ Context7 is an MCP plugin for querying up-to-date library documentation. Its too
 
 **Tools:**
 
-| Tool | Purpose |
-|------|---------|
-| `mcp__plugin_context7_context7__resolve-library-id` | Resolve a library name to its Context7 ID |
-| `mcp__plugin_context7_context7__query-docs` | Query a library's documentation |
+### `mcp__plugin_context7_context7__resolve-library-id`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `libraryName` | string | Yes | Library name to search for (e.g., `"next.js"`, `"supabase-js"`) |
+| `query` | string | Yes | What you need to accomplish — used to rank results by relevance |
+
+### `mcp__plugin_context7_context7__query-docs`
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `libraryId` | string | Yes | Context7 library ID in format `/org/project` (from `resolve-library-id` or `.feature-flow.yml`) |
+| `query` | string | Yes | Specific question or topic (e.g., `"server actions error handling"`) |
 
 **Usage pattern:**
 
@@ -131,3 +140,5 @@ Context7 is an MCP plugin for querying up-to-date library documentation. Its too
 
 - Do NOT assume Context7 is available just because `.feature-flow.yml` has a `context7` field — the plugin must also be loaded
 - Do NOT call Context7 tools without checking availability first
+- Do NOT use `context7CompatibleLibraryID` as a parameter name — the correct parameter is `libraryId`
+- Do NOT omit `libraryName` when calling `resolve-library-id` — both `libraryName` and `query` are required

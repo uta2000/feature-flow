@@ -1,8 +1,8 @@
 # Subagent-Driven Development Parallelization Implementation Plan
 
 <!-- PROGRESS INDEX (updated by implementation skills)
-Task 1: Add Parallelizable field to Writing Plans Quality Context Injection — STATUS: pending
-Task 2: Add Parallelization Protocol to Subagent-Driven Development YOLO Override — STATUS: pending
+Task 1: Add Parallelizable field to Writing Plans Quality Context Injection — STATUS: done (commit 37eecd5)
+Task 2: Add Parallelization Protocol to Subagent-Driven Development YOLO Override — STATUS: done (commit 73128da)
 CURRENT: none
 -->
 
