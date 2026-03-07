@@ -62,7 +62,7 @@ Without it, the code review pipeline will skip: feature-dev reviewers.
 
 Check for its presence using two strategies (either is sufficient to consider it installed):
 1. **Skill namespace prefix:** look for any skill starting with `backend-api-security:` in the loaded skill list
-2. **Agent file path:** if not found in skill list, run `ls ~/.claude/plugins/cache/*/backend-api-security 2>/dev/null | head -1` — if output is non-empty, the plugin is installed as an agent-based plugin
+2. **Agent file path:** if not found in skill list, run `find ~/.claude/plugins/cache -maxdepth 3 -name backend-api-security -type d 2>/dev/null | head -1` — if output is non-empty, the plugin is installed as an agent-based plugin
 
 If neither strategy detects the plugin, warn but continue:
 

@@ -1,6 +1,12 @@
 # Agent-Based Plugin Detection Fix Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+<!-- PROGRESS INDEX (updated by implementation skills)
+Task 1: Fix backend-api-security detection in SKILL.md — STATUS: done (commit c073af5)
+Task 2: Bump plugin version to 1.23.4 — STATUS: done (commit 9b984c2)
+CURRENT: none
+-->
+
+> **For Claude:** After compaction, read only the PROGRESS INDEX to determine current task. Then read the full section for that specific task only. REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Fix the `start` skill pre-flight check so agent-based plugins (like `backend-api-security`) are correctly detected as installed even when they expose no skills.
 
