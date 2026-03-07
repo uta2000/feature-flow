@@ -66,6 +66,39 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
 
    The `subagent-driven-development` orchestrator reads this field during its Parallelization Protocol to group tasks into execution waves.
 
+6. **Plan size constraint — split large plans into per-phase files.** After drafting all tasks but before saving the file, write the complete draft to the standard output path first, run `wc -w` on that file, then decide whether to split (and reorganize into index + phase files if the threshold is exceeded). If the word count exceeds **15,000 words** (proxy for ~20K tokens — the safe Read limit threshold), split the plan:
+
+   **When not to split:** If the plan has only one natural phase (e.g., all tasks touch one layer), keep it as a single file even if it slightly exceeds 15,000 words rather than creating an artificial split. Only split when phase boundaries are clear.
+
+   **Split strategy:**
+   - Create one lightweight **index file** at the standard path (`docs/plans/YYYY-MM-DD-feature-plan.md`). The index file contains: the plan title, the Progress Index HTML comment (with all tasks and their Phase labels listed), the `> **For Claude:**` callout, and a `## Phase Manifest` section. Keep the index under 5,000 words.
+   - Create one **phase file** per logical implementation phase alongside the index (e.g., `docs/plans/YYYY-MM-DD-feature-plan-phase-1.md`, `docs/plans/YYYY-MM-DD-feature-plan-phase-2.md`). Each phase file contains the full task sections for that phase (files, steps, acceptance criteria, quality constraints). Each phase file begins with a `# [Feature Name] — Phase N: [Name]` title heading followed immediately by its task sections. Phase files do NOT include a Progress Index comment or `> **For Claude:**` callout — those live only in the index file.
+
+   **Index file format for split plans:**
+
+   ```markdown
+   # [Feature Name] Implementation Plan
+
+   <!-- PROGRESS INDEX (updated by implementation skills)
+   Task 1: [name] — STATUS: pending — Phase: phase-1
+   Task 2: [name] — STATUS: pending — Phase: phase-1
+   Task 3: [name] — STATUS: pending — Phase: phase-2
+   CURRENT: none
+   -->
+
+   > **For Claude:** This is a split plan. Read only this index for status tracking.
+   > To implement a task, load the phase file listed in the PROGRESS INDEX for that task.
+
+   ## Phase Manifest
+
+   | Phase | File | Tasks |
+   |-------|------|-------|
+   | Phase 1: [Name] | `docs/plans/YYYY-MM-DD-feature-plan-phase-1.md` | Tasks 1–2 |
+   | Phase 2: [Name] | `docs/plans/YYYY-MM-DD-feature-plan-phase-2.md` | Task 3 |
+   ```
+
+   **Progress Index addition for split plans:** Each task line in the PROGRESS INDEX includes `— Phase: phase-N` so consumers (subagent-driven-development, verify-acceptance-criteria) know which phase file to load for that task.
+
 **Example task with quality constraints:**
 
 ```markdown
@@ -188,6 +221,18 @@ Example edits (completing Task 2 with commit abc1234):
 - new_string: `CURRENT: none`
 
 **Task transition batching:** When completing implementation task N and starting task N+1, batch both `TaskUpdate` calls into a single parallel message before dispatching the next implementer subagent: `[TaskUpdate(N, completed), TaskUpdate(N+1, in_progress)]`. This saves one API round-trip per task transition. When N is the last task (no N+1 in the plan), call only `TaskUpdate(N, completed)` — do not batch.
+
+## Split Plan Reading (for split plans only)
+
+When the plan file is a split plan (detected by the presence of `## Phase Manifest` in the plan file content), the orchestrator must load the correct phase file before extracting task text for each implementer dispatch:
+
+1. **Detect split plan:** After reading the plan file, check if it contains `## Phase Manifest`. If yes, it is a split plan.
+2. **Find the task's phase:** In the PROGRESS INDEX, find the task's line and extract the `— Phase: phase-N` value. If `— Phase:` is not present on the task's line (e.g., from an older plan), fall back to reading the full plan file directly — treat it as a single-file plan.
+3. **Load the phase file:** Parse the Phase Manifest table in the plan file (which serves as the index file for the split plan) to find the full path for that phase (e.g., `docs/plans/YYYY-MM-DD-feature-plan-phase-1.md`) and read it.
+4. **Extract task text from the phase file:** Find the `### Task N:` section in the phase file and extract the full task text (files, steps, acceptance criteria, quality constraints). Provide this full text to the implementer subagent as usual — the implementer receives the same complete task text as in a single-file plan.
+5. **Update Progress Index in the index file** (not the phase file): STATUS and CURRENT updates always go in the plan file's `<!-- PROGRESS INDEX` block.
+
+Non-split plans: skip all steps above — the existing single-file reading behavior is unchanged.
 
 ## Implementer Quality Context Injection
 
