@@ -227,10 +227,10 @@ Example edits (completing Task 2 with commit abc1234):
 When the plan file is a split plan (detected by the presence of `## Phase Manifest` in the plan file content), the orchestrator must load the correct phase file before extracting task text for each implementer dispatch:
 
 1. **Detect split plan:** After reading the plan file, check if it contains `## Phase Manifest`. If yes, it is a split plan.
-2. **Find the task's phase:** In the PROGRESS INDEX, find the task's line and extract the `— Phase: phase-N` value.
-3. **Load the phase file:** Parse the Phase Manifest table in the index file to find the full path for that phase (e.g., `docs/plans/YYYY-MM-DD-feature-plan-phase-1.md`) and read it.
+2. **Find the task's phase:** In the PROGRESS INDEX, find the task's line and extract the `— Phase: phase-N` value. If `— Phase:` is not present on the task's line (e.g., from an older plan), fall back to reading the full plan file directly — treat it as a single-file plan.
+3. **Load the phase file:** Parse the Phase Manifest table in the plan file (which serves as the index file for the split plan) to find the full path for that phase (e.g., `docs/plans/YYYY-MM-DD-feature-plan-phase-1.md`) and read it.
 4. **Extract task text from the phase file:** Find the `### Task N:` section in the phase file and extract the full task text (files, steps, acceptance criteria, quality constraints). Provide this full text to the implementer subagent as usual — the implementer receives the same complete task text as in a single-file plan.
-5. **Update Progress Index in the index file** (not the phase file): STATUS and CURRENT updates always go in the index file's `<!-- PROGRESS INDEX` block.
+5. **Update Progress Index in the index file** (not the phase file): STATUS and CURRENT updates always go in the plan file's `<!-- PROGRESS INDEX` block.
 
 Non-split plans: skip all steps above — the existing single-file reading behavior is unchanged.
 
