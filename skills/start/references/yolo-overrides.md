@@ -59,6 +59,13 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
    > Then read the full section for that specific task only.
    ```
 
+5. **Parallelizable field required in Quality Constraints.** Each task's Quality Constraints section must include a `Parallelizable:` field declaring whether the task can execute concurrently with other tasks in this plan:
+   - `Parallelizable: yes` — task modifies files not shared with any other task in this plan; safe to dispatch concurrently with other `yes` tasks
+   - `Parallelizable: no` — task shares files with one or more other tasks, or has logic dependencies; must run sequentially
+   - `Parallelizable: unknown` — file dependencies unclear at plan time; treated as `no` by the orchestrator (sequential)
+
+   The `subagent-driven-development` orchestrator reads this field during its Parallelization Protocol to group tasks into execution waves.
+
 **Example task with quality constraints:**
 
 ```markdown
@@ -77,6 +84,7 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
 - Pattern: follow existing handler in `src/handlers/users.ts`
 - Files modified: `src/handlers/search.ts` (design-first — 180 lines)
 - Design-first files: `src/handlers/search.ts` — implementer must output change plan before editing
+- Parallelizable: no
 ```
 
 ## Using Git Worktrees YOLO Override
