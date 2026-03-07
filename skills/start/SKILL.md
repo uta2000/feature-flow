@@ -92,6 +92,16 @@ Internal agents marked `(internal)` run inside their parent plugin's subagent an
 
 **Read `references/step-lists.md` — "Pre-Flight Reviewer Audit", "Marketplace Discovery", and "Install Missing Plugins Prompt" sections** after completing plugin availability checks above.
 
+### Tool Parameter Types
+
+> **Post-compaction reminder:** Tool parameters must use correct types. Wrong types cause cascading failures.
+>
+> | Parameter | Tool | Correct type | Wrong type (do NOT use) |
+> |-----------|------|-------------|------------------------|
+> | `replace_all` | Edit | `boolean` — `true` or `false` | `'true'` / `'false'` (string) |
+> | `offset` | Read | `number` — e.g. `100` | `'100'` (string) |
+> | `limit` | Read | `number` — e.g. `50` | `'50'` (string) |
+
 ## Purpose
 
 Ensure the lifecycle is followed from start to finish. Track which steps are complete, invoke the right skill at each stage, and do not advance until the current step is done.
