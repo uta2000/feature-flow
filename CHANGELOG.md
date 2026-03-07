@@ -16,6 +16,7 @@ All notable changes to the feature-flow plugin.
 - **YOLO mode pauses from `ACTION REQUIRED` hook message** — `PostToolUse Write` hook on `plans/*.md` files previously emitted `ACTION REQUIRED: Plan file written...`, which Claude interpreted as a blocking imperative and stopped to act on. Changed to `[feature-flow]` prefix with explicit note that YOLO mode should continue without pausing. (Closes #135)
 - **YOLO mode pauses from step 4 standalone text output** — Step 4 "Confirm completion" in the execution loop could produce a text-only response that ends the turn, forcing the user to type "continue". Added explicit instruction that confirmation notes must be included alongside the `TaskUpdate` call in step 5, not as a standalone text response. (Closes #135)
 - **Document context7 tool parameters to prevent wrong parameter name usage** — `references/tool-api.md` listed the context7 MCP tools without documenting their parameters, causing the AI to fall back on pre-training knowledge that uses the wrong name `context7CompatibleLibraryID` instead of `libraryId`. Added explicit parameter tables for both `resolve-library-id` and `query-docs`, and a common-mistakes entry calling out the wrong parameter name. (Closes #157)
+- **Fix agent-based plugin detection in `start` skill pre-flight** — the pre-flight check for `backend-api-security` used namespace-prefix detection (scanning the skill list for `backend-api-security:*` entries) which fails for plugins that expose agents instead of skills. Added fallback detection via `find ~/.claude/plugins/cache -maxdepth 3 -name backend-api-security -type d 2>/dev/null | head -1` — if the plugin directory exists in the cache, it is considered installed regardless of whether it exposes skills with a namespace prefix. (Closes #153)
 
 ### Added
 - **Reviewer Stack Affinity Table and pre-flight reviewer audit** — `start` skill's pre-flight check now includes a static reviewer-to-stack mapping table and a reviewer audit that reports review coverage for the project's detected stack. Cross-references installed plugins against the affinity table, classifying reviewers as relevant+installed, relevant+missing, or irrelevant based on `.feature-flow.yml` stack entries. Internal agents (`silent-failure-hunter`, `code-simplifier`) marked for audit visibility but not dispatched independently. (Closes #143)
@@ -61,6 +62,7 @@ All notable changes to the feature-flow plugin.
 
 ### Maintenance
 - **Bump version to 1.22.3** — `.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, and `.feature-flow.yml` updated to reflect the new plugin version.
+- Bump version to 1.23.4
 
 ## [1.22.1] - 2026-02-28
 
