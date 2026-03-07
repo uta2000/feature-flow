@@ -66,11 +66,11 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
 
    The `subagent-driven-development` orchestrator reads this field during its Parallelization Protocol to group tasks into execution waves.
 
-6. **Plan size constraint — split large plans into per-phase files.** After drafting all tasks but before saving the file, estimate the plan size by counting words with `wc -w` on the draft content. If the word count exceeds **15,000 words** (proxy for ~20K tokens — the safe Read limit threshold), split the plan:
+6. **Plan size constraint — split large plans into per-phase files.** After drafting all tasks but before saving the file, write the complete draft to the standard output path first, run `wc -w` on that file, then decide whether to split (and reorganize into index + phase files if the threshold is exceeded). If the word count exceeds **15,000 words** (proxy for ~20K tokens — the safe Read limit threshold), split the plan:
 
    **Split strategy:**
    - Create one lightweight **index file** at the standard path (`docs/plans/YYYY-MM-DD-feature-plan.md`). The index file contains: the plan title, the Progress Index HTML comment (with all tasks and their Phase labels listed), the `> **For Claude:**` callout, and a `## Phase Manifest` section. Keep the index under 5,000 words.
-   - Create one **phase file** per logical implementation phase alongside the index (e.g., `docs/plans/YYYY-MM-DD-feature-plan-phase-1.md`, `docs/plans/YYYY-MM-DD-feature-plan-phase-2.md`). Each phase file contains the full task sections for that phase (files, steps, acceptance criteria, quality constraints).
+   - Create one **phase file** per logical implementation phase alongside the index (e.g., `docs/plans/YYYY-MM-DD-feature-plan-phase-1.md`, `docs/plans/YYYY-MM-DD-feature-plan-phase-2.md`). Each phase file contains the full task sections for that phase (files, steps, acceptance criteria, quality constraints). Each phase file begins with a `# [Feature Name] — Phase N: [Name]` title heading followed immediately by its task sections. Phase files do NOT include a Progress Index comment or `> **For Claude:**` callout — those live only in the index file.
 
    **Index file format for split plans:**
 
