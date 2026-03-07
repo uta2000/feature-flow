@@ -53,7 +53,7 @@ If no `docs/plans/` directory exists, check for plan files in common locations:
 Pick the most recent file. Confirm with the user: "Verifying against plan: `[path]`. Is this correct?"
 
 **Split plan detection:** After the plan file is found, read it and check for the presence of `## Phase Manifest`. If found, it is a split plan:
-1. Parse the `## Phase Manifest` table to extract all phase file paths.
+1. Parse the `## Phase Manifest` table to extract all phase file paths. (The table has at minimum a File column containing relative paths like `docs/plans/YYYY-MM-DD-feature-plan-phase-1.md`.)
 2. Read each phase file.
 3. Treat the combined content of all phase files as the plan content for Step 2's criteria extraction.
 
@@ -61,9 +61,9 @@ If `## Phase Manifest` is absent, proceed with the single plan file content as b
 
 ### Step 2: Extract Acceptance Criteria
 
-**Note for split plans:** If the plan was detected as a split plan in Step 1, extract acceptance criteria from all phase files (not the index file). Label each task's criteria with its source phase file for traceability in the verification report (e.g., `Task 1 [from phase-1]`).
+**Note for split plans:** If the plan was detected as a split plan in Step 1, extract acceptance criteria from all phase files (not the index file). Label each task's criteria with its source phase file for traceability in the verification report (e.g., `Task 1 [from phase-1]`). When constructing the Step 3 verifier prompt, use `Task N [from phase-N]: [Title]` as the task identifier for each task from a phase file.
 
-Read the plan file and extract all `**Acceptance Criteria:**` sections.
+Read the plan file(s) identified in Step 1 (for split plans, this means all phase files; for single-file plans, this means the plan file directly) and extract all `**Acceptance Criteria:**` sections.
 
 For each task, collect:
 - Task number and title
