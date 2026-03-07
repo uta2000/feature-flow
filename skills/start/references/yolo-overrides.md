@@ -66,6 +66,39 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
 
    The `subagent-driven-development` orchestrator reads this field during its Parallelization Protocol to group tasks into execution waves.
 
+6. **Plan size constraint — split large plans into per-phase files.** After drafting all tasks but before saving the file, estimate the plan size by counting words with `wc -w` on the draft content. If the word count exceeds **15,000 words** (proxy for ~20K tokens — the safe Read limit threshold), split the plan:
+
+   **Split strategy:**
+   - Create one lightweight **index file** at the standard path (`docs/plans/YYYY-MM-DD-feature-plan.md`). The index file contains: the plan title, the Progress Index HTML comment (with all tasks and their Phase labels listed), the `> **For Claude:**` callout, and a `## Phase Manifest` section. Keep the index under 5,000 words.
+   - Create one **phase file** per logical implementation phase alongside the index (e.g., `docs/plans/YYYY-MM-DD-feature-plan-phase-1.md`, `docs/plans/YYYY-MM-DD-feature-plan-phase-2.md`). Each phase file contains the full task sections for that phase (files, steps, acceptance criteria, quality constraints).
+
+   **Index file format for split plans:**
+
+   ```markdown
+   # [Feature Name] Implementation Plan
+
+   <!-- PROGRESS INDEX (updated by implementation skills)
+   Task 1: [name] — STATUS: pending — Phase: phase-1
+   Task 2: [name] — STATUS: pending — Phase: phase-1
+   Task 3: [name] — STATUS: pending — Phase: phase-2
+   CURRENT: none
+   -->
+
+   > **For Claude:** This is a split plan. Read only this index for status tracking.
+   > To implement a task, load the phase file listed in the PROGRESS INDEX for that task.
+
+   ## Phase Manifest
+
+   | Phase | File | Tasks |
+   |-------|------|-------|
+   | Phase 1: [Name] | `docs/plans/YYYY-MM-DD-feature-plan-phase-1.md` | Tasks 1–2 |
+   | Phase 2: [Name] | `docs/plans/YYYY-MM-DD-feature-plan-phase-2.md` | Task 3 |
+   ```
+
+   **Progress Index addition for split plans:** Each task line in the PROGRESS INDEX includes `— Phase: phase-N` so consumers (subagent-driven-development, verify-acceptance-criteria) know which phase file to load for that task.
+
+   **When not to split:** If the plan has only one natural phase (e.g., all tasks touch one layer), keep it as a single file even if it slightly exceeds 15,000 words rather than creating an artificial split. Only split when phase boundaries are clear.
+
 **Example task with quality constraints:**
 
 ```markdown
