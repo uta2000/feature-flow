@@ -1,9 +1,9 @@
 # Fix Fragile Sentinel-Based Plugin Detection Implementation Plan
 
 <!-- PROGRESS INDEX (updated by implementation skills)
-Task 1: Update pre-flight detection to namespace-prefix — STATUS: pending
-Task 2: Update Reviewer Stack Affinity Table — STATUS: pending
-Task 3: Update code-review-pipeline reviewer references — STATUS: pending
+Task 1: Update pre-flight detection to namespace-prefix — STATUS: done (commit e2f3c17)
+Task 2: Update Reviewer Stack Affinity Table — STATUS: done (skipped — agent names correct for dispatch)
+Task 3: Update code-review-pipeline reviewer references — STATUS: done (skipped — agent names correct for dispatch)
 CURRENT: none
 -->
 
