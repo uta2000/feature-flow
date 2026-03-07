@@ -68,6 +68,8 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
 
 6. **Plan size constraint — split large plans into per-phase files.** After drafting all tasks but before saving the file, write the complete draft to the standard output path first, run `wc -w` on that file, then decide whether to split (and reorganize into index + phase files if the threshold is exceeded). If the word count exceeds **15,000 words** (proxy for ~20K tokens — the safe Read limit threshold), split the plan:
 
+   **When not to split:** If the plan has only one natural phase (e.g., all tasks touch one layer), keep it as a single file even if it slightly exceeds 15,000 words rather than creating an artificial split. Only split when phase boundaries are clear.
+
    **Split strategy:**
    - Create one lightweight **index file** at the standard path (`docs/plans/YYYY-MM-DD-feature-plan.md`). The index file contains: the plan title, the Progress Index HTML comment (with all tasks and their Phase labels listed), the `> **For Claude:**` callout, and a `## Phase Manifest` section. Keep the index under 5,000 words.
    - Create one **phase file** per logical implementation phase alongside the index (e.g., `docs/plans/YYYY-MM-DD-feature-plan-phase-1.md`, `docs/plans/YYYY-MM-DD-feature-plan-phase-2.md`). Each phase file contains the full task sections for that phase (files, steps, acceptance criteria, quality constraints). Each phase file begins with a `# [Feature Name] — Phase N: [Name]` title heading followed immediately by its task sections. Phase files do NOT include a Progress Index comment or `> **For Claude:**` callout — those live only in the index file.
@@ -96,8 +98,6 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
    ```
 
    **Progress Index addition for split plans:** Each task line in the PROGRESS INDEX includes `— Phase: phase-N` so consumers (subagent-driven-development, verify-acceptance-criteria) know which phase file to load for that task.
-
-   **When not to split:** If the plan has only one natural phase (e.g., all tasks touch one layer), keep it as a single file even if it slightly exceeds 15,000 words rather than creating an artificial split. Only split when phase boundaries are clear.
 
 **Example task with quality constraints:**
 
@@ -222,7 +222,7 @@ Example edits (completing Task 2 with commit abc1234):
 
 **Task transition batching:** When completing implementation task N and starting task N+1, batch both `TaskUpdate` calls into a single parallel message before dispatching the next implementer subagent: `[TaskUpdate(N, completed), TaskUpdate(N+1, in_progress)]`. This saves one API round-trip per task transition. When N is the last task (no N+1 in the plan), call only `TaskUpdate(N, completed)` — do not batch.
 
-**Split Plan Reading (for split plans only):**
+## Split Plan Reading (for split plans only)
 
 When the plan file is a split plan (detected by the presence of `## Phase Manifest` in the plan file content), the orchestrator must load the correct phase file before extracting task text for each implementer dispatch:
 
