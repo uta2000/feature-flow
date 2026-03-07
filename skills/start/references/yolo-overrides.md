@@ -57,6 +57,7 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
 
    > **For Claude:** After compaction, read only the PROGRESS INDEX to determine current task.
    > Then read the full section for that specific task only.
+   > Tool parameter types: Edit `replace_all`: boolean (`true`/`false`), NOT string. Read `offset`/`limit`: number, NOT string.
    ```
 
 5. **Parallelizable field required in Quality Constraints.** Each task's Quality Constraints section must include a `Parallelizable:` field declaring whether the task can execute concurrently with other tasks in this plan:
@@ -88,6 +89,7 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
 
    > **For Claude:** This is a split plan. Read only this index for status tracking.
    > To implement a task, load the phase file listed in the PROGRESS INDEX for that task.
+   > Tool parameter types: Edit `replace_all`: boolean (`true`/`false`), NOT string. Read `offset`/`limit`: number, NOT string.
 
    ## Phase Manifest
 
