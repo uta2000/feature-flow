@@ -89,6 +89,7 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
 
    > **For Claude:** This is a split plan. Read only this index for status tracking.
    > To implement a task, load the phase file listed in the PROGRESS INDEX for that task.
+   > Tool parameter types: Edit `replace_all`: boolean (`true`/`false`), NOT string. Read `offset`/`limit`: number, NOT string.
 
    ## Phase Manifest
 
