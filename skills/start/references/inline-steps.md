@@ -271,8 +271,8 @@ Check these sources in order, use the first one found:
 5. Latest git tag matching semver pattern: `git tag --sort=-v:refname | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+' | head -1`
 
 If a version is detected, present it alongside `[Unreleased]` via `AskUserQuestion`:
-- **Option 1:** `[Unreleased]` (Recommended) — assign version at release time
-- **Option 2:** `[X.Y.Z] - YYYY-MM-DD` — use detected version now
+- **Option 1:** `[Unreleased]` with description: "*Recommended — assign version at release time; keeps the entry flexible until the next release*"
+- **Option 2:** `[X.Y.Z] - YYYY-MM-DD` with description: "Stamp the detected version now — use if this PR completes the release"
 
 If no version detected, use `[Unreleased]` without asking.
 
@@ -302,9 +302,9 @@ Category order: Added, Fixed, Changed, Documentation, Testing, Maintenance, Chan
 
 Present the generated entry to the user via `AskUserQuestion`:
 
-- **Option 1:** "Looks good — write it" — proceed to write
-- **Option 2:** "Let me edit" — user provides corrections in freeform text, entry is revised
-- **Option 3:** "Skip CHANGELOG" — announce risk: "No CHANGELOG entry will be included in this PR. You may want to add one manually." Proceed to next lifecycle step.
+- **Option 1:** "Looks good — write it" with description: "*Recommended — writes the entry to CHANGELOG.md under the appropriate version heading*"
+- **Option 2:** "Let me edit" with description: "Provide corrections in freeform text — the entry will be revised before writing"
+- **Option 3:** "Skip CHANGELOG" with description: "Omit the entry — note: missing CHANGELOG entries complicate release note generation"
 
 **YOLO behavior:** If YOLO mode is active, skip this question. Auto-select "Looks good — write it" and announce: `YOLO: start — CHANGELOG entry → Accepted`
 
