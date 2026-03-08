@@ -184,7 +184,7 @@ Use `AskUserQuestion`:
 - Question: `"Missing/suggested review plugins found. Install them for better coverage? (Requires Claude Code restart to take effect)"`
 - Option 1: `"Install all and restart"` with description: `"Installs plugins, then you restart Claude Code and re-run start: to get full coverage"`
 - Option 2: `"Let me pick"` with description: `"I'll choose which plugins to install"`
-- Option 3: `"Skip — continue without installing"` with description: `"*Recommended if unsure — proceed with currently installed plugins; you can add more later*"`
+- Option 3: `"Skip — continue without installing"` with description: `"*Recommended — proceed with currently installed plugins; install more later if needed*"`
 
 **If "Install all and restart":**
 1. For each missing/suggested plugin, run: `claude plugins add [plugin-name]`
