@@ -209,3 +209,79 @@ Continue the lifecycle with currently installed plugins. No further action.
 **YOLO behavior:** Skip the prompt. Auto-select "Skip — continue without installing." Announce: `YOLO: start — Install missing plugins → Skipped (YOLO mode)`
 
 **Express behavior:** Same as YOLO — skip the prompt, continue with installed plugins.
+
+---
+
+## Tool Selector Detection
+
+The `start` skill analyzes your project description to recommend feature-flow or GSD.
+
+### How It Works
+
+**1. Feature Detection**
+Counts distinct features mentioned: "add X", "build Y", "implement Z"
+- 1 feature: feature-flow signal
+- 2-3 features: neutral
+- 4+ features: GSD signal
+
+**2. Scope Keywords**
+Searches for high-impact phrases:
+- GSD indicators: "from scratch", "complete app", "full system", "build everything"
+- GSD indicators: "multiple independent", "parallel execution", "separate services"
+
+**3. Timeline Estimation**
+Extracts time mentions:
+- Feature-flow: "1-2 hours", "a few hours", "today"
+- GSD: "1-2 weeks", "several weeks", "a month"
+
+**4. Complexity Patterns**
+Detects architectural signals:
+- Multiple tech stacks in one description
+- Microservices or distributed language
+- Explicit counts: "50+ tasks", "10+ pages"
+
+### Recommendation Bands
+
+| Band | Confidence | When | Action |
+|------|-----------|------|--------|
+| 🟢 feature-flow | 0-40% | Small scope, 1-2 features | Proceed with feature-flow |
+| 🟡 GSD-recommended | 40-70% | Multi-feature, weeks timeline | Ask user to choose |
+| 🔴 GSD-strongly-recommended | 70%+ | Large, "from scratch", complex | Ask user to choose |
+
+### Examples
+
+**Triggers 🟢 feature-flow:**
+```
+start: add a logout button
+start: implement dark mode
+start: fix the authentication bug
+```
+
+**Triggers 🟡 GSD-recommended:**
+```
+start: build payments and invoicing features
+start: create user dashboard and settings page
+```
+
+**Triggers 🔴 GSD-strongly-recommended:**
+```
+start: build complete SaaS with payments, billing, analytics, dashboards
+start: build from scratch with React frontend, Node backend, PostgreSQL
+```
+
+### Configuration
+
+Control tool selection with `.feature-flow.yml`:
+```yaml
+tool_selector:
+  enabled: true                  # Enable/disable tool selection
+  confidence_threshold: 0.7      # Only recommend if >= 70% confident
+  auto_launch_gsd: false        # Auto-launch GSD without asking
+```
+
+Or use command-line overrides:
+```bash
+start: description --feature-flow   # Force feature-flow
+start: description --gsd            # Force GSD
+start: description                  # Auto-detect
+```
