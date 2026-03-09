@@ -8,7 +8,75 @@ tools: Read, Glob, Grep, Write, Edit, Bash, Task, AskUserQuestion, Skill
 
 Guide development work through the correct lifecycle steps, invoking the right skill at each stage. This is the single entry point for any non-trivial work.
 
-**Announce at start:** "Starting the feature lifecycle. Let me check project context and determine the right steps."
+**Announce at start:** "Starting the feature lifecycle. Analyzing your project to recommend the right tool..."
+
+## Tool Selection
+
+Before brainstorming, analyze your project description to recommend feature-flow or GSD.
+
+### Step 1: Check if tool selection is enabled
+
+Read `.feature-flow.yml` and look for `tool_selector.enabled`:
+- If `enabled: false` → skip tool selection, proceed directly to brainstorming
+- If `enabled: true` or missing → continue to step 2
+
+### Step 2: Check for command-line overrides
+
+Did the user include `--feature-flow` or `--gsd` flag?
+- If `--feature-flow` present → remove flag from description, skip detection, use feature-flow
+- If `--gsd` present → remove flag from description, skip detection, launch GSD
+- If no flags → continue to step 3
+
+### Step 3: Run heuristic detection
+
+Analyze user's project description using heuristics:
+1. Extract feature count (using regex for action verbs)
+2. Check for scope keywords ("from scratch", "complete app", etc.)
+3. Parse timeline mentions ("hours" vs "weeks/months")
+4. Detect complexity patterns (multiple stacks, microservices, explicit counts)
+
+Calculate weighted confidence score (0.0–1.0) using scoring table.
+
+### Step 4: Check confidence threshold
+
+Read `tool_selector.confidence_threshold` from .feature-flow.yml (default: 0.7):
+- If calculated_confidence < threshold → skip recommendation, proceed with feature-flow
+- If calculated_confidence >= threshold → continue to step 5
+
+### Step 5: Display recommendation
+
+Show recommendation based on confidence band:
+- **🟢 feature-flow** (0.0–0.4): Skip display, proceed silently
+- **🟡 GSD-recommended** (0.4–0.7): Display recommendation, ask user to choose
+- **🔴 GSD-strongly-recommended** (0.7+): Display recommendation, ask user to choose
+
+### Step 6: Execute user choice
+
+- If user chooses "Use feature-flow" → proceed with brainstorming
+- If user chooses "Launch GSD" → execute GSD handoff (see below)
+- If `auto_launch_gsd: true` → skip user choice, execute GSD handoff automatically
+
+### GSD Handoff Execution
+
+When launching GSD:
+
+1. **Extract metadata** from `.feature-flow.yml` (stack, database, etc.)
+2. **Create `.gsd-handoff.json`** with:
+   - original_description (from start command)
+   - stack, database, repo info
+   - features_detected, recommendation_confidence
+   - detected_features, detected_scope, recommended_tool_reason
+3. **Launch GSD:**
+   ```bash
+   npx get-shit-done-cc@latest --handoff-from-feature-flow
+   ```
+4. **Handle errors:**
+   - If GSD not installed → show install instructions, offer to continue with feature-flow
+   - If handoff file write fails → launch GSD normally (user re-explains)
+   - If user cancels GSD → ask "return to feature-flow or exit?"
+5. **Cleanup:** Delete `.gsd-handoff.json` after GSD exits
+
+---
 
 ## Pre-Flight Check
 
