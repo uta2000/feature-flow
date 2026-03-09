@@ -102,6 +102,177 @@ Internal agents marked `(internal)` run inside their parent plugin's subagent an
 > | `offset` | Read | `number` — e.g. `100` | `'100'` (string) |
 > | `limit` | Read | `number` — e.g. `50` | `'50'` (string) |
 
+## Command-Line Flag Parsing
+
+The `start:` command accepts optional flags to override tool selection:
+
+**Usage:**
+```bash
+start: <description> [--feature-flow | --gsd]
+```
+
+**Parsing logic:**
+1. Extract user input after `start:` keyword
+2. Check for `--feature-flow` or `--gsd` flags at the end
+3. If flag found, remove it from description and set override
+4. If no flag, proceed with automatic detection
+
+**Examples:**
+- `start: add logout button --feature-flow` → description: "add logout button", override: feature-flow
+- `start: build complete app --gsd` → description: "build complete app", override: gsd
+- `start: build payments system` → description: "build payments system", override: none (auto-detect)
+
+**Priority:**
+1. Command-line flags (highest priority)
+2. Config file settings (tool_selector section)
+3. Automatic heuristic detection (default)
+
+If flag is present, skip all other logic and use that flag's value.
+
+## Configuration Loading
+
+The start skill reads tool_selector config from `.feature-flow.yml`:
+
+**Precedence (highest to lowest):**
+1. Command-line flags (`--feature-flow` or `--gsd`) if provided
+2. Config file values from `.feature-flow.yml` → tool_selector section
+3. Built-in defaults (enabled: true, threshold: 0.7, auto_launch: false)
+
+**Reading config:**
+- Extract tool_selector section from .feature-flow.yml
+- Parse enabled, confidence_threshold, auto_launch_gsd values
+- Use defaults if section or keys missing
+
+**Config values:**
+- `tool_selector.enabled` (boolean, default: true)
+  - If false: Skip tool selection entirely, proceed with feature-flow
+  - If true: Run detection and show recommendation if confident
+
+- `tool_selector.confidence_threshold` (float 0-1, default: 0.7)
+  - Only show recommendation if calculated confidence >= threshold
+  - Example: score 0.65 with threshold 0.7 → no recommendation shown
+
+- `tool_selector.auto_launch_gsd` (boolean, default: false)
+  - If true: Launch GSD automatically when GSD is recommended
+  - If false: Ask user "Launch GSD or use feature-flow?" first
+
+**Default values:**
+```yaml
+tool_selector:
+  enabled: true
+  confidence_threshold: 0.7
+  auto_launch_gsd: false
+```
+
+## Recommendation Display
+
+Display recommendation to user with confidence level:
+
+**If tool_selector.enabled = false:**
+Skip display entirely, proceed directly with feature-flow.
+
+**If confidence < threshold:**
+Show quiet notification:
+```
+✅ This looks like feature-flow work. Starting...
+```
+
+**If confidence in band 🟡 (0.4–0.7):**
+```
+✅ Project Analysis:
+  • Features detected: 4
+  • Scope: "complete SaaS from scratch"
+  • Timeline: weeks/months
+  • Confidence: 65%
+
+🟡 Recommendation: This could be a GSD project.
+
+GSD handles multiple features through parallel execution and wave-based delivery.
+Feature-flow excels at single features with deep verification and thorough testing.
+
+Which would you prefer?
+  [Launch GSD]  [Use feature-flow anyway]
+```
+
+**If confidence in band 🔴 (0.7+):**
+```
+✅ Project Analysis:
+  • Features detected: 5
+  • Scope: "build from scratch"
+  • Timeline: 2+ months
+  • Confidence: 82%
+
+🔴 Recommendation: This is a GSD project.
+
+Multiple independent features work best in parallel. Feature-flow is built for
+focused single-feature development with thorough testing.
+
+Which would you prefer?
+  [Launch GSD (Recommended)]  [Use feature-flow anyway]
+```
+
+**User interaction:**
+- If tool_selector.auto_launch_gsd = true: Auto-launch GSD without prompt
+- If tool_selector.auto_launch_gsd = false: Show buttons, wait for user choice
+
+**Output clarity:**
+- Use emoji indicators (🟢/🟡/🔴) for confidence level
+- List detected features and scope for transparency
+- Explain WHY each tool is recommended
+- Keep explanations brief (2-3 sentences max)
+
+## GSD Handoff Mechanism
+
+When user chooses "Launch GSD", prepare context handoff:
+
+**Step 1: Extract project metadata**
+Read from `.feature-flow.yml`:
+- stack (node-js, react, python, etc.)
+- database (postgres, mongodb, etc.)
+- Any other project context
+
+**Step 2: Generate handoff payload**
+
+Create `.gsd-handoff.json` in repo root:
+```json
+{
+  "source": "feature-flow",
+  "timestamp": "2026-03-09T14:30:00Z",
+  "original_description": "build complete SaaS with payments, billing, analytics",
+  "stack": "node-js/react/typescript",
+  "database": "postgres",
+  "repo_url": "current working directory path",
+  "repo_state": "clean",
+  "metadata": {
+    "features_detected": 4,
+    "recommendation_confidence": 0.8,
+    "detected_features": ["payments", "invoicing", "billing", "analytics"],
+    "detected_scope": "from scratch",
+    "recommended_tool_reason": "4+ features detected + 'from scratch' + weeks timeline"
+  }
+}
+```
+
+**Step 3: Launch GSD**
+```bash
+npx get-shit-done-cc@latest --handoff-from-feature-flow
+```
+
+GSD detects `.gsd-handoff.json` and:
+1. Reads the `original_description`
+2. Skips "what are you building?" questions
+3. Jumps to "Let me clarify scope..." phase
+
+**Step 4: Cleanup**
+After GSD exits (success or cancel):
+- Delete `.gsd-handoff.json`
+- Return control to user or shell
+
+**Error handling:**
+- If GSD not installed: Show install command, offer to continue with feature-flow
+- If handoff file can't be written: Launch GSD normally (user pastes description again)
+- If user cancels GSD: Ask "return to feature-flow or exit?"
+
 ## Tool Selector Heuristic Detection
 
 Six heuristic detection functions inform the "which tool" decision in `start` Step 1. These signals combine into a confidence score (0.0–1.0) that recommends either feature-flow or GSD.
