@@ -108,8 +108,8 @@ Continue or adjust?
 ```
 
 Use `AskUserQuestion` with options:
-- "Continue" — approve the design and resume Express mode
-- "Let me adjust" — user provides corrections, document is updated, then Express resumes
+- "Continue" with description: "Approve the design and resume Express mode — implementation will begin immediately"
+- "Let me adjust" with description: "Provide corrections in freeform text — the document will be updated, then Express resumes"
 
 **Scope filtering:**
 - Quick fix / Small enhancement: No design approval checkpoint (too small)

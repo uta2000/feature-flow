@@ -121,7 +121,10 @@ The following tasks are missing acceptance criteria. Here are the suggested crit
 Accept all, edit, or skip?
 ```
 
-Use a single `AskUserQuestion` to get approval for all tasks at once. Options: "Accept all as-is", "Let me edit them", "Skip drafting".
+Use a single `AskUserQuestion` to get approval for all tasks at once. Options:
+- "Accept all as-is" with description: "*Recommended — applies all drafted criteria to their tasks; implementation can begin immediately*"
+- "Let me edit them" with description: "Provide corrections in freeform text — criteria will be revised and re-presented before applying"
+- "Skip drafting" with description: "Proceed without adding criteria — affected tasks will be harder to verify at completion"
 
 - **"Accept all as-is"** → Apply all drafted criteria (proceed to Step 5)
 - **"Let me edit them"** → User provides corrections in freeform text, criteria are revised, then applied. The user may also selectively accept or reject criteria for individual tasks (e.g., "Accept Task 2 and 4 criteria, skip Task 3").

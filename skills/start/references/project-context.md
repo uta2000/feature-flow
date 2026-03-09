@@ -71,7 +71,9 @@ After reading `.feature-flow.yml`, check for version drift:
 
    Does this look right? I'll save this to `.feature-flow.yml`.
    ```
-4. Use `AskUserQuestion` with options: "Looks correct", "Let me adjust"
+4. Use `AskUserQuestion` with options:
+   - "Looks correct" with description: "*Recommended — saves the detected platform and stack to .feature-flow.yml and continues*"
+   - "Let me adjust" with description: "Correct the platform or stack before saving — you'll provide the changes in freeform text"
 
 **YOLO behavior:** If YOLO mode is active, skip this question. Accept the detected context as-is and announce: `YOLO: start — Platform/stack detection → Accepted: [platform], [stack list]`
 
@@ -148,7 +150,7 @@ After the Session Model Recommendation, check whether the user wants to be notif
 
 Use `AskUserQuestion`:
 - Question: `"Notify me when Claude needs your input? (fires on every Stop event while the lifecycle runs)"`
-- Option 1: `"No notifications"` with description: `"(Default) No sound or banner — you check the terminal manually"`
+- Option 1: `"No notifications"` with description: `"*Recommended — no sound or banner; check the terminal manually when ready*"`
 - Option 2: `"Terminal bell"` with description: `"Runs: osascript -e 'beep 2' — a simple system beep when Claude pauses"`
 - Option 3: `"Desktop notification"` with description: `"Runs: display notification 'Claude Code needs your attention' — banner with Glass sound"`
 

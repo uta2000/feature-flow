@@ -161,7 +161,9 @@ These spike findings could prevent future bugs if added to your project gotchas:
 Add to .feature-flow.yml?
 ```
 
-Use `AskUserQuestion` with options: "Add", "Skip".
+Use `AskUserQuestion` with options:
+- "Add" with description: "*Recommended — saves the finding to .feature-flow.yml so future sessions are warned automatically*"
+- "Skip" with description: "Discard — the gotcha will not be persisted and may be rediscovered in a future session"
 
 **YOLO behavior:** If `yolo: true` is in the skill's `ARGUMENTS`, skip this question. Auto-select "Add" and announce: `YOLO: spike — Add gotcha → Added`
 

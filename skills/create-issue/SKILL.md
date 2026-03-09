@@ -126,7 +126,10 @@ Milestone: [if applicable]
 Update this issue?
 ```
 
-Use `AskUserQuestion` to confirm. Options: "Update as-is", "Let me edit first", "Cancel".
+Use `AskUserQuestion` to confirm. Options:
+- "Update as-is" with description: "*Recommended — applies the drafted title, body, and labels to the existing issue immediately*"
+- "Let me edit first" with description: "Provide corrections in freeform text — the draft will be revised before updating"
+- "Cancel" with description: "Abort — the issue will not be modified"
 
 **YOLO behavior:** If `yolo: true` is in the skill's `ARGUMENTS`, skip this question. Auto-select "Update as-is" and announce: `YOLO: create-issue — Confirm update → Update as-is`
 
@@ -143,7 +146,10 @@ Milestone: [if applicable]
 Create this issue?
 ```
 
-Use `AskUserQuestion` to confirm. Options: "Create as-is", "Let me edit first", "Cancel".
+Use `AskUserQuestion` to confirm. Options:
+- "Create as-is" with description: "*Recommended — creates the issue on GitHub with the drafted title, body, and labels*"
+- "Let me edit first" with description: "Provide corrections in freeform text — the draft will be revised before creating"
+- "Cancel" with description: "Abort — no issue will be created"
 
 **YOLO behavior:** If `yolo: true` is in the skill's `ARGUMENTS`, skip this question. Auto-select "Create as-is" and announce: `YOLO: create-issue — Confirm create → Create as-is`
 

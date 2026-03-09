@@ -22,8 +22,8 @@ Determine the session file using this priority order:
 ```
 AskUserQuestion: "Which session file should I analyze?"
 Options:
-- "Let me provide a path"
-- "Find the latest in docs/plans/"
+- "Find the latest in docs/plans/" with description: "*Recommended — scans docs/plans/ and opens the most recently modified session file automatically*"
+- "Let me provide a path" with description: "Enter an absolute or relative path to any session report file"
 ```
 
 If "Find the latest": use Glob to find `docs/plans/session-*.json`, pick the most recently modified file, and confirm: "Found `<filename>` — analyze this one?"
@@ -656,10 +656,10 @@ Then offer:
 ```
 AskUserQuestion: "What would you like to do with these findings?"
 Options:
-- "Create GitHub issues for actionable findings"
-- "Dig deeper into a specific area"
-- "Compare with another session"
-- "Done for now"
+- "Create GitHub issues for actionable findings" with description: "Open a GitHub issue for each high-priority finding flagged in the report"
+- "Dig deeper into a specific area" with description: "Re-run analysis focused on one section (e.g., token usage, tool calls, errors)"
+- "Compare with another session" with description: "Load a second session report and diff the two side by side"
+- "Done for now" with description: "Exit the session report skill — you can re-run it any time"
 ```
 
 **If "Create GitHub issues":** For each High and Medium impact finding, draft an issue with:

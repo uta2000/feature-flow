@@ -239,7 +239,10 @@ I found findings that could prevent future bugs if added to your project gotchas
 Add these to .feature-flow.yml?
 ```
 
-Use `AskUserQuestion` with options: "Add all", "Let me pick", "Skip".
+Use `AskUserQuestion` with options:
+- "Add all" with description: "*Recommended — adds every finding to .feature-flow.yml as a project-wide warning for future sessions*"
+- "Let me pick" with description: "Choose which findings to persist — you'll be prompted one at a time"
+- "Skip" with description: "Discard all findings — none will be saved to .feature-flow.yml"
 
 **YOLO behavior:** If `yolo: true` is in the skill's `ARGUMENTS`, skip this question. Auto-select "Add all" and announce: `YOLO: design-verification — Add gotchas → Add all ([N] gotchas added)`
 
