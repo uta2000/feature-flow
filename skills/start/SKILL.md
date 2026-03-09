@@ -102,6 +102,77 @@ Internal agents marked `(internal)` run inside their parent plugin's subagent an
 > | `offset` | Read | `number` — e.g. `100` | `'100'` (string) |
 > | `limit` | Read | `number` — e.g. `50` | `'50'` (string) |
 
+## Tool Selector Heuristic Detection
+
+Six heuristic detection functions inform the "which tool" decision in `start` Step 1. These signals combine into a confidence score (0.0–1.0) that recommends either feature-flow or GSD.
+
+### Feature Count Detection
+
+Extract distinct features from user description:
+- Pattern: Look for action verbs followed by nouns: "add X", "build Y", "implement Z"
+- Use regex: \b(add|build|implement|create|develop|design|make|write)\s+([a-z\s]+?)(?=and|,|then|\s+with|\s+for|$)
+- Split by "and", count distinct items
+- Examples:
+  - "add a logout button" → 1 feature
+  - "build payments and invoicing" → 2 features
+  - "create payments, billing, analytics, dashboards" → 4 features
+
+Scoring:
+- 1 feature: +0 (neutral baseline)
+- 2-3 features: +0.1
+- 4+ features: +0.3
+
+### Scope Keyword Detection
+
+Search for high-confidence GSD indicators:
+- Keywords: "from scratch", "complete app", "full system", "entire", "build everything"
+- Keywords: "multiple independent", "parallel execution", "separate services"
+- Keywords: "full project", "entire product"
+
+Scoring:
+- 1+ keyword found: +0.4 (high weight)
+- No keywords: +0 (neutral)
+
+### Timeline Detection
+
+Parse time estimates:
+- Feature-flow signals: "1-2 hours", "a few hours", "today", "this afternoon"
+- GSD signals: "1-2 weeks", "several weeks", "a month", "a sprint", "2-3 months"
+
+Scoring:
+- GSD timeline (weeks+): +0.2
+- Feature-flow timeline (hours): -0.1 (slightly reduces GSD score)
+- No timeline: +0 (neutral)
+
+### Complexity Pattern Detection
+
+Detect architectural complexity:
+- Multiple tech stack mentions (e.g., "React frontend AND Node backend AND PostgreSQL")
+- Microservices references: "services", "distributed", "microservice", "API gateway"
+- Explicit numbers: "50+ tasks", "10+ pages", "20+ endpoints"
+
+Scoring:
+- Complexity pattern found: +0.2
+- No pattern: +0 (neutral)
+
+### Recommendation Scoring
+
+Combine all signals into a single confidence score (0.0–1.0):
+
+| Signal | Weight | Condition |
+|--------|--------|-----------|
+| 4+ features | +0.3 | Feature count >= 4 |
+| 2-3 features | +0.1 | Feature count = 2-3 |
+| Scope keyword | +0.4 | 1+ keyword found |
+| GSD timeline | +0.2 | "weeks", "months", etc. |
+| Feature-flow timeline | -0.1 | "hours", "today", etc. |
+| Complexity pattern | +0.2 | Multiple stacks or microservices |
+
+Final score bands:
+- 🟢 feature-flow (0.0–0.4): Small, 1-2 features, hours-scale
+- 🟡 GSD-recommended (0.4–0.7): Multi-feature, weeks-scale
+- 🔴 GSD-strongly-recommended (0.7+): Large, 5+ features, "from scratch"
+
 ## Purpose
 
 Ensure the lifecycle is followed from start to finish. Track which steps are complete, invoke the right skill at each stage, and do not advance until the current step is done.
