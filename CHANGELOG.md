@@ -4,6 +4,8 @@ All notable changes to the feature-flow plugin.
 
 ## [Unreleased]
 
+## [1.23.7] - 2026-03-09
+
 ### Changed
 - **Refactored start skill to progressive disclosure** — reduced `skills/start/SKILL.md` from 1,823 to 463 lines (74.6% reduction) by extracting phase-specific instructions into 7 new reference files under `skills/start/references/`. Core orchestration loop, skill mapping, execution continuity rules, and scope classification remain in SKILL.md. Extracted content is read on-demand via 1-2 line pointers. No behavioral changes — structural reorganization only. (Closes #137)
 - **Replaced CRITICAL OVERRIDEs with reasoning-first overrides** — all 5 `CRITICAL OVERRIDE` blocks in `start` SKILL.md rewritten to lead with rationale (why the override exists) before stating intent (what to do). Negative directives (`Do NOT`, `MUST SUPPRESS`) replaced with positive phrasing (`Skip...`, `Proceed past...`, `Use X instead of Y`). Residual instruction density reduced in parallelism and iteration-limit directives. (Closes #138)

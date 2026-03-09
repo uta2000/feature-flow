@@ -1,4 +1,4 @@
-plugin_version: 1.23.5
+plugin_version: 1.23.7
 platform: cli
 stack:
   - node-js
