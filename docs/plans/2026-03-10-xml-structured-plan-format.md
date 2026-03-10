@@ -20,6 +20,22 @@ plans continue to work unchanged.
 
 ---
 
+## Developer Flow
+
+### Step 1 — Author a plan (opt-in)
+A developer (or `writing-plans` subagent) writes a plan file with `<plan version="1.0">` at the top instead of the `<!-- PROGRESS INDEX -->` comment block. Task status, files, and acceptance criteria are in XML elements; prose (steps, quality constraints) stays as markdown inside each `<task>` block.
+
+### Step 2 — Skills detect format automatically
+When `verify-plan-criteria` or `verify-acceptance-criteria` reads a plan file, it checks the first 50 lines for `<plan`. If found → XML extraction path. If not found → existing prose/regex path. No configuration flag needed.
+
+### Step 3 — Criteria and status are extracted deterministically
+For XML plans, criteria come directly from `<criterion>` child elements. Task status comes from the `status=` attribute on `<task>`. No regex needed, no Progress Index comment to parse.
+
+### Step 4 — Existing prose plans are unaffected
+Teams that don't opt in to XML format continue working exactly as before. Both paths remain active in both skills indefinitely.
+
+---
+
 ## Goals
 
 1. **Reliable parsing:** Deterministic extraction of criteria, files, and task status from XML
@@ -218,6 +234,29 @@ Add to the existing injection in `skills/start/references/yolo-overrides.md`:
 
 This is the only hook needed since `writing-plans` is an external plugin — the quality context
 injection runs before every `superpowers:writing-plans` invocation.
+
+---
+
+## Patterns & Constraints
+
+### Error Handling
+- If `<plan` is detected in the first 50 lines but the XML structure is malformed (e.g., unclosed tags, missing required child elements), log a warning and fall back to the prose parser — never hard-fail on a plan file
+- Missing `<what>`, `<how>`, or `<command>` inside a non-manual `<criterion>` → flag as incomplete criterion (same behavior as missing "measured by" in prose format)
+- Empty `<criteria>` block → flag as "no criteria" (same as a task with no `**Acceptance Criteria:**` in prose format)
+
+### Types
+- All extracted fields (what, how, command, path, status) are strings — never coerced to other types
+- Task list is always an array — never null, even for an empty plan
+- The `type="manual"` attribute on `<criterion>` is the only supported attribute variant; any other type value is treated as a structured criterion
+
+### Backward Compatibility Constraint
+- Skills must never break on prose plans — the detection check is the single gate; once prose mode is selected, the existing code path runs unchanged
+- The XML schema uses `version="1.0"` to allow future schema evolution without breaking existing readers
+
+### Pattern Reference
+- `skills/verify-plan-criteria/SKILL.md` — existing prose parsing logic (the XML path mirrors its output format)
+- `skills/verify-acceptance-criteria/SKILL.md` — existing Progress Index parsing (XML `status=` attribute replaces this)
+- `references/xml-plan-format.md` — canonical schema (new file, created in this feature)
 
 ---
 
