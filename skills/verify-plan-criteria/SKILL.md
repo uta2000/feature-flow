@@ -20,6 +20,8 @@ Validates that every task in an implementation plan has machine-verifiable accep
 
 Before parsing, determine which format the plan file uses:
 
+See `references/xml-plan-format.md` for the canonical specification and complete field reference.
+
 1. Read the first 50 lines of the plan file
 2. Track code-fence state: toggle `in_fence` on each line that starts with ` ``` `
 3. For each non-fenced line: check if it matches `/^<plan version="/`
@@ -47,7 +49,7 @@ If XML mode:
    - Read `status` attribute → replaces Progress Index parsing
 4. If a `<task>` block is not closed before the next `<task>` or `</plan>` → **malformed**, fall
    back to prose parser with announcement: "XML structure invalid — falling back to prose parser"
-5. If a `<criteria>` block is not closed before `</task>` → **malformed**, same fallback
+5. If a `<criteria>` block is not closed before `</task>` → **malformed**, fall back to prose parser with announcement: "XML structure invalid — falling back to prose parser"
 6. `status=` values: `pending`, `in-progress`, `done` are recognized; any other value → treat as
    `pending` and log a note; missing `status=` → treat as `pending`
 
