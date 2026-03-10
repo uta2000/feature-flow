@@ -106,7 +106,7 @@ Display the verification report from the task-verifier agent to the user.
 ```
 All acceptance criteria verified. Implementation matches the plan.
 
-[show report table]
+[show report table — Diagnosis column shows — for all rows when all criteria pass]
 
 You can proceed with committing / creating a PR.
 ```

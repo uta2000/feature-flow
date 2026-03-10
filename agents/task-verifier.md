@@ -79,11 +79,7 @@ If a pattern matches, record:
 
 When `Type '...' is not assignable` or `Property '...' does not exist` is detected, use Grep to find correct usage of the same type or interface in the codebase:
 
-Use Grep to search for the actual type name extracted from the error (e.g., searching for `UserType` when the error mentions `UserType`):
-
-```bash
-grep -rn "$EXTRACTED_TYPE_NAME" --include="*.ts" --include="*.tsx" | head -5
-```
+Use Grep to search for the actual type name extracted from the error (e.g., searching for `UserType` when the error mentions `UserType`). Use the Grep tool with the extracted type name as the pattern, scoped to `*.ts` and `*.tsx` files.
 
 Include 1–3 matching examples in the diagnosis. If no matches exist, omit this section.
 
