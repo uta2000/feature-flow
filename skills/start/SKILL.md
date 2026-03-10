@@ -630,7 +630,7 @@ Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/p
 
 | Step | Skill to Invoke | Expected Output |
 |------|----------------|-----------------|
-| Brainstorm requirements | `superpowers:brainstorming` | Decisions on scope, approach, UX |
+| Brainstorm requirements | `superpowers:brainstorming` | Decisions on scope, approach, UX. **For Feature and Major Feature scopes:** brainstorming includes the design preferences preamble — captures or loads project-wide design preferences before feature-specific questions begin. See `references/orchestration-overrides.md` → "Design Preferences Preamble". |
 | Spike / PoC | `feature-flow:spike` | Confirmed/denied assumptions |
 | Documentation lookup | No skill — inline step (see below) | Current patterns from official docs injected into context |
 | Design document | `feature-flow:design-document` | File at `docs/plans/YYYY-MM-DD-*.md` |
