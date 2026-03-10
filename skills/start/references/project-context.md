@@ -169,3 +169,44 @@ Use `AskUserQuestion`:
 **YOLO behavior:** Skip the prompt. Check `.feature-flow.yml` for `notifications.on_stop` — if present, apply it silently (for `bell` or `desktop`, also perform the duplicate-detection and hook-write steps in "After selection" without additional announcements; if the hook write fails, announce: `YOLO: start — Notification hook write failed: [error] — continuing without hook`). If absent, default to `none` (no hook written, no `.feature-flow.yml` write in YOLO mode — YOLO does not persist a preference on behalf of the user). Announce: `YOLO: start — Notification preference → [loaded: value | no preference, defaulting to none]`
 
 **Express behavior:** Same as YOLO — skip the prompt, use saved preference or default to `none`.
+
+## Knowledge Base Pre-Flight
+
+After the Notification Preference step, check for an existing per-feature knowledge base and load it into the lifecycle context.
+
+**Archival algorithm:**
+
+1. Check for `FEATURE_CONTEXT.md` in the current directory (worktree root)
+2. If not found: skip all steps below — new feature, file will be created at worktree setup
+3. If found:
+   a. Read `knowledge_base.stale_days` from `.feature-flow.yml` (default: 14)
+   b. Read `knowledge_base.max_lines` from `.feature-flow.yml` (default: 150)
+   c. Parse all bullet entries under `## Key Decisions` — extract `[YYYY-MM-DD]` from each
+   d. Mark entries as stale if their date is more than `stale_days` days before today
+   e. Count total lines in the file
+   f. If stale entries exist **or** line count > `max_lines`:
+      - Move stale entries to `DECISIONS_ARCHIVE.md` (append under a `## Archived from [branch-name]` header; create file if absent)
+      - If file still > `max_lines` after age-based archival: move oldest remaining entries until under the limit
+      - Rewrite `FEATURE_CONTEXT.md` with remaining entries (preserve section headers and comments)
+      - Commit: `git add FEATURE_CONTEXT.md DECISIONS_ARCHIVE.md && git commit -m "chore: archive stale decisions [auto]"`
+4. Count remaining `## Key Decisions` bullet entries → N
+
+**Edge cases:**
+- `## Key Decisions` is empty → skip archival entirely, N = 0
+- All entries are stale → archive all, leave empty `## Key Decisions` stub with comment
+- Entries have no `[YYYY-MM-DD]` date (free-form notes) → skip archival for those entries (leave in place)
+- `DECISIONS_ARCHIVE.md` doesn't exist → create it with the branch name header before appending
+- Commit fails (e.g., nothing staged) → skip commit silently
+
+**Inject and announce:**
+
+After archival (or if no archival was needed):
+- Set `context.feature_context` = full contents of `FEATURE_CONTEXT.md`
+- If N > 0: print `"📋 Resuming feature — {N} decisions loaded from FEATURE_CONTEXT.md"`
+- If N == 0: print nothing (no decisions to restore)
+
+Downstream skills receive `context.feature_context` injected into their args alongside other lifecycle context fields (`base_branch`, `issue`, `design_doc`, `plan_file`, `worktree`).
+
+**YOLO behavior:** Run archival silently. If archival ran, announce: `YOLO: start — Knowledge base → Archived {M} stale decisions, {N} decisions loaded`. If no file found, announce: `YOLO: start — Knowledge base → No FEATURE_CONTEXT.md found (new feature)`. If N > 0, announce resume notice as normal.
+
+**Express behavior:** Same as YOLO for this step — run archival silently, print resume notice if N > 0.
