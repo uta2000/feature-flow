@@ -103,11 +103,24 @@ Dispatch parallel verification agents to check the design against the codebase. 
 Use the Task tool with `subagent_type: "Explore"` and `model: "sonnet"` for Batches 1-5 and Batch 7 (see `../../references/tool-api.md` — Task Tool for correct parameter syntax). Launch all applicable batch agents in a **single message** to run them concurrently. Announce: "Dispatching N verification agents in parallel..."
 
 **Context passed to each agent:**
+
+Every batch always receives:
 - The full design document content
 - Its assigned checklist categories (partitioned from `references/checklist.md` using batch markers)
-- The codebase exploration results from Step 3
 - The `.feature-flow.yml` content (for stack/platform/gotchas context)
 - The list of applicable categories for this batch (from verification depth filtering)
+
+Plus the filtered exploration sections from `exploration_results` (produced by Step 3) per the **Context Filter Map**. Empty strings from failed or no-match agents are passed as-is — no conditional logic required:
+
+| Batch | `exploration_results` sections included |
+|-------|----------------------------------------|
+| 1 — Schema & Types | `schema` |
+| 2 — Pipeline & Components | `pipeline` + `ui` |
+| 3 — Quality & Safety | `schema` + `config` + `patterns` |
+| 4 — Patterns & Build | `patterns` + `config` |
+| 5 — Structure & Layout | `ui` |
+| 6 — Stack/Platform/Docs | *(no `exploration_results` sections — receives `.feature-flow.yml` and stack reference files only)* |
+| 7 — Implementation Quality | `schema` + `patterns` |
 
 **Expected return format per agent:**
 
@@ -123,9 +136,9 @@ Batch 6 (Stack/Platform/Docs) is only dispatched if `.feature-flow.yml` exists w
 **Context passed to the Batch 6 agent:**
 - The full design document content
 - The check instructions for categories 15-18 (defined inline below in this SKILL.md, not from checklist.md)
-- The codebase exploration results from Step 3
-- The `.feature-flow.yml` content (stack, platform, gotchas, context7 field)
+- The `.feature-flow.yml` content (stack, platform, gotchas, context7 field) and stack reference files
 - The list of applicable categories for this batch (from verification depth filtering)
+- *(No `exploration_results` sections — Batch 6 operates on config/docs, not codebase exploration)*
 
 Batch 6 sources its check instructions from this SKILL.md (not from checklist.md):
 
@@ -147,7 +160,7 @@ Batch 7 checks whether the design's proposed implementation can meet the coding 
 **Context passed to the Batch 7 agent:**
 - The full design document content
 - The check instructions for categories 19-23 (defined inline below)
-- The codebase exploration results from Step 3
+- The `schema` and `patterns` sections from `exploration_results` (per the Context Filter Map above)
 - The relevant sections from `references/coding-standards.md` (extracted using `<!-- section: slug -->` markers)
 
 Batch 7 categories:
