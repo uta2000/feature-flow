@@ -5,6 +5,7 @@ All notable changes to the feature-flow plugin.
 ## [Unreleased]
 
 ### Added
+- **Atomic git commit guidelines** — introduces `references/git-workflow.md` with Conventional Commits format template (`feat(scope): description — ✓criterion`), step-by-step atomic commit workflow (one commit per acceptance criterion), and `git-bisect` integration docs. Updated `yolo-overrides.md` to inject Atomic Commit Protocol as item 7 in implementer quality context, and cross-referenced `git-workflow.md` in `inline-steps.md` commit steps. (Related: #169)
 - **Structured acceptance criteria format enforcement in `verify-plan-criteria`** — Step 3 now checks that every non-`[MANUAL]`, non-completed criterion contains both `measured by` and `verified by` keywords. Non-conforming criteria are flagged with a message referencing `references/acceptance-criteria-patterns.md`. Already-completed (`- [x]`) and `[MANUAL]`-prefixed criteria are exempt. All 9 Step 4 draft templates updated to produce structured `[WHAT] measured by [HOW] verified by [COMMAND]` criteria instead of plain-text descriptions. (Closes #173)
 - **`references/acceptance-criteria-patterns.md` reference document** — authoritative definition of the `[WHAT] measured by [HOW] verified by [COMMAND]` format, including a good-vs-bad examples table, 7 common pattern templates (file existence, command passes, typecheck, lint, export presence, content presence, test suite), `[MANUAL]` prefix usage guide, and an anti-patterns table. Uses `<!-- section: slug -->` markers for programmatic extraction. (Closes #173)
 

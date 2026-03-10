@@ -73,6 +73,8 @@ This step runs after verify-plan-criteria and before worktree setup. It commits 
 - **Only `.feature-flow.yml` changed** — still dispatches subagent; file should be tracked regardless
 - **git errors in output** — `2>&1` redirects stderr to stdout; git errors appear as non-empty output and are treated conservatively as "may have artifacts" — the subagent proceeds and determines the actual state
 
+> **Note:** The commit message in this step is fixed (`docs: add design and implementation plan for [feature-name]`). For implementation commits (created during the Implement step), follow the atomic commit format in `references/git-workflow.md` — one commit per acceptance criterion with the `feat(scope): description — ✓criterion` format.
+
 ---
 
 ## Copy Env Files Step
@@ -397,6 +399,7 @@ This step runs after "Commit and PR" (or after mobile-specific steps like app st
    git log --format="%s" [base-branch]...HEAD
    ```
    → Derive 2-4 "What was built" bullets from commit messages.
+   > **Note:** With atomic commits (see `references/git-workflow.md`), each criterion has its own commit. Include these criterion-level commits as-is in the bullets — they provide precise traceability.
    ```bash
    git diff --stat [base-branch]...HEAD | head -10
    ```
