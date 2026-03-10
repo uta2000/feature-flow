@@ -1,6 +1,6 @@
 # Feature Context
 
-> Auto-managed by feature-flow. Decisions older than 14 days are archived to DECISIONS_ARCHIVE.md.
+> Auto-managed by feature-flow. Stale decisions are archived to DECISIONS_ARCHIVE.md (threshold: `knowledge_base.stale_days` in `.feature-flow.yml`, default 14 days).
 
 ## Key Decisions
 
