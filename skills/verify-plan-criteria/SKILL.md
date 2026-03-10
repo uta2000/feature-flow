@@ -66,6 +66,14 @@ For each task, determine if it has acceptance criteria:
 
 **Edge case criteria check:** For tasks that handle input, make external calls, or process data, acceptance criteria must include at least one edge case test (empty input, null, timeout, boundary values). Flag tasks that only have happy-path criteria with: "Task N acceptance criteria only cover happy path — add edge case criteria (empty input, error path, boundary values)."
 
+**Format check:** After flagging vague criteria, check that each non-`[MANUAL]` criterion follows the structured format. A criterion is conforming if it contains both `measured by` and `verified by` as substrings. Criteria that start with `- [x]` (already completed) are also exempt.
+
+Flag non-conforming criteria with: `"Criterion does not follow [WHAT] measured by [HOW] verified by [COMMAND] format — see references/acceptance-criteria-patterns.md"`
+
+Exempt from format check:
+- Criteria with `[MANUAL]` prefix — these require human verification and don't need a shell command
+- Already-completed criteria (`- [x]`) — checked items are not re-validated
+
 **Fast-path:** If ALL tasks already have criteria, none are flagged as vague, all non-trivial tasks have Quality Constraints, and edge case criteria are present where needed, skip directly to Step 6 (Report). Do not execute Steps 4 or 5.
 
 ### Step 4: Draft Missing Criteria
@@ -73,19 +81,19 @@ For each task, determine if it has acceptance criteria:
 For each task missing criteria, generate machine-verifiable criteria from the task's context:
 
 **From the Files section:**
-- If creating a file → "File exists at `exact/path/to/file.ts`"
-- If modifying a file → "Changes exist in `exact/path/to/file.ts`"
+- If creating a file → "`exact/path/to/file.ts` is created measured by file existence verified by `ls exact/path/to/file.ts`"
+- If modifying a file → "`exact/path/to/file.ts` is modified measured by content change verified by `grep 'expected_pattern' exact/path/to/file.ts`"
 
 **From the Steps section:**
-- If running a test → "Tests pass: `npm run test`" (or the specific test command)
-- If running typecheck → "`npm run typecheck` passes with no new errors"
-- If running lint → "`npm run lint` passes with no new warnings"
+- If running a test → "Test suite passes measured by zero failures verified by `npm run test`"
+- If running typecheck → "TypeScript types are valid measured by zero new compilation errors verified by `npm run typecheck`"
+- If running lint → "Linting passes measured by zero new warnings verified by `npm run lint`"
 
 **From the task description:**
-- If defining an interface/type → "Type/interface `Name` is exported from `path`"
-- If creating a component → "Component `Name` exists and accepts expected props"
-- If creating an API route → "Route handler exists at `path` and handles expected methods"
-- If creating a migration → "Migration file exists in the migrations directory"
+- If defining an interface/type → "`Name` type is exported measured by export presence verified by `grep 'export.*Name' path`"
+- If creating a component → "`Name` component exists measured by file presence verified by `ls path/Name`"
+- If creating an API route → "Route handler is defined measured by handler presence verified by `grep 'handler' path`"
+- If creating a migration → "Migration file is present measured by file existence verified by `ls migrations/`"
 
 **Always include (for non-trivial tasks):**
 - Typecheck passes (use the project's actual command — `npm run typecheck`, `yarn typecheck`, `pnpm typecheck`, `bun typecheck`, `tsc --noEmit`, or whatever `package.json` scripts defines)
