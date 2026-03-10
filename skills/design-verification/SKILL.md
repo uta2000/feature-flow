@@ -51,16 +51,37 @@ If `.feature-flow.yml` does not exist, offer to create it via auto-detection:
 
 See `../../references/project-context-schema.md` for the full schema documentation.
 
-### Step 3: Explore the Codebase
+### Step 3: Explore the Codebase (Tagged Domains)
 
-Launch exploration agents to understand the areas of the codebase affected by the design. Use the Task tool with `subagent_type: "Explore"` and `model: "haiku"` (see `../../references/tool-api.md` — Task Tool) for thorough analysis.
+Launch parallel exploration agents to understand the areas affected by the design. Organize results into 5 tagged domains so each verification batch (Step 4) receives only its relevant context instead of the full exploration dump.
 
-Key areas to explore:
-- Database schema (migrations, ORM models, type definitions)
-- TypeScript/language types and interfaces
-- Existing pipeline/workflow hooks and API routes
-- UI components that will be modified or reused
-- Configuration files and environment variables
+Use the Task tool with `subagent_type: "Explore"` and `model: "haiku"` (see `../../references/tool-api.md` — Task Tool).
+
+Dispatch all 5 domain agents in a **single message** (parallel):
+
+1. **Schema agent** — Migration files, ORM models, type definition files (`*.d.ts`, `types.ts`), `tsconfig.json`
+2. **Pipeline agent** — API route files, hook files, pipeline files, shared type consumers
+3. **UI agent** — Component files, layout files, navigation components
+4. **Config agent** — `tsconfig.json`, eslint config, `next.config.*`, `package.json`
+5. **Patterns agent** — Directory structure (2-3 representative paths), naming convention samples (2-3 files), error handling examples
+
+**Expected return format per agent:**
+```
+{ domain: "schema" | "pipeline" | "ui" | "config" | "patterns", content: string }
+```
+
+**Failure handling:** If an agent fails, retry it once. If it fails again, use an empty string for that domain's content and log a warning: "[domain] exploration failed — that domain's context will be absent from relevant batch agents."
+
+**Aggregate results into `exploration_results`:**
+```
+exploration_results = {
+  schema:   <content from schema agent>,
+  pipeline: <content from pipeline agent>,
+  ui:       <content from ui agent>,
+  config:   <content from config agent>,
+  patterns: <content from patterns agent>
+}
+```
 
 ### Step 4: Run Verification Checklist
 
