@@ -116,7 +116,7 @@ Plus the filtered exploration sections from `exploration_results` (produced by S
 |-------|----------------------------------------|
 | 1 — Schema & Types | `schema` |
 | 2 — Pipeline & Components | `pipeline` + `ui` |
-| 3 — Quality & Safety | `schema` + `config` (package.json portion) + `patterns` |
+| 3 — Quality & Safety | `schema` + `config` + `patterns` |
 | 4 — Patterns & Build | `patterns` + `config` |
 | 5 — Structure & Layout | `ui` |
 | 6 — Stack/Platform/Docs | *(no `exploration_results` sections — receives `.feature-flow.yml` and stack reference files only)* |
@@ -138,7 +138,7 @@ Batch 6 (Stack/Platform/Docs) is only dispatched if `.feature-flow.yml` exists w
 - The check instructions for categories 15-18 (defined inline below in this SKILL.md, not from checklist.md)
 - The `.feature-flow.yml` content (stack, platform, gotchas, context7 field) and stack reference files
 - The list of applicable categories for this batch (from verification depth filtering)
-- *(No `exploration_results` sections — Batch 6 operates on config/docs, not codebase exploration)*
+- *(No `exploration_results` sections — Batch 6 operates on project config files and documentation, not codebase exploration results)*
 
 Batch 6 sources its check instructions from this SKILL.md (not from checklist.md):
 
