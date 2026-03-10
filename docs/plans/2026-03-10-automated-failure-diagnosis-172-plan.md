@@ -1,9 +1,9 @@
 # Automated Failure Diagnosis — Implementation Plan
 
 <!-- PROGRESS INDEX (updated by implementation skills)
-Task 1: Add Step 3 Diagnose Failures to task-verifier.md — STATUS: pending
-Task 2: Update verify-acceptance-criteria to display Diagnosis column — STATUS: pending
-CURRENT: none
+Task 1: Add Step 3 Diagnose Failures to task-verifier.md — STATUS: done (commit e4b2d01)
+Task 2: Update verify-acceptance-criteria to display Diagnosis column — STATUS: in-progress
+CURRENT: Task 2
 -->
 
 > **For Claude:** After compaction, read only the PROGRESS INDEX to determine current task.

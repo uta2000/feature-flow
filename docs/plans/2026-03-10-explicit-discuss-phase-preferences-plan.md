@@ -1,11 +1,11 @@
 # Explicit Discuss Phase for Design Preferences — Implementation Plan
 
 <!-- PROGRESS INDEX (updated by implementation skills)
-Task 1: Add design preferences preamble to orchestration-overrides.md — STATUS: complete
-Task 2: Add design_preferences schema to project-context-schema.md — STATUS: complete
-Task 3: Update Skill Mapping in SKILL.md — STATUS: complete
-Task 4: Add category 24 to design-verification checklist — STATUS: complete
-CURRENT: none (all tasks complete)
+Task 1: Add design preferences preamble to orchestration-overrides.md — STATUS: pending
+Task 2: Add design_preferences schema to project-context-schema.md — STATUS: pending
+Task 3: Update Skill Mapping in SKILL.md — STATUS: pending
+Task 4: Add category 24 to design-verification checklist — STATUS: pending
+CURRENT: none
 -->
 
 > **For Claude:** After compaction, read only the PROGRESS INDEX to determine current task.
