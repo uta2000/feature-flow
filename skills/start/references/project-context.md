@@ -177,7 +177,7 @@ After the Notification Preference step, check for an existing per-feature knowle
 **Archival algorithm:**
 
 1. Check for `FEATURE_CONTEXT.md` in the current directory (worktree root)
-2. If not found: skip all steps below — new feature, file will be created at worktree setup
+2. If not found: set `context.feature_context = null` and skip all steps below — new feature, file will be created at worktree setup
 3. If found:
    a. Read `knowledge_base.stale_days` from `.feature-flow.yml` (default: 14)
    b. Read `knowledge_base.max_lines` from `.feature-flow.yml` (default: 150)

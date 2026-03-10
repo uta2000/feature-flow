@@ -604,6 +604,7 @@ For inline steps (CHANGELOG generation, self-review, code review, study existing
 | Path key | When it becomes available |
 |----------|--------------------------|
 | `base_branch` | Step 0 — base branch detection |
+| `feature_context` | Step 0 — knowledge base pre-flight (null if no FEATURE_CONTEXT.md found) |
 | `issue` | Step 1 — when an issue number is linked |
 | `design_doc` | After design document step (the absolute path returned by the skill) |
 | `plan_file` | After implementation plan step (the absolute path of the saved plan file) |
