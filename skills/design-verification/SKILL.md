@@ -110,13 +110,13 @@ Every batch always receives:
 - The `.feature-flow.yml` content (for stack/platform/gotchas context)
 - The list of applicable categories for this batch (from verification depth filtering)
 
-Plus the filtered exploration sections from `exploration_results` (produced by Step 3) per the **Context Filter Map**. Empty strings from failed or no-match agents are passed as-is — no conditional logic required:
+Plus the filtered exploration sections from `exploration_results` (produced by Step 3) per the **Context Filter Map**. Empty strings from agents that find no relevant files or that failed are passed as-is — no conditional logic required. Include the relevant domain values as named sections in the agent's prompt (e.g., `## Schema Exploration\n[content]`):
 
 | Batch | `exploration_results` sections included |
 |-------|----------------------------------------|
 | 1 — Schema & Types | `schema` |
 | 2 — Pipeline & Components | `pipeline` + `ui` |
-| 3 — Quality & Safety | `schema` + `config` + `patterns` |
+| 3 — Quality & Safety | `schema` + `config` (package.json portion) + `patterns` |
 | 4 — Patterns & Build | `patterns` + `config` |
 | 5 — Structure & Layout | `ui` |
 | 6 — Stack/Platform/Docs | *(no `exploration_results` sections — receives `.feature-flow.yml` and stack reference files only)* |
