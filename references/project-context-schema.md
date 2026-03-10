@@ -29,6 +29,12 @@ notifications:          # Optional: notification preference written by start ski
 knowledge_base:         # Optional: per-feature context file settings
   max_lines: 150        # Archive oldest decisions when file exceeds this line count
   stale_days: 14        # Archive decisions older than this many days
+design_preferences:    # Optional: project-wide design preference answers
+  error_handling: result_types       # Captured by brainstorming preamble
+  api_style: rest
+  state_management: server_state
+  testing: unit_integration
+  ui_pattern: tailwind
 ```
 
 ## Fields
@@ -210,6 +216,39 @@ knowledge_base:
 
 **When absent:** `start` uses default values silently — 150 lines max, 14 days stale threshold. No prompt is shown. The field is never auto-written; it is only used when manually added.
 
+### `design_preferences`
+
+Optional project-wide design preference answers, captured by the brainstorming preamble for Feature and Major Feature scopes. When present, preferences are silently loaded at the start of each brainstorming session and injected as context for feature-specific design questions.
+
+**Sub-fields:**
+
+| Field | Values | Description |
+|-------|--------|-------------|
+| `error_handling` | `result_types \| exceptions \| error_objects \| mixed \| <free-text>` | Error handling pattern used by the project |
+| `api_style` | `rest \| graphql \| server_actions \| rpc \| trpc \| <free-text>` | API style for new endpoints |
+| `state_management` | `local \| global_store \| server_state \| url_state \| context_hooks \| <free-text>` | Client-side state management approach |
+| `testing` | `unit \| unit_integration \| unit_integration_e2e \| match_existing \| <free-text>` | Test coverage level |
+| `ui_pattern` | `component_library \| tailwind \| css_modules \| styled_components \| match_existing \| <free-text>` | UI styling/component approach |
+
+**Rules:**
+- Free-text values (when user selects "Other (describe)"): stored as-is; treated as advisory in design-verification — no compliance check runs on free-text values
+- Stack-filtered questions (e.g., Q5 skipped for backend-only stacks): key omitted entirely; missing keys skipped in verification
+- No `enabled` flag — presence of key = active; absence = brainstorming preamble fires on next Feature/Major Feature run
+- If user declines all 5 questions: no `design_preferences` key written → preamble fires again on next eligible run
+
+**Format:**
+
+```yaml
+design_preferences:
+  error_handling: result_types
+  api_style: server_actions
+  state_management: server_state
+  testing: unit_integration
+  ui_pattern: tailwind
+```
+
+**When absent:** The brainstorming preamble fires on the next Feature or Major Feature lifecycle run, capturing preferences interactively (or inferring via codebase scan in YOLO/Express mode). Quick fix and Small enhancement scopes never trigger the preamble.
+
 ## How Skills Use This File
 
 ### start (reads + writes)
@@ -224,9 +263,12 @@ knowledge_base:
 - **Writes** `notifications.on_stop` after the user answers the preference prompt (`bell`, `desktop`, or `none`). Does not write in YOLO/Express mode if no saved preference exists.
 - **Reads** `knowledge_base.max_lines` and `knowledge_base.stale_days` to configure FEATURE_CONTEXT.md archival thresholds (defaults: 150 lines, 14 days).
 - **Loads** `FEATURE_CONTEXT.md` from the worktree root on pre-flight: archives stale decisions, injects remaining content into the lifecycle context, and prints a resume notice.
+- **Writes** `design_preferences` after the brainstorming preamble captures user answers (or YOLO/Express codebase inference). Writes only for Feature and Major Feature scopes. Does not write if user declines all questions.
+- **Reads** `design_preferences` at the start of brainstorming: if present, loads silently and injects as context; if absent, fires the preferences preamble.
 
 ### design-verification (reads + writes)
-- **Reads** base checklist (13 categories), stack-specific checks, platform-specific checks, and project gotchas.
+- **Reads** base checklist (14 categories, plus Category 24 if design_preferences is present), stack-specific checks, platform-specific checks, and project gotchas.
+- **Reads** `design_preferences` to run Category 24 (Design Preferences Compliance) — verifying the design document uses declared patterns. Skips this category if `design_preferences` is absent.
 - **Reads** `context7` field to verify design uses current patterns from official docs.
 - **Writes** new gotchas discovered during verification (FAIL/WARNING findings that represent reusable pitfalls).
 
