@@ -70,7 +70,7 @@ Dispatch all 5 domain agents in a **single message** (parallel):
 { domain: "schema" | "pipeline" | "ui" | "config" | "patterns", content: string }
 ```
 
-**Failure handling:** If an agent fails, retry it once. If it fails again, use an empty string for that domain's content and log a warning: "[domain] exploration failed — that domain's context will be absent from relevant batch agents."
+**Failure handling:** If an agent fails, retry it once. If it fails again, use an empty string for that domain's content and log a warning: "[domain] exploration failed — that domain's context will be absent from relevant batch agents." If an agent succeeds but finds no relevant files for the project (e.g., a UI-less CLI project has no component files), it returns `{ domain: "ui", content: "" }` — an empty string is the correct result and is safe to pass to batch agents.
 
 **Aggregate results into `exploration_results`:**
 ```
