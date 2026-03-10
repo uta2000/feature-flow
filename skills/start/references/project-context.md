@@ -1,6 +1,6 @@
 # Step 0: Load or Create Project Context
 
-**Usage:** Read this file when executing Step 0 of the lifecycle. Contains YOLO trigger detection, project context loading, base branch detection, session model recommendation, and notification preference.
+**Usage:** Read this file when executing Step 0 of the lifecycle. Contains YOLO trigger detection, project context loading, base branch detection, session model recommendation, notification preference, and knowledge base pre-flight.
 
 ---
 
@@ -189,7 +189,7 @@ After the Notification Preference step, check for an existing per-feature knowle
       - If file still > `max_lines` after age-based archival: move oldest remaining entries until under the limit
       - Rewrite `FEATURE_CONTEXT.md` with remaining entries (preserve section headers and comments)
       - Commit: `git add FEATURE_CONTEXT.md DECISIONS_ARCHIVE.md && git commit -m "chore: archive stale decisions [auto]"`
-4. Count remaining `## Key Decisions` bullet entries → N
+4. Count remaining `## Key Decisions` bullet entries → N. Let M = total entries moved to `DECISIONS_ARCHIVE.md` during this run (0 if no archival occurred).
 
 **Edge cases:**
 - `## Key Decisions` is empty → skip archival entirely, N = 0
