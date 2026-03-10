@@ -26,10 +26,13 @@ Before extracting criteria, determine which format the plan file uses.
 
 See `references/xml-plan-format.md` for the canonical detection algorithm. Summary:
 
-1. Read first 50 lines; track code-fence state
-2. For each non-fenced line: check for `/^<plan version="/`
-3. Match found → XML mode (then verify `</plan>` present; absent → "plan appears truncated — treating as prose", use prose mode)
-4. No match → Prose mode (existing behavior unchanged)
+1. Read the first 50 lines of the plan file
+2. Track code-fence state: toggle `in_fence` on each line that starts with ` ``` `
+3. For each non-fenced line: check if it matches `/^<plan version="/`
+4. If match found → XML mode
+5. Before committing to XML mode: scan the full file for `</plan>`. If absent → log warning
+   "plan appears truncated — treating as prose" and use Prose mode
+6. If no match in first 50 lines → Prose mode (existing behavior unchanged)
 
 ### XML Extraction
 
