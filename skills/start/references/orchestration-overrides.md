@@ -89,9 +89,9 @@ Ask one at a time in interactive mode. Use the brainstorming interview format (q
 *Why this matters:* Using the wrong state layer causes unnecessary re-renders or stale data bugs.
 - **Option A: Local component state + props** — e.g., `useState` + prop drilling
 - **Option B: Global store** — e.g., Zustand, Redux, Jotai
-- **Option C: Server state (React Query/SWR)** *(shown only when `stack` includes `react` or `next-js`)* — e.g., `useQuery`, `useSWR`
+- **Option C: Server state (React Query/SWR)** *(shown only when `stack` includes a frontend framework — `react`, `next-js`, `svelte`, `vue`, or `angular`)* — e.g., `useQuery`, `useSWR`
 - **Option D: URL state (search params)** — e.g., `useSearchParams`
-- **Option E: Context + hooks** *(shown only when `stack` includes `react` or `next-js`)* — e.g., `createContext` + `useContext`
+- **Option E: Context + hooks** *(shown only when `stack` includes a frontend framework — `react`, `next-js`, `svelte`, `vue`, or `angular`)* — e.g., `createContext` + `useContext`
 
 *Stack filtering:* If `stack` contains none of `react`, `next-js`, `svelte`, `vue`, `angular` (backend-only project), options C and E are hidden.
 
@@ -132,7 +132,7 @@ design_preferences:
 Rules:
 - "Other (describe)" → store free-text as the value; design-verification treats free-text as advisory (no compliance check)
 - Stack-filtered question hidden → omit that key entirely
-- User declines all questions → no `design_preferences` key written → preamble fires again next feature/major-feature run
+- User declines all questions (says "skip preferences" before Q1, or explicitly passes on every individual question without providing an answer) → no `design_preferences` key written → preamble fires again next feature/major-feature run
 - No `enabled` flag: presence of key = active, absence = preamble fires
 - Write failure (interactive): announce warning and continue without persisting — preferences will be asked again next session
 

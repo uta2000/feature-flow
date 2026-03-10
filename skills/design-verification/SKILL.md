@@ -123,19 +123,9 @@ Batch 6 sources its check instructions from this SKILL.md (not from checklist.md
 
     If Context7 is not available, skip category 18 and note: "Context7 not available — documentation compliance check skipped."
 
-#### Batch 8 — Conditional Dispatch (Design Preferences)
-
-Batch 8 (Design Preferences) is only dispatched if `.feature-flow.yml` exists and the `design_preferences` key is present (regardless of value). If `design_preferences` is absent, skip Batch 8 entirely. When the condition is met, use the Task tool with `subagent_type: "Explore"` and `model: "sonnet"` for Batch 8 and include it in the same single-message launch as Batches 1-7 so all agents run concurrently.
-
-**Context passed to the Batch 8 agent:**
-- The full design document content
-- The check instructions for category 24 (from `references/checklist.md` — look for the `<!-- batch: 8 -->` marker)
-- The codebase exploration results from Step 3
-- The `.feature-flow.yml` content (specifically the `design_preferences` field values)
-
 #### Batch 7 — Implementation Quality
 
-Batch 7 checks whether the design's proposed implementation can meet the coding standards in `references/coding-standards.md`. It is always dispatched (universally applicable to all design scopes). Use the Task tool with `subagent_type: "Explore"` and `model: "sonnet"`. Include it in the same single-message launch as Batches 1-6 so all agents run concurrently.
+Batch 7 checks whether the design's proposed implementation can meet the coding standards in `references/coding-standards.md`. It is always dispatched (universally applicable to all design scopes). Use the Task tool with `subagent_type: "Explore"` and `model: "sonnet"`. Include it in the same single-message launch as Batches 1-6 and Batch 8 (if dispatched) so all agents run concurrently.
 
 **Context passed to the Batch 7 agent:**
 - The full design document content
@@ -171,6 +161,16 @@ Batch 7 categories:
     - [ ] **Current patterns:** Design uses patterns matching `references/stacks/*.md` recommendations
     - [ ] **No anti-patterns:** Design doesn't propose approaches flagged as anti-patterns in stack references
     - [ ] **Framework conventions:** Design follows framework-specific conventions (e.g., Server Components vs Client Components for Next.js)
+
+#### Batch 8 — Conditional Dispatch (Design Preferences)
+
+Batch 8 (Design Preferences) is only dispatched if `.feature-flow.yml` exists and the `design_preferences` key is present (regardless of value). If `design_preferences` is absent, skip Batch 8 entirely. When the condition is met, use the Task tool with `subagent_type: "Explore"` and `model: "sonnet"` for Batch 8 and include it in the same single-message launch as Batches 1-7 so all agents run concurrently.
+
+**Context passed to the Batch 8 agent:**
+- The full design document content
+- The check instructions for category 24 (from `references/checklist.md` — look for the `<!-- batch: 8 -->` marker)
+- The codebase exploration results from Step 3
+- The `.feature-flow.yml` content (specifically the `design_preferences` field values)
 
 #### Failure Handling
 

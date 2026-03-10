@@ -241,7 +241,7 @@ Optional project-wide design preference answers, captured by the brainstorming p
 ```yaml
 design_preferences:
   error_handling: result_types
-  api_style: server_actions
+  api_style: rest
   state_management: server_state
   testing: unit_integration
   ui_pattern: tailwind
