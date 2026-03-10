@@ -20,6 +20,36 @@ Mechanically checks all acceptance criteria from an implementation plan against 
 - Before claiming work is complete
 - Before committing or creating a PR
 
+## Format Detection
+
+Before extracting criteria, determine which format the plan file uses.
+
+See `references/xml-plan-format.md` for the canonical detection algorithm. Summary:
+
+1. Read first 50 lines; track code-fence state
+2. For each non-fenced line: check for `/^<plan version="/`
+3. Match found → XML mode (then verify `</plan>` present; absent → "plan appears truncated — treating as prose", use prose mode)
+4. No match → Prose mode (existing behavior unchanged)
+
+### XML Extraction
+
+For XML plans:
+
+1. Extract `<task id="N" status="...">` blocks
+2. For each task:
+   - Task status: read `status=` attribute (`pending`/`in-progress`/`done`) — replaces Progress
+     Index comment parsing. Missing or unexpected `status=` → treat as `pending`.
+   - Criteria: extract `<criterion>` elements from `<criteria>` block:
+     - Structured: `{what, how, command}` from `<what>/<how>/<command>` children — no regex needed
+     - Manual: `type="manual"` attribute → treat as `[MANUAL]` (CANNOT_VERIFY)
+3. Pass the extracted flat criterion list to Step 3 (task-verifier) — same format as prose path
+
+**Malformed XML:** if `</plan>` is absent, or `<task>` / `<criteria>` blocks are unclosed →
+announce "XML structure invalid — falling back to prose parser" and use prose mode. Any
+malformed XML trigger causes full fallback; per-criterion errors do not (see reference doc).
+
+**Prose mode:** existing Step 1-5 logic runs unchanged.
+
 ## Process
 
 ### Step 0: Check for Existing PR
@@ -60,6 +90,12 @@ Pick the most recent file. Confirm with the user: "Verifying against plan: `[pat
 If `## Phase Manifest` is absent, proceed with the single plan file content as before — existing behavior is unchanged.
 
 ### Step 2: Extract Acceptance Criteria
+
+**XML plans:** Use the XML Extraction algorithm from the Format Detection section above. Build
+the same flat criterion list (task number, title, criterion items) as the prose path produces —
+the task-verifier in Step 3 receives an identical input regardless of source format.
+
+**Prose plans (existing behavior):**
 
 **Note for split plans:** If the plan was detected as a split plan in Step 1, extract acceptance criteria from all phase files (not the index file). Label each task's criteria with its source phase file for traceability in the verification report (e.g., `Task 1 [from phase-1]`). When constructing the Step 3 verifier prompt, use `Task N [from phase-N]: [Title]` as the task identifier for each task from a phase file.
 
