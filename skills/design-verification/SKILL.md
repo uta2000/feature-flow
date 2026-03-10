@@ -59,16 +59,13 @@ Use the Task tool with `subagent_type: "Explore"` and `model: "haiku"` (see `../
 
 Dispatch all 5 domain agents in a **single message** (parallel):
 
-1. **Schema agent** — Migration files, ORM models, type definition files (`*.d.ts`, `types.ts`), `tsconfig.json`
+1. **Schema agent** — Migration files, ORM models, type definition files (`*.d.ts`, `types.ts`)
 2. **Pipeline agent** — API route files, hook files, pipeline files, shared type consumers
 3. **UI agent** — Component files, layout files, navigation components
 4. **Config agent** — `tsconfig.json`, eslint config, `next.config.*`, `package.json`
 5. **Patterns agent** — Directory structure (2-3 representative paths), naming convention samples (2-3 files), error handling examples
 
-**Expected return format per agent:**
-```
-{ domain: "schema" | "pipeline" | "ui" | "config" | "patterns", content: string }
-```
+**Expected output per agent:** Each agent returns free-form text describing what it found. The orchestrator slots each agent's text output into `exploration_results` by the domain it was dispatched for (schema, pipeline, ui, config, or patterns). The orchestrator assigns the domain key — agents do not self-report it.
 
 **Failure handling:** If an agent fails, retry it once. If it fails again, use an empty string for that domain's content and log a warning: "[domain] exploration failed — that domain's context will be absent from relevant batch agents." If an agent succeeds but finds no relevant files for the project (e.g., a UI-less CLI project has no component files), it returns `{ domain: "ui", content: "" }` — an empty string is the correct result and is safe to pass to batch agents.
 
