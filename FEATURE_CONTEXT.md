@@ -4,19 +4,23 @@
 
 ## Key Decisions
 
-<!-- Add decisions as they're made. Format: - [YYYY-MM-DD] Decision text -->
-- [2026-03-10] Scope reduced to context filtering only — no multi-session architecture (current dispatch already isolates via Task subagents)
-- [2026-03-10] No configuration needed — transparent optimization with same report output
-- [2026-03-10] 5 tagged exploration domains: schema, pipeline, ui, config, patterns
-- [2026-03-10] Single file change: skills/design-verification/SKILL.md (Step 3 + Step 4)
+- [2026-03-10] XML-hybrid format: `.md` files with `<plan version="1.0">` root; XML wraps machine-parsed fields, prose stays as markdown inside `<task>` blocks
+- [2026-03-10] Detection pattern: `/^<plan version="/` (not bare `<plan>`), check only non-fenced lines in first 50 lines
+- [2026-03-10] Truncation guard: require `</plan>` present in full file before committing to XML mode
+- [2026-03-10] Malformed XML falls back to prose parser (triggers: missing `</plan>`, unclosed `<task>`, unclosed `<criteria>`)
+- [2026-03-10] Progress Index suppressed for XML plans — `status=` attribute on `<task>` replaces it
+- [2026-03-10] `[MANUAL]` prefix (prose) and `type="manual"` attribute (XML) are equivalent in both skills
+- [2026-03-10] All 5 tasks are Parallelizable: yes (no shared file dependencies)
+- [2026-03-10] Tasks 3 and 5 are design-first (files >150 lines: verify-plan-criteria/SKILL.md 198 lines, yolo-overrides.md 311 lines)
+- [2026-03-10] v1 scope: no split plan support, no export CLI, no GSD mapping
 
 ## Open Questions
 
-<!-- Optional: unresolved questions to revisit next session -->
+<!-- None — all design decisions resolved per design doc -->
 
 ## Notes
 
-<!-- Optional: discoveries, gotchas, links -->
-- Plan: docs/plans/2026-03-10-context-filtering-design-verification.md
-- Issue: #168
-- Branch: feat/gh168-context-filtering-dv
+- Plan file: docs/plans/2026-03-10-xml-plan-format-166-plan.md
+- Design doc: docs/plans/2026-03-10-xml-structured-plan-format.md
+- Issue: #166
+- Branch: feat/xml-plan-format-166
