@@ -79,7 +79,7 @@ If a pattern matches, record:
 
 When `Type '...' is not assignable` or `Property '...' does not exist` is detected, use Grep to find correct usage of the same type or interface in the codebase:
 
-Use Grep to search for the actual type name extracted from the error (e.g., searching for `UserType` when the error mentions `UserType`). Use the Grep tool with the extracted type name as the pattern, scoped to `*.ts` and `*.tsx` files.
+Use Grep to search for the actual type name extracted from the error (e.g., searching for `UserType` when the error mentions `UserType`). Use the Grep tool with the extracted type name as the pattern and `glob: "**/*.{ts,tsx}"`.
 
 Include 1–3 matching examples in the diagnosis. If no matches exist, omit this section.
 
@@ -111,7 +111,7 @@ Output a structured report:
 | # | Criterion | Status | Evidence | Diagnosis |
 |---|-----------|--------|----------|-----------|
 | 1 | [criterion text] | PASS | [what you found] | — |
-| 2 | [criterion text] | FAIL | [what went wrong] | [root cause and suggested fix] |
+| 2 | [criterion text] | FAIL | [what went wrong] | **Root cause:** [explanation]<br>**Suggested fix:** [action] |
 | 3 | [criterion text] | CANNOT_VERIFY | [why — e.g., requires runtime test] | — |
 
 ### Summary
