@@ -27,8 +27,8 @@ default_branch: staging  # Optional: PR target branch (default: detected via cas
 notifications:          # Optional: notification preference written by start skill
   on_stop: bell         # bell | desktop | none
 knowledge_base:         # Optional: per-feature context file settings
-  max_lines: 150        # Archive oldest decisions when file exceeds this line count (default: 150)
-  stale_days: 14        # Archive decisions older than this many days (default: 14)
+  max_lines: 150        # Archive oldest decisions when file exceeds this line count
+  stale_days: 14        # Archive decisions older than this many days
 ```
 
 ## Fields
@@ -207,6 +207,8 @@ knowledge_base:
 ```
 
 **When needed:** Only when the defaults don't fit your workflow. Most projects can omit this section.
+
+**When absent:** `start` uses default values silently — 150 lines max, 14 days stale threshold. No prompt is shown. The field is never auto-written; it is only used when manually added.
 
 ## How Skills Use This File
 
