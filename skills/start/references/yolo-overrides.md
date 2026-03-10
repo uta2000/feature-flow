@@ -256,11 +256,19 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
    3. **Write the edit in one pass** — do not edit, run typecheck, re-read, and edit again. If the first edit has issues, re-read the file to understand what went wrong before making a second edit.
    4. For files marked `(design-first)` in Quality Constraints (>150 lines): the change plan in sub-step 2 is **mandatory** and must be output before any Edit tool call on that file.
 
-6. **Git Safety Protocol.** Instruct the implementer to never use history-rewriting git operations:
+6. **Git Safety Protocol.** Instruct the implementer to never use history-rewriting git operations (see `references/git-workflow.md` for the full commit message format):
    - Never use `git commit --amend` — always create a new commit instead (even for wrong messages or forgotten files)
    - Never use `git rebase -i` — leave the commit history as-is; if cleanup is needed, ask the human user
    - Never use `git push --force` or `git push --force-with-lease` — if the situation seems to require it, stop and ask the human user directly
    - This aligns with Claude Code's own git safety protocol: "CRITICAL: Always create NEW commits rather than amending"
+
+7. **Atomic Commit Protocol.** Instruct the implementer to commit after every acceptance criterion is verified — not after the full task. Full guidelines in `references/git-workflow.md`.
+
+   Key rules:
+   - One commit per acceptance criterion (group only when criteria are inseparable and test the exact same code path)
+   - Commit message format: `feat(scope): task description — ✓criterion text`
+   - Max description line: 72 characters; long criterion lists go in the commit body
+   - Never amend or rebase — always create new commits (see item 6 above)
 
 **Injection format:**
 
@@ -294,4 +302,9 @@ Never use history-rewriting git operations:
 If you need to add a forgotten file: `git add <file> && git commit -m "chore: add missing file"`
 If the commit message was wrong: create a new commit with a corrective message — do not amend.
 If a pre-commit hook failed: fix the underlying issue and create a NEW commit — do not amend.
+
+### Atomic Commit Protocol
+Commit after every acceptance criterion is verified — not after the full task.
+Format: `feat(scope): task description — ✓criterion text` (max 72 chars; long lists go in body)
+Full guidelines: `references/git-workflow.md`
 ```
