@@ -37,7 +37,7 @@ Commit after every acceptance criterion is verified — not after the full task.
 **Never use:**
 - `git commit --amend` — always create a new commit instead (even for wrong messages or forgotten files)
 - `git rebase -i` — leave history as-is; ask the user before squashing
-- `git push --force` — stop and ask the user if this seems necessary
+- `git push --force` or `git push --force-with-lease` — stop and ask the user if this seems necessary
 
 ## git-bisect Workflow
 
