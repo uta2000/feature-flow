@@ -39,7 +39,8 @@ The `version` attribute is **required**. A bare `<plan>` tag without `version=` 
 | Attribute | Required | Values | Notes |
 |-----------|----------|--------|-------|
 | `id` | yes | positive integer string | Must be unique within the plan |
-| `status` | yes | `pending`, `done`, `skipped` | Unknown values are treated as `pending`; absent `status` is treated as `pending` |
+| `status` | yes | `pending`, `in-progress`, `done` | Unknown values are treated as `pending`; absent `status` is treated as `pending` |
+| `commit` | no | git SHA string | Records the commit that completed this task; optional even when `status="done"` |
 
 ### Title Element
 
@@ -72,9 +73,7 @@ Plain text child of `<task>`. Used as the human-readable label for the task.
     <how>file existence</how>
     <command>ls references/xml-plan-format.md</command>
   </criterion>
-  <criterion type="manual">
-    <what>Examples are accurate and cover all common cases</what>
-  </criterion>
+  <criterion type="manual">Examples are accurate and cover all common cases</criterion>
 </criteria>
 ```
 
@@ -82,7 +81,7 @@ Each `<criterion>` represents one acceptance criterion.
 
 | Element/Attribute | Required | Notes |
 |-------------------|----------|-------|
-| `<what>` | yes (all criteria) | Declarative statement of what must hold |
+| `<what>` | yes (non-manual) | Declarative statement of what must hold |
 | `<how>` | yes (non-manual only) | Observable metric or artifact |
 | `<command>` | yes (non-manual only) | Runnable shell command |
 | `type="manual"` | no | Marks criterion as a manual check; `<how>` and `<command>` not required |
@@ -127,9 +126,7 @@ The following annotated example shows a two-task XML plan. Task 1 is pending wit
     <how>grep match</how>
     <command>grep -q '&lt;plan version="1.0"&gt;' references/xml-plan-format.md</command>
   </criterion>
-  <criterion type="manual">
-    <what>All sections are accurate, complete, and follow the acceptance-criteria-patterns.md document structure</what>
-  </criterion>
+  <criterion type="manual">All sections are accurate, complete, and follow the acceptance-criteria-patterns.md document structure</criterion>
 </criteria>
 
 **Quality Constraints:**
@@ -143,7 +140,7 @@ The following annotated example shows a two-task XML plan. Task 1 is pending wit
 
 </task>
 
-<task id="2" status="done">
+<task id="2" status="done" commit="abc1234">
 <title>Update verify-plan-criteria skill to support XML plans</title>
 
 <files>
@@ -253,9 +250,7 @@ The prose `[MANUAL]` prefix on a criterion line and the XML `type="manual"` attr
 
 **XML format:**
 ```xml
-<criterion type="manual">
-  <what>Description of what a human must verify</what>
-</criterion>
+<criterion type="manual">Description of what a human must verify</criterion>
 ```
 
 Both forms:
