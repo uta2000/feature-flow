@@ -115,11 +115,13 @@ You can proceed with committing / creating a PR.
 ```
 Some acceptance criteria failed. The following need attention:
 
-[show report table, highlighting FAIL items]
+[show report table — includes Diagnosis column for FAIL rows with root cause and suggested fix]
 
 Issues to fix:
 1. [criterion] — [evidence of failure]
+   → [suggested fix from Diagnosis column, if available]
 2. [criterion] — [evidence of failure]
+   → [suggested fix from Diagnosis column, if available]
 
 Fix these issues and run verify-acceptance-criteria again.
 ```
