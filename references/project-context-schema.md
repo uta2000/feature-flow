@@ -26,6 +26,9 @@ types_path: src/types/database.types.ts  # Optional: canonical generated types p
 default_branch: staging  # Optional: PR target branch (default: detected via cascade)
 notifications:          # Optional: notification preference written by start skill
   on_stop: bell         # bell | desktop | none
+knowledge_base:         # Optional: per-feature context file settings
+  max_lines: 150        # Archive oldest decisions when file exceeds this line count (default: 150)
+  stale_days: 14        # Archive decisions older than this many days (default: 14)
 ```
 
 ## Fields
@@ -184,6 +187,27 @@ notifications:
 
 **macOS-only:** The notification commands use `osascript`. On non-macOS systems, `start` skips the prompt and does not write this field.
 
+### `knowledge_base`
+
+Optional settings for the per-feature `FEATURE_CONTEXT.md` knowledge base. When absent, defaults are used silently.
+
+**Sub-fields:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `max_lines` | integer | 150 | Archive oldest decisions when `FEATURE_CONTEXT.md` exceeds this line count |
+| `stale_days` | integer | 14 | Archive decisions older than this many days |
+
+**Format:**
+
+```yaml
+knowledge_base:
+  max_lines: 150   # reduce for tighter context budgets
+  stale_days: 14   # increase for long-running branches
+```
+
+**When needed:** Only when the defaults don't fit your workflow. Most projects can omit this section.
+
 ## How Skills Use This File
 
 ### start (reads + writes)
@@ -196,6 +220,8 @@ notifications:
 - **Reads** `default_branch` field to determine the PR target branch. If absent, runs the detection cascade.
 - **Reads** `notifications.on_stop` field to skip the notification preference prompt when a saved preference exists (on macOS only).
 - **Writes** `notifications.on_stop` after the user answers the preference prompt (`bell`, `desktop`, or `none`). Does not write in YOLO/Express mode if no saved preference exists.
+- **Reads** `knowledge_base.max_lines` and `knowledge_base.stale_days` to configure FEATURE_CONTEXT.md archival thresholds (defaults: 150 lines, 14 days).
+- **Loads** `FEATURE_CONTEXT.md` from the worktree root on pre-flight: archives stale decisions, injects remaining content into the lifecycle context, and prints a resume notice.
 
 ### design-verification (reads + writes)
 - **Reads** base checklist (13 categories), stack-specific checks, platform-specific checks, and project gotchas.
