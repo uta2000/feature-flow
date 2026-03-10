@@ -57,6 +57,8 @@ Launch parallel exploration agents to understand the areas affected by the desig
 
 Use the Task tool with `subagent_type: "Explore"` and `model: "haiku"` (see `../../references/tool-api.md` — Task Tool).
 
+Announce before dispatching: "Dispatching 5 exploration agents in parallel: schema, pipeline, ui, config, patterns."
+
 Dispatch all 5 domain agents in a **single message** (parallel):
 
 1. **Schema agent** — Migration files, ORM models, type definition files (`*.d.ts`, `types.ts`)
@@ -104,13 +106,13 @@ Use the Task tool with `subagent_type: "Explore"` and `model: "sonnet"` for Batc
 
 **Context passed to each agent:**
 
-Every batch always receives:
+**Universal context (every batch):**
 - The full design document content
 - Its assigned checklist categories (partitioned from `references/checklist.md` using batch markers)
 - The `.feature-flow.yml` content (for stack/platform/gotchas context)
 - The list of applicable categories for this batch (from verification depth filtering)
 
-Plus the filtered exploration sections from `exploration_results` (produced by Step 3) per the **Context Filter Map**. Empty strings from agents that find no relevant files or that failed are passed as-is — no conditional logic required. Include the relevant domain values as named sections in the agent's prompt (e.g., `## Schema Exploration\n[content]`):
+In addition to the universal context above, each batch receives the following domain-filtered sections from `exploration_results` (produced by Step 3). Empty strings from agents that find no relevant files or that failed are passed as-is — no conditional logic required. Include the relevant domain values as named sections in the agent's prompt (e.g., `## Schema Exploration\n[content]`):
 
 | Batch | `exploration_results` sections included |
 |-------|----------------------------------------|
@@ -119,7 +121,7 @@ Plus the filtered exploration sections from `exploration_results` (produced by S
 | 3 — Quality & Safety | `schema` + `config` + `patterns` |
 | 4 — Patterns & Build | `patterns` + `config` |
 | 5 — Structure & Layout | `ui` |
-| 6 — Stack/Platform/Docs | *(no `exploration_results` sections — receives `.feature-flow.yml` and stack reference files only)* |
+| 6 — Stack/Platform/Docs | *(see Batch 6 section below)* |
 | 7 — Implementation Quality | `schema` + `patterns` |
 
 **Expected return format per agent:**
