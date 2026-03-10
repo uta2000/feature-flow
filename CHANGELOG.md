@@ -4,6 +4,9 @@ All notable changes to the feature-flow plugin.
 
 ## [Unreleased]
 
+### Added
+- **Atomic git commit guidelines** — introduces `references/git-workflow.md` with Conventional Commits format template (`feat(scope): description — ✓criterion`), step-by-step atomic commit workflow (one commit per acceptance criterion), and `git-bisect` integration docs. Updated `yolo-overrides.md` to inject Atomic Commit Protocol as item 7 in implementer quality context, and cross-referenced `git-workflow.md` in `inline-steps.md` commit steps. (Related: #169)
+
 ## [1.23.7] - 2026-03-09
 
 ### Changed
