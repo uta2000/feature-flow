@@ -4,6 +4,10 @@ All notable changes to the feature-flow plugin.
 
 ## [Unreleased]
 
+### Added
+- **Structured acceptance criteria format enforcement in `verify-plan-criteria`** — Step 3 now checks that every non-`[MANUAL]`, non-completed criterion contains both `measured by` and `verified by` keywords. Non-conforming criteria are flagged with a message referencing `references/acceptance-criteria-patterns.md`. Already-completed (`- [x]`) and `[MANUAL]`-prefixed criteria are exempt. All 9 Step 4 draft templates updated to produce structured `[WHAT] measured by [HOW] verified by [COMMAND]` criteria instead of plain-text descriptions. (Closes #173)
+- **`references/acceptance-criteria-patterns.md` reference document** — authoritative definition of the `[WHAT] measured by [HOW] verified by [COMMAND]` format, including a good-vs-bad examples table, 7 common pattern templates (file existence, command passes, typecheck, lint, export presence, content presence, test suite), `[MANUAL]` prefix usage guide, and an anti-patterns table. Uses `<!-- section: slug -->` markers for programmatic extraction. (Closes #173)
+
 ## [1.24.1] - 2026-03-09
 
 ### Added
