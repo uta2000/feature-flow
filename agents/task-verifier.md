@@ -63,11 +63,11 @@ Scan the failed command's stderr/stdout for known patterns:
 | `Type '...' is not assignable to type '...'` | Type mismatch — show expected vs actual, grep for correct usage |
 | `Property '...' does not exist on type '...'` | Missing property — show the type definition, suggest addition |
 | `'...' is not defined` or `Cannot find name '...'` | Undefined variable — suggest import or declaration |
-| `error TS\d+:` | TypeScript error — extract error code and message |
 | ESLint rule name (e.g., `no-unused-vars`) | Lint violation — show rule name, suggest fix |
 | `Expected ... but received ...` (test assertion) | Test assertion failure — show expected vs actual values |
 | `ENOENT` or `No such file or directory` | Missing file — suggest creation or correct path |
 | Stack trace with `file:line` | Runtime error — extract location, show surrounding code |
+| `error TS\d+:` (catch-all) | Generic TypeScript error — reached only when no more specific TS pattern above matched; extract error code and message |
 
 If a pattern matches, record:
 ```
@@ -79,8 +79,10 @@ If a pattern matches, record:
 
 When `Type '...' is not assignable` or `Property '...' does not exist` is detected, use Grep to find correct usage of the same type or interface in the codebase:
 
+Use Grep to search for the actual type name extracted from the error (e.g., searching for `UserType` when the error mentions `UserType`):
+
 ```bash
-grep -rn "TypeName" --include="*.ts" --include="*.tsx" | head -5
+grep -rn "$EXTRACTED_TYPE_NAME" --include="*.ts" --include="*.tsx" | head -5
 ```
 
 Include 1–3 matching examples in the diagnosis. If no matches exist, omit this section.
