@@ -36,7 +36,7 @@
 
 <files>
   <file action="create" path="tests/fixtures/sample-xml-plan.md"/>
-  <file action="modify" path="tests/fixtures/sample-prose-plan.md"/>
+  <file action="create" path="tests/fixtures/sample-prose-plan.md"/>
 </files>
 
 <criteria>
