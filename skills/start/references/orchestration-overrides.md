@@ -162,7 +162,7 @@ Announcement formats:
 
 Write inferred preferences to `.feature-flow.yml` exactly like interactive answers.
 
-**Write failure in YOLO mode:** Hold all inferred preferences in session context and include them in the design-doc step args. Announce: `YOLO: brainstorming — Preferences write failed → Holding in session context for this feature only`
+**Write failure in YOLO/Express mode:** Hold all inferred preferences in session context and include them in the design-doc step args. Announce: `YOLO: brainstorming — Preferences write failed → Holding in session context for this feature only` (substitute `Express:` for Express mode)
 
 **Subsequent runs (preferences exist):** Skip inference and preamble entirely — load silently from config. No announcement.
 

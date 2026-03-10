@@ -258,6 +258,9 @@ For every new file, component, module, or class proposed in the design:
 - Feature A imports a helper from Feature B, and Feature B imports a type from Feature A — circular dependency
 - All business logic lives in an API route handler instead of an extracted service layer — mixed responsibilities
 
+<!-- batch: 6 — not in this file; see SKILL.md for categories 15-18 -->
+<!-- batch: 7 — not in this file; see SKILL.md for categories 19-23 -->
+
 <!-- batch: 8 -->
 ## 24. Design Preferences Compliance
 

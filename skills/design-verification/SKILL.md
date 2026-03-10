@@ -66,7 +66,7 @@ Key areas to explore:
 
 Dispatch parallel verification agents to check the design against the codebase. Each agent handles a thematic batch of checklist categories.
 
-**Read `references/checklist.md` for the full detailed checklist.** The checklist is partitioned into 7 batches (6 using `<!-- batch: N -->` markers in checklist.md, plus Batch 7 defined inline below):
+**Read `references/checklist.md` for the full detailed checklist.** The checklist is partitioned into 8 batches (6 using `<!-- batch: N -->` markers in checklist.md, plus Batch 7 defined inline below, plus Batch 8 conditionally dispatched when `design_preferences` is present):
 
 | Batch | Agent | Categories |
 |-------|-------|------------|
@@ -77,6 +77,7 @@ Dispatch parallel verification agents to check the design against the codebase. 
 | 5 | Structure & Layout | 13. Route & Layout Chain, 14. Structural Anti-Patterns |
 | 6 | Stack/Platform/Docs | 15. Stack-Specific, 16. Platform-Specific, 17. Project Gotchas, 18. Documentation Compliance |
 | 7 | Implementation Quality | 19. Type Narrowness, 20. Error Strategy Completeness, 21. Function Complexity Forecast, 22. Edge Case Enumeration, 23. Stack Pattern Compliance |
+| 8 | Design Preferences | 24. Design Preferences Compliance |
 
 **Verification depth filtering:** Before dispatching, consult the Verification Depth table below. Only dispatch batches containing at least one applicable category for the design's scope. Pass the list of applicable categories to each agent so it skips non-applicable categories within its batch.
 
@@ -121,6 +122,16 @@ Batch 6 sources its check instructions from this SKILL.md (not from checklist.md
     - [ ] **No deprecated APIs:** Design doesn't rely on APIs marked as deprecated in current docs
 
     If Context7 is not available, skip category 18 and note: "Context7 not available — documentation compliance check skipped."
+
+#### Batch 8 — Conditional Dispatch (Design Preferences)
+
+Batch 8 (Design Preferences) is only dispatched if `.feature-flow.yml` exists and the `design_preferences` key is present (regardless of value). If `design_preferences` is absent, skip Batch 8 entirely. When the condition is met, use the Task tool with `subagent_type: "Explore"` and `model: "sonnet"` for Batch 8 and include it in the same single-message launch as Batches 1-7 so all agents run concurrently.
+
+**Context passed to the Batch 8 agent:**
+- The full design document content
+- The check instructions for category 24 (from `references/checklist.md` — look for the `<!-- batch: 8 -->` marker)
+- The codebase exploration results from Step 3
+- The `.feature-flow.yml` content (specifically the `design_preferences` field values)
 
 #### Batch 7 — Implementation Quality
 
@@ -254,10 +265,10 @@ Adjust depth based on the design's scope:
 
 | Design Scope | Depth |
 |-------------|-------|
-| New page with new data model | Full checklist (all 14 base categories + stack/platform/gotchas + doc compliance + implementation quality 19-23) |
-| New API route, existing data model | Categories 1-3, 5, 7-8, 10-12, 14, 18-23 + stack/platform/gotchas |
-| UI-only change, no schema changes | Categories 4-6, 9-10, 12-14, 19-23 + platform/gotchas |
-| Configuration or env change | Categories 7, 10-12, 14, 19-23 + stack/gotchas |
+| New page with new data model | Full checklist (all 14 base categories + stack/platform/gotchas + doc compliance + implementation quality 19-23 + Category 24 if design_preferences present) |
+| New API route, existing data model | Categories 1-3, 5, 7-8, 10-12, 14, 18-23 + stack/platform/gotchas + Category 24 if design_preferences present |
+| UI-only change, no schema changes | Categories 4-6, 9-10, 12-14, 19-23 + platform/gotchas + Category 24 if design_preferences present |
+| Configuration or env change | Categories 7, 10-12, 14, 19-23 + stack/gotchas + Category 24 if design_preferences present |
 
 ## Quality Rules
 
@@ -271,7 +282,7 @@ Adjust depth based on the design's scope:
 ### Reference Files
 
 For the full detailed verification checklist with specific checks per category:
-- **`references/checklist.md`** — Base verification checklist with 14 categories (Batches 1-5), specific checks, and examples of common findings. Batches 6 (categories 15-18) and 7 (categories 19-23) are defined inline in this SKILL.md.
+- **`references/checklist.md`** — Base verification checklist with 14 categories (Batches 1-5) plus Category 24 as Batch 8. Batches 6 (categories 15-18) and 7 (categories 19-23) are defined inline in this SKILL.md.
 
 For project context and stack/platform-specific checks:
 - **`../../references/project-context-schema.md`** — Schema for `.feature-flow.yml`
