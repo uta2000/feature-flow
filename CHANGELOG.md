@@ -4,6 +4,11 @@ All notable changes to the feature-flow plugin.
 
 ## [Unreleased]
 
+## [1.24.1] - 2026-03-09
+
+### Added
+- **Context Engineering & Knowledge Base (GH165):** Per-feature `FEATURE_CONTEXT.md` persists curated decisions across sessions. The start skill's Step 0 pre-flight loads the file, archives decisions older than 14 days (or when the file exceeds 150 lines), injects remaining decisions into the lifecycle context, and prints a resume notice. `FEATURE_CONTEXT.md` is created automatically at worktree setup. Configurable via `.feature-flow.yml` `knowledge_base.max_lines` and `knowledge_base.stale_days`.
+
 ## [1.23.7] - 2026-03-09
 
 ### Changed
