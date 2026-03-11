@@ -24,7 +24,7 @@ Mechanically checks all acceptance criteria from an implementation plan against 
 
 Before extracting criteria, determine which format the plan file uses.
 
-See `references/xml-plan-format.md` for the canonical detection algorithm. Summary:
+See `references/xml-plan-format.md` for the canonical schema. See `references/xml-plan-format-runtime.md` for the detection algorithm, error handling rules, and edge cases. Summary:
 
 1. Read the first 50 lines of the plan file
 2. Track code-fence state: toggle `in_fence` on each line that starts with ` ``` `
