@@ -18,11 +18,18 @@ class SelectionApp(App[list[int]]):
         Binding("q", "quit_app", "Quit"),
     ]
 
-    def __init__(self, issues: list[dict], parked_numbers: set[int], label: str) -> None:
+    def __init__(
+        self,
+        issues: list[dict],
+        parked_numbers: set[int],
+        label: str,
+        unmet_deps: dict[int, list[int]] | None = None,
+    ) -> None:
         super().__init__()
         self._issues = issues
         self._parked = parked_numbers
         self._label = label
+        self._unmet_deps = unmet_deps or {}
         self.selected: list[int] = []
 
     def compose(self) -> ComposeResult:
@@ -36,7 +43,12 @@ class SelectionApp(App[list[int]]):
                 number = issue["number"]
                 title = issue["title"]
                 parked_mark = " ↻ parked" if number in self._parked else ""
-                label = f"#{number} {title}{parked_mark}"
+                dep_mark = (
+                    f" → needs #{', #'.join(str(d) for d in self._unmet_deps[number])}"
+                    if number in self._unmet_deps
+                    else ""
+                )
+                label = f"#{number} {title}{parked_mark}{dep_mark}"
                 items.append((label, number))
             yield SelectionList(*items)
         yield Footer()

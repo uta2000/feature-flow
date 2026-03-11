@@ -166,7 +166,7 @@ def _select_issues(conn, config: Config) -> list[int] | None:
 
     from dispatcher.tui.selection import SelectionApp
 
-    app = SelectionApp(issues=issues, parked_numbers=parked_numbers, label=config.default_label)
+    app = SelectionApp(issues=issues, parked_numbers=parked_numbers, label=config.default_label, unmet_deps={})
     selected = app.run()
     return selected if selected else None
 
