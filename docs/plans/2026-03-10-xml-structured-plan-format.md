@@ -204,7 +204,6 @@ attribute and avoids matching code block examples or documentation snippets. A b
 **Truncation guard:** Before committing to XML mode, scan the full file for `</plan>`. If `</plan>`
 is absent, log a warning ("plan appears truncated — treating as prose") and use prose mode.
 
-
 ### XML extraction algorithm (verify-plan-criteria)
 
 ```

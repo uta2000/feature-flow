@@ -101,6 +101,15 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
 
    **Progress Index addition for split plans:** Each task line in the PROGRESS INDEX includes `— Phase: phase-N` so consumers (subagent-driven-development, verify-acceptance-criteria) know which phase file to load for that task.
 
+7. **XML plan format (opt-in).** When the writing-plans agent generates or updates a plan file:
+
+   - If the user explicitly requests XML format, or if the plan file being updated already contains
+     `<plan version="` within its first 50 lines, generate in XML format using the schema from
+     `references/xml-plan-format.md`. Otherwise, use the existing prose format.
+   - **For XML plans only — suppress Progress Index:** Do NOT generate the
+     `<!-- PROGRESS INDEX -->` HTML comment block. Task status is tracked via the `status=`
+     attribute on `<task>` elements instead.
+
 **Example task with quality constraints:**
 
 ```markdown

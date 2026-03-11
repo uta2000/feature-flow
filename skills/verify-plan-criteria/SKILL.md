@@ -16,6 +16,50 @@ Validates that every task in an implementation plan has machine-verifiable accep
 - Before the user reviews and approves a plan
 - When reviewing an existing plan for feature-flow compliance
 
+## Format Detection
+
+Before parsing, determine which format the plan file uses:
+
+See `references/xml-plan-format.md` for the canonical specification and complete field reference.
+
+1. Read the first 50 lines of the plan file
+2. Track code-fence state: toggle `in_fence` on each line that starts with ` ``` `
+3. For each non-fenced line: check if it matches `/^<plan version="/`
+4. If match found → **XML mode**
+5. Before committing to XML mode: scan the full file for `</plan>`. If absent → log warning
+   "plan appears truncated — treating as prose" and use **Prose mode**
+6. If no match in first 50 lines → **Prose mode** (existing behavior unchanged)
+
+**Canonical detection pattern:** `/^<plan version="/` — requires the `version=` attribute.
+A bare `<plan>` tag (no `version=`) is NOT treated as an XML plan.
+
+### XML Extraction Algorithm
+
+If XML mode:
+
+1. Find all `<task id="N" status="...">` blocks (string scan — no XML library)
+2. **Duplicate ID check:** If any `id=` value appears more than once → flag "duplicate task ID —
+   plan is invalid" and fall back to prose parser
+3. For each task block:
+   - Extract `<title>` content → task name
+   - Extract `<files>` → list of `{action, path}` objects from `<file>` elements
+   - Extract `<criteria>` → list of criterion objects:
+     - Structured: `{what, how, command}` from child `<what>/<how>/<command>` elements
+     - Manual: `{type: "manual", text: ...}` from `<criterion type="manual">` text content
+   - Read `status` attribute → replaces Progress Index parsing
+4. If a `<task>` block is not closed before the next `<task>` or `</plan>` → **malformed**, fall
+   back to prose parser with announcement: "malformed task block at id N — falling back to prose"
+5. If a `<criteria>` block is not closed before `</task>` → **malformed**, fall back to prose
+   parser with announcement: "malformed criteria block in task N — falling back to prose"
+6. `status=` values: `pending`, `in-progress`, `done` are recognized; any other value → treat as
+   `pending` and log a note; missing `status=` → treat as `pending`
+
+**[MANUAL] equivalence:** `<criterion type="manual">` and a `[MANUAL]`-prefixed prose criterion
+are equivalent — both mean "manual check, no command required." Treat them identically.
+
+**Prose mode:** If prose mode is selected, the existing Step 2 logic runs unchanged. The
+detection check is the single gate — once prose mode is selected, no XML logic executes.
+
 ## Process
 
 ### Step 1: Find the Plan File
@@ -40,6 +84,11 @@ Announce the selected path: "Checking plan: `[path]`"
 
 ### Step 2: Parse Tasks
 
+**XML plans (detected in Format Detection):**
+Use the extraction algorithm from the Format Detection section above. For each extracted task,
+proceed to Step 3 with the pre-extracted criterion objects.
+
+**Prose plans (existing behavior):**
 Read the plan file and find all task sections. Tasks are identified by headings matching:
 - `### Task N:` (standard format)
 - `### TASK-NNN:` (alternative format)
@@ -52,6 +101,14 @@ For each task, extract:
 
 ### Step 3: Check Each Task
 
+**XML criteria (pre-extracted):**
+XML criteria arrive as `{what, how, command}` objects (or `{type: "manual", text}` for manual).
+- Structured criteria: validate that `what`, `how`, and `command` are non-empty strings. If any
+  is empty → flag as "incomplete criterion" (inline, do not trigger fallback).
+- `<criteria>` present but zero `<criterion>` children → flag as "no criteria"
+- `type="manual"` criteria: no format validation required (equivalent to `[MANUAL]`)
+
+**Prose criteria (existing behavior):**
 For each task, determine if it has acceptance criteria:
 
 **Has criteria:** The task has an `**Acceptance Criteria:**` section with at least one `- [ ]` item.
@@ -77,6 +134,9 @@ Exempt from format check:
 **Fast-path:** If ALL tasks already have criteria, none are flagged as vague, all non-trivial tasks have Quality Constraints, and edge case criteria are present where needed, skip directly to Step 6 (Report). Do not execute Steps 4 or 5.
 
 ### Step 4: Draft Missing Criteria
+
+**Note:** Step 4 applies to prose plans only. XML plans surface inline flags (see Step 3).
+If the plan is XML mode, skip Steps 4 and 5 and proceed to Step 6 (Report).
 
 For each task missing criteria, generate machine-verifiable criteria from the task's context:
 
