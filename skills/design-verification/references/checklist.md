@@ -8,6 +8,7 @@
   Batch 5 (Structure & Layout): Categories 13-14
   Batch 6 (Stack/Platform/Docs): Categories 15-18 (defined in SKILL.md, not here)
   Batch 7 (Implementation Quality): Categories 19-23 (defined in SKILL.md, not here)
+  Batch 8 (Design Preferences): Category 24
 -->
 
 <!-- batch: 1 -->
@@ -256,3 +257,44 @@ For every new file, component, module, or class proposed in the design:
 - New utility imports from a UI component instead of a shared layer — inverted dependency
 - Feature A imports a helper from Feature B, and Feature B imports a type from Feature A — circular dependency
 - All business logic lives in an API route handler instead of an extracted service layer — mixed responsibilities
+
+<!-- batch: 6 — not in this file; see SKILL.md for categories 15-18 -->
+<!-- batch: 7 — not in this file; see SKILL.md for categories 19-23 -->
+
+<!-- batch: 8 -->
+## 24. Design Preferences Compliance
+
+*This category is skipped entirely if `design_preferences` is absent from `.feature-flow.yml`.*
+
+For each key present in `design_preferences` (excluding free-text values — identified by checking whether the value matches any known enum slug for that field):
+
+- [ ] **Error handling compliance:** Design uses the declared `error_handling` pattern (e.g., if `result_types`, design returns typed Result objects; if `exceptions`, design throws at boundaries)
+- [ ] **API style compliance:** New endpoints or data-fetching in design match the declared `api_style` (e.g., if `rest`, design uses resource routes; if `server_actions`, design uses `"use server"` functions)
+- [ ] **State management compliance:** Client-side state in design matches declared `state_management` (e.g., if `server_state`, design uses React Query/SWR; if `global_store`, design uses Zustand/Redux)
+- [ ] **Testing compliance:** Proposed test coverage in design matches declared `testing` level (e.g., if `unit_integration`, design specifies both unit and integration tests)
+- [ ] **UI pattern compliance:** UI styling approach in design matches declared `ui_pattern` (e.g., if `tailwind`, design uses utility classes; if `css_modules`, design uses `.module.css` files)
+
+**Compliance levels:**
+- **Match** → PASS
+- **Mismatch with explicit acknowledgment** in design doc (e.g., "Using REST here instead of server actions because the endpoint is consumed by a third party") → PASS with informational note
+- **Mismatch without acknowledgment** → WARNING: "Design uses [detected_pattern] but project preference is [declared_preference]. Add a deviation note or update the preference in `.feature-flow.yml`."
+
+**Slug recognition for compliance checking:**
+Free-text values are identified when the stored value does not match any of the known slugs for that field. For each field, the known slugs are:
+- `error_handling`: result_types, exceptions, error_objects, mixed
+- `api_style`: rest, graphql, server_actions, rpc, trpc
+- `state_management`: local, global_store, server_state, url_state, context_hooks
+- `testing`: unit, unit_integration, unit_integration_e2e, match_existing
+- `ui_pattern`: component_library, tailwind, css_modules, styled_components, match_existing
+
+**Where to look:**
+- `.feature-flow.yml` → `design_preferences` field
+- Design document's "Patterns & Constraints" section
+- Design document's "API / Integration" or "Pipeline / Architecture" sections
+- Design document's "New Components" or "UI Adaptations" sections for UI pattern
+- Design document's "Scope" section for explicitly acknowledged deviations
+
+**Common findings:**
+- Design proposes a GraphQL mutation when `api_style: rest` — if intentional, add "Deviation: using GraphQL for this endpoint because..." to the design doc
+- Design uses local state when `state_management: server_state` — common when adding a simple UI affordance that doesn't need server sync; acknowledge explicitly
+- Design skips integration tests when `testing: unit_integration` — if the feature has no external calls, acknowledge that unit-only is appropriate for this feature
