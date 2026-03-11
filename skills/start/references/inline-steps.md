@@ -186,7 +186,9 @@ This step runs after copy env files and before implementation. It forces reading
 - State management: [specific approach matching existing patterns]
 ```
 
-6. Pass these patterns, the "How to Code This" notes, anti-pattern warnings, AND reference examples from the consolidated output to BOTH the implementation step AND the code review pipeline step as mandatory context. **New code MUST follow these patterns unless there is a documented reason to deviate.** The code review pipeline uses reference examples to check new code against known-good patterns.
+6. **Write to context file.** After generating the "How to Code This" notes, write the full findings (Existing Patterns Found, Anti-Patterns, How to Code This) to `.feature-flow/implement/patterns-found.md`. Append to the existing file rather than overwriting, so multiple study passes accumulate. If the file does not exist yet (e.g., worktree was set up without the init step), create it using the template from `../../references/phase-context-templates.md`.
+
+7. Pass these patterns, the "How to Code This" notes, anti-pattern warnings, AND reference examples from the consolidated output to BOTH the implementation step AND the code review pipeline step as mandatory context. **New code MUST follow these patterns unless there is a documented reason to deviate.** The code review pipeline uses reference examples to check new code against known-good patterns.
 
 **Quality rules:**
 - Read at least 2 existing files per area being modified
@@ -504,3 +506,18 @@ This step runs after "Commit and PR" (or after mobile-specific steps like app st
 - **Issue already closed:** Caught in step 1 — skip dispatch. Do not reopen or double-comment.
 - **`gh` command fails:** Subagent logs error and continues — non-blocking
 - **YOLO/mode propagation:** YOLO propagation applies only to `Skill()` invocations, not `Task()` dispatches. These git/gh subagents require no mode flag.
+
+---
+
+## Blocker Logging
+
+When a subagent surfaces a blocker (a problem that halts a task, requires rethinking the approach, or requires asking the user), the orchestrator logs it immediately to `.feature-flow/implement/blockers-and-resolutions.md` using this format:
+
+```markdown
+## [Task N]: [Blocker Title]
+- **Blocker:** [description]
+- **Resolution:** pending
+- **Commit:** pending
+```
+
+Update the entry once the blocker is resolved, replacing `pending` with the actual resolution and commit SHA.

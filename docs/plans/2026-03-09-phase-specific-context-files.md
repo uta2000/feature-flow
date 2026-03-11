@@ -1,10 +1,10 @@
 # Phase-Specific Context Files — Implementation Plan
 
 <!-- PROGRESS INDEX (updated by implementation skills)
-Task 1: Create references/phase-context-templates.md — STATUS: pending
-Task 2: Update SKILL.md — worktree init + design phase context capture — STATUS: pending
-Task 3: Update inline-steps.md — implementation phase context capture — STATUS: pending
-Task 4: Update yolo-overrides.md — context archival and PR body injection — STATUS: pending
+Task 1: Create references/phase-context-templates.md — STATUS: done (commit 69a7530)
+Task 2: Update SKILL.md — worktree init + design phase context capture — STATUS: done (commit ce2e3ae)
+Task 3: Update inline-steps.md — implementation phase context capture — STATUS: done (commit 9d02045)
+Task 4: Update yolo-overrides.md — context archival and PR body injection — STATUS: done (commit cda0fd1)
 CURRENT: none
 -->
 
