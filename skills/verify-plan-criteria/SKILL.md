@@ -225,6 +225,20 @@ For each task where criteria were approved:
 ...
 ```
 
+### Step 5.5: Validate Dependency Graph
+
+Call `python -m dispatcher.wave_planner --plan-file <path>` on the plan file (substitute the actual path):
+
+```bash
+python -m dispatcher.wave_planner --plan-file <plan_path>
+```
+
+- **Exit 0:** dependency graph is valid — continue to Step 6
+- **Exit 1:** report each entry in `errors` as a **blocking** finding:
+  - Cycle: `"cycle: Task A → Task B → Task A"`
+  - Invalid ref: `"Task X: Depends on Task Y which does not exist"`
+- **Command not found / ImportError:** skip silently — non-blocking. `wave_planner.py` may not be installed in all environments.
+
 ### Step 6: Report
 
 After processing all tasks:
