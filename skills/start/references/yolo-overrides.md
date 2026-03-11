@@ -160,7 +160,22 @@ How to proceed:
 3. Proceed with the push + PR creation flow without presenting the 4-option menu
 4. **Issue reference in PR body:** When a GitHub issue is linked to the lifecycle, use `Related: #N` instead of `Closes #N` in the PR body — the lifecycle closes the issue explicitly in the "Comment and Close Issue" step with a detailed comment.
 5. For PR title/body, use the feature description and lifecycle context to generate them automatically. **Include the aggregated code review summary in the PR body** — append the PR Review Toolkit Summary (from the Phase 1a subagent output, including the `### Auto-Fixed` section from Phase 1a), any findings fixed by the single-pass fix phase (Phase 3), and any remaining minor findings. Use this section heading in the PR body: `## Code Review Summary`.
-6. **Test failure during completion:** If tests fail, log the failures as a warning and proceed with PR creation. Announce: `YOLO: finishing-a-development-branch — Tests failing → Proceeding with PR (N failures logged)`. Proceed past test failures — the code review pipeline already ran verification.
+6. **Archive phase context files.** Before creating the PR, archive the context directories to a timestamped session directory:
+   ```bash
+   DATE=$(date +%Y-%m-%d)
+   FEATURE=$(basename $(git rev-parse --abbrev-ref HEAD))
+   SESSION_DIR=".feature-flow/sessions/${DATE}-${FEATURE}"
+   mkdir -p "$SESSION_DIR"
+   [ -d .feature-flow/design ] && cp -r .feature-flow/design/ "$SESSION_DIR/design/"
+   [ -d .feature-flow/implement ] && cp -r .feature-flow/implement/ "$SESSION_DIR/implement/"
+   ```
+   If neither `.feature-flow/design/` nor `.feature-flow/implement/` exists, skip silently.
+7. **Inject context into PR body.** Append an `## Implementation Context` section to the PR body. For each context file that contains content beyond template placeholder text, include a subsection:
+   - If `.feature-flow/design/design-decisions.md` has content: `### Design Decisions` — include the Key Decisions list only
+   - If `.feature-flow/design/verification-results.md` has content: `### Verification Results` — include the blockers-found list only
+   - If `.feature-flow/implement/patterns-found.md` has content: `### Key Patterns Used` — include the How to Code This section only (omit the full patterns dump)
+   - Omit subsections whose files contain only template placeholder text (no real entries)
+8. **Test failure during completion:** If tests fail, log the failures as a warning and proceed with PR creation. Announce: `YOLO: finishing-a-development-branch — Tests failing → Proceeding with PR (N failures logged)`. Proceed past test failures — the code review pipeline already ran verification.
 
 ## Subagent-Driven Development YOLO Override
 
