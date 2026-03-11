@@ -4,19 +4,22 @@
 
 ## Key Decisions
 
-- [2026-03-11] Architecture: documentation-only — no runtime code, no TypeScript, no tests; all four tasks modify Markdown skill files
-- [2026-03-11] Context files are git-tracked intentionally (appear in PR diff) — no .gitignore changes
-- [2026-03-11] Task execution: Wave 1 (Tasks 1, 3, 4 in parallel), Wave 2 (Task 2 sequential after Task 1)
-- [2026-03-11] Blocker Logging section goes in inline-steps.md (not yolo-overrides.md)
-- [2026-03-11] Archival and PR injection are YOLO-only (in yolo-overrides.md)
-- [2026-03-11] Template file path: references/phase-context-templates.md
+- [2026-03-11] wave_planner.py output includes `has_explicit_deps: bool` — distinguishes "explicit deps declared" from "all independent by default"
+- [2026-03-11] Phase A uses `has_explicit_deps: true` flag (not grep) to decide whether to skip heuristic phases B-D
+- [2026-03-11] Format detection re-implemented in Python — iterate lines, track code-fence state, match `^<plan version=`
+- [2026-03-11] `Parallelizable: no` + no `Depends on:` = conservative wave placement after tasks sharing Files modified
+- [2026-03-11] Cycle detection: exit 1, `waves: []`, DFS path tracing for descriptive error message
+- [2026-03-11] No changes to dispatcher/pipeline.py — only subagent-driven-development orchestrator updated
+- [2026-03-11] Both syntaxes additive; all existing plans work without modification
 
 ## Open Questions
 
-<!-- None — all design decisions resolved per Developer Guidance in issue #171 -->
+<!-- None — all design decisions resolved per issue #167 -->
 
 ## Notes
 
-- Plan file: docs/plans/2026-03-09-phase-specific-context-files.md
-- Issue: #171
-- Branch: feat/gh171-phase-context-files
+- Plan file: docs/plans/2026-03-09-wave-based-parallel-task-execution-167-plan.md
+- Design doc: docs/plans/2026-03-09-wave-based-parallel-task-execution.md
+- Issue: #167
+- Branch: feat/gh167-wave-parallel-execution
+- Baseline: 97 tests pass (3 pre-existing collection errors in test_config.py, test_tui — unrelated)

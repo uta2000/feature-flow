@@ -191,7 +191,16 @@ Additional YOLO behavior:
 4. When dispatching Explore agents during implementation, follow the Model Routing Defaults section below (`haiku`).
 5. **Parallelization Protocol.** Before starting the task loop, analyze the plan to maximize parallel dispatch. Never implement tasks inline — the orchestrator's role is analysis and dispatch only.
 
-   **Phase A — Dependency analysis:**
+   **Phase A — Wave planner detection (deterministic):**
+   1. Call `python -m dispatcher.wave_planner --plan-file <path>` (substitute actual plan path)
+   2. Parse the JSON output from stdout
+   3. If exit 0 AND `"has_explicit_deps": true` in output:
+      → Use `waves` array from JSON to build execution waves — **skip Phases A.2, B, C, D**
+      → Each element of `waves` is a list of task IDs to dispatch as a parallel batch
+   4. Otherwise (exit 1, command not found, or `"has_explicit_deps": false`):
+      → Continue to Phase A.2 (existing heuristics)
+
+   **Phase A.2 — Dependency analysis (heuristic fallback):**
    - For each task, read its `Parallelizable:` field from Quality Constraints
    - If `Parallelizable: yes`: task is independent (safe to parallelize)
    - If `Parallelizable: no`: treat as sequential — respect the planner's explicit declaration (including logic dependencies that file analysis cannot infer)
