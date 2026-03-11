@@ -48,8 +48,9 @@ If XML mode:
      - Manual: `{type: "manual", text: ...}` from `<criterion type="manual">` text content
    - Read `status` attribute → replaces Progress Index parsing
 4. If a `<task>` block is not closed before the next `<task>` or `</plan>` → **malformed**, fall
-   back to prose parser with announcement: "XML structure invalid — falling back to prose parser"
-5. If a `<criteria>` block is not closed before `</task>` → **malformed**, fall back to prose parser with announcement: "XML structure invalid — falling back to prose parser"
+   back to prose parser with announcement: "malformed task block at id N — falling back to prose"
+5. If a `<criteria>` block is not closed before `</task>` → **malformed**, fall back to prose
+   parser with announcement: "malformed criteria block in task N — falling back to prose"
 6. `status=` values: `pending`, `in-progress`, `done` are recognized; any other value → treat as
    `pending` and log a note; missing `status=` → treat as `pending`
 

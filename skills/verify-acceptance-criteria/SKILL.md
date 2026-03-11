@@ -39,17 +39,22 @@ See `references/xml-plan-format.md` for the canonical detection algorithm. Summa
 For XML plans:
 
 1. Extract `<task id="N" status="...">` blocks
-2. For each task:
+2. **Duplicate ID check:** If any `id=` value appears more than once → announce
+   "XML structure invalid — falling back to prose parser" and use prose mode.
+3. For each task:
    - Task status: read `status=` attribute (`pending`/`in-progress`/`done`) — replaces Progress
      Index comment parsing. Missing or unexpected `status=` → treat as `pending`.
    - Criteria: extract `<criterion>` elements from `<criteria>` block:
      - Structured: `{what, how, command}` from `<what>/<how>/<command>` children — no regex needed
      - Manual: `type="manual"` attribute → treat as `[MANUAL]` (CANNOT_VERIFY)
-3. Pass the extracted flat criterion list to Step 3 (task-verifier) — same format as prose path
+4. Pass the extracted flat criterion list to Step 3 (task-verifier) — same format as prose path
 
-**Malformed XML:** if `</plan>` is absent, or `<task>` / `<criteria>` blocks are unclosed →
-announce "XML structure invalid — falling back to prose parser" and use prose mode. Any
-malformed XML trigger causes full fallback; per-criterion errors do not (see reference doc).
+**Malformed XML:** the following conditions trigger full prose fallback (see reference doc for
+per-criterion flags that don't trigger fallback):
+- `</plan>` absent → "plan appears truncated — treating as prose"
+- `<task>` unclosed → "malformed task block at id N — falling back to prose"
+- `<criteria>` unclosed → "malformed criteria block in task N — falling back to prose"
+- Duplicate task IDs → "duplicate task ID N — plan is invalid, falling back to prose"
 
 **Prose mode:** existing Step 1-5 logic runs unchanged.
 
@@ -175,7 +180,11 @@ Resolve the blocker and run verify-acceptance-criteria again.
 
 ### Step 5: Update Plan (Optional)
 
-If all criteria for a task pass, offer to check off the criteria in the plan:
+**XML plans:** XML plans track task completion via the `status=` attribute, not checkboxes. If
+the plan is in XML mode and all criteria for a task pass, offer to update `status="pending"` →
+`status="done"` on the `<task>` element instead. Skip the checkbox editing below.
+
+**Prose plans:** If all criteria for a task pass, offer to check off the criteria in the plan:
 
 ```markdown
 - [x] File exists at `src/components/Badge.tsx`  ← checked

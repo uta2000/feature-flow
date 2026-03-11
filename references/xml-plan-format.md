@@ -9,7 +9,7 @@ The XML plan format is an **opt-in** hybrid format that wraps machine-readable f
 
 **Why it exists:** Prose plans are reliable for human reading but require fragile text parsing to extract structured data such as task status or acceptance criteria. The XML format gives verification skills a stable, unambiguous structure to query without forcing authors to abandon prose for everything.
 
-**Prose plans are unaffected.** Any plan file that does not begin with `<plan version="` (outside a code fence, in the first 50 lines) is parsed by the existing prose parser. No existing plans require migration.
+**Prose plans are unaffected.** Any plan file that does not contain `<plan version="` (outside a code fence, within the first 50 lines) is parsed by the existing prose parser. No existing plans require migration.
 
 **XML is opt-in.** Authors choose XML by writing `<plan version="1.0">` as the first non-fenced line of the plan file. All other plan files remain prose.
 
@@ -172,8 +172,8 @@ The detection algorithm determines whether a plan file should be parsed as XML o
 ### Steps
 
 1. **Read the first 50 lines** of the plan file.
-2. **Track code-fence state.** Maintain a boolean `inFence`, initially `false`. For each line, if the line starts with ` ``` `, toggle `inFence`.
-3. **For each non-fenced line** (where `inFence` is `false`): check whether the line matches the pattern `/^<plan version="/`.
+2. **Track code-fence state.** Maintain a boolean `in_fence`, initially `false`. For each line, if the line starts with ` ``` `, toggle `in_fence`.
+3. **For each non-fenced line** (where `in_fence` is `false`): check whether the line matches the pattern `/^<plan version="/`.
 4. **If a match is found** in the first 50 lines (outside a code fence) → candidate XML mode.
 5. **Truncation guard:** Before committing to XML mode, scan the **full file** for the closing `</plan>` tag. If `</plan>` is absent → log `"plan appears truncated — treating as prose"` and use prose mode.
 6. If `</plan>` is present → **XML mode confirmed**.
@@ -207,6 +207,9 @@ The following conditions indicate the XML structure is broken beyond recoverable
 | `<task>` block not closed before next `<task>` or `</plan>` | `"malformed task block at id N — falling back to prose"` |
 | `<criteria>` block not closed before `</task>` | `"malformed criteria block in task N — falling back to prose"` |
 | Duplicate task IDs | `"duplicate task ID N — plan is invalid, falling back to prose"` |
+| `<task>` opened after last `</task>` but before `</plan>` with no matching `</task>` | `"malformed task block at id N — falling back to prose"` |
+
+> **Note:** `</plan>` presence (step 5 of the Detection Algorithm) is a necessary but not sufficient condition — unclosed `<task>` blocks after `</plan>` is present are caught separately during extraction (row 2 above).
 
 ### Per-Criterion Flags (Inline, No Fallback)
 
@@ -320,12 +323,6 @@ How to write a valid XML plan from scratch:
    ```xml
    </plan>
    ```
-
-**Key rules:**
-- `<plan version="1.0">` must appear at the start of a line (not inside a code fence) within the first 50 lines.
-- `</plan>` must be present in the file — its absence triggers truncation detection and prose fallback.
-- Task IDs must be unique positive integers.
-- Non-manual criteria must have all three of `<what>`, `<how>`, and `<command>`.
 
 <!-- /section: authoring-guide -->
 

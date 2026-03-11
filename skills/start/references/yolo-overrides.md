@@ -103,8 +103,8 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
 
 7. **XML plan format (opt-in).** When the writing-plans agent generates or updates a plan file:
 
-   - If the user explicitly requests XML format, or if the plan file being updated already begins with
-     `<plan version="`, generate in XML format using the schema from
+   - If the user explicitly requests XML format, or if the plan file being updated already contains
+     `<plan version="` within its first 50 lines, generate in XML format using the schema from
      `references/xml-plan-format.md`. Otherwise, use the existing prose format.
    - **For XML plans only — suppress Progress Index:** Do NOT generate the
      `<!-- PROGRESS INDEX -->` HTML comment block. Task status is tracked via the `status=`
