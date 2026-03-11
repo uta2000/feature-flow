@@ -51,6 +51,14 @@ def test_add_label(mock_run):
     mock_run.assert_called_once()
 
 
+def test_view_issue_fetches_state():
+    """Confirm view_issue requests the state field."""
+    import dispatcher.github as gh_module
+    import inspect
+    source = inspect.getsource(gh_module.view_issue)
+    assert "state" in source, "view_issue must fetch state field"
+
+
 @patch("dispatcher.github.subprocess.run")
 def test_list_prs(mock_run):
     prs = [{"number": 100, "url": "https://github.com/o/r/pull/100"}]
