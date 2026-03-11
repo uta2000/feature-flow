@@ -80,15 +80,15 @@ def _parse_prose(content: str) -> tuple[set[int], dict[int, set[int]], bool]:
     return task_ids, deps, has_explicit_deps
 
 
-def _parse_xml(content: str) -> tuple[set[int], dict[int, set[int]], bool, list[str]]:
-    """Parse XML plan for task IDs and `depends_on` attributes."""
+def _parse_xml(content: str) -> tuple[set[int], dict[int, set[int]], bool]:
+    """Parse XML plan for task IDs and `depends_on` attributes.
+
+    Raises ET.ParseError on malformed XML.
+    """
     task_ids: set[int] = set()
     deps: dict[int, set[int]] = {}
     has_explicit_deps = False
-    try:
-        root = ET.fromstring(content)
-    except ET.ParseError as exc:
-        return task_ids, deps, has_explicit_deps, [f"XML parse error: {exc}"]
+    root = ET.fromstring(content)
     for task in root.findall(".//task"):
         try:
             tid = int(task.get("id", "").strip())
@@ -106,7 +106,7 @@ def _parse_xml(content: str) -> tuple[set[int], dict[int, set[int]], bool, list[
             if preds:
                 deps.setdefault(tid, set()).update(preds)
                 has_explicit_deps = True
-    return task_ids, deps, has_explicit_deps, []
+    return task_ids, deps, has_explicit_deps
 
 
 def _validate(task_ids: set[int], deps: dict[int, set[int]]) -> list[str]:
@@ -195,9 +195,10 @@ def plan_waves(plan_file: str) -> tuple[dict, int]:
     except (FileNotFoundError, IsADirectoryError, PermissionError):
         return {"waves": [], "errors": [f"file not found: {plan_file}"], "has_explicit_deps": False}, 1
     if _is_xml(content):
-        task_ids, deps, has_explicit_deps, xml_errors = _parse_xml(content)
-        if xml_errors:
-            return {"waves": [], "errors": xml_errors, "has_explicit_deps": False}, 1
+        try:
+            task_ids, deps, has_explicit_deps = _parse_xml(content)
+        except ET.ParseError as exc:
+            return {"waves": [], "errors": [f"XML parse error: {exc}"], "has_explicit_deps": False}, 1
     else:
         task_ids, deps, has_explicit_deps = _parse_prose(content)
     if not task_ids:
