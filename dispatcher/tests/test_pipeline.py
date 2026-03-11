@@ -530,6 +530,39 @@ def test_parallel_execution_batching(mock_tmux, mock_worktree, mock_time):
     mock_worktree.cleanup_all.assert_called_once()
 
 
+# --- Task 3: _check_dependencies tests ---
+
+class TestCheckDependencies:
+    def _make_issues_raw(self):
+        return [
+            {"number": 5, "body": "depends on #3", "state": "open"},
+            {"number": 3, "body": "", "state": "open"},
+        ]
+
+    def test_returns_graph_and_unmet(self):
+        from dispatcher.pipeline import _check_dependencies
+        graph, unmet = _check_dependencies(self._make_issues_raw(), [3, 5])
+        assert graph == {5: [3], 3: []}
+        assert unmet == {5: [3]}
+
+    def test_closed_dep_not_unmet(self):
+        from dispatcher.pipeline import _check_dependencies
+        issues_raw = [
+            {"number": 5, "body": "depends on #3", "state": "open"},
+            {"number": 3, "body": "", "state": "closed"},
+        ]
+        graph, unmet = _check_dependencies(issues_raw, [3, 5])
+        assert unmet == {}
+
+    def test_returns_empty_on_error(self, capsys):
+        from dispatcher.pipeline import _check_dependencies
+        # Pass malformed data to trigger ValueError
+        issues_raw = [{"number": "not-an-int", "body": None, "state": "open"}]
+        graph, unmet = _check_dependencies(issues_raw, [])
+        assert graph == {}
+        assert unmet == {}
+
+
 # --- Worker command env var cleanup tests ---
 
 def test_build_worker_cmd_unsets_all_claude_env_vars():

@@ -7,8 +7,10 @@ import uuid
 
 from dataclasses import asdict
 from pathlib import Path
+from typing import Any
 
 from dispatcher import db, github, tmux, worktree
+from dispatcher import dependencies as dep_module
 from dispatcher.execute import (
     build_interactive_prompt,
     create_branch,
@@ -60,23 +62,73 @@ def run(config: Config) -> int:
 
     db.insert_run(conn, run_id, selected_numbers, "{}")
 
-    triage_results = _run_triage(conn, run_id, selected_numbers, config)
+    triage_results, issues_raw = _run_triage(conn, run_id, selected_numbers, config)
     if not triage_results:
         db.update_run_status(conn, run_id, "failed")
         return 1
 
     triage_results.sort(key=lambda t: t.confidence, reverse=True)
-    return _review_and_execute(conn, run_id, triage_results, start_time, config)
+    return _review_and_execute(conn, run_id, triage_results, issues_raw, start_time, config)
 
 
-def _review_and_execute(conn, run_id: str, triage_results: list[TriageResult], start_time: float, config: Config) -> int:
-    reviewed = _run_review(triage_results, config)
+def _format_dep_warnings(unmet: dict[int, list[int]]) -> None:
+    """Print stdout warning for each issue with unmet dependencies."""
+    for issue_num, missing in sorted(unmet.items()):
+        for dep in missing:
+            print(f"  ⚠  Dependency warning: #{issue_num} depends on #{dep} which is not yet complete.")
+
+
+def _check_dependencies(
+    issues_raw: list[dict[str, Any]],
+    selected_numbers: list[int],
+) -> tuple[dict[int, list[int]], dict[int, list[int]]]:
+    """Build dep graph and find unmet deps. Never raises.
+    Returns (graph, unmet). Returns ({}, {}) on any error."""
+    try:
+        for issue in issues_raw:
+            if not isinstance(issue.get("number"), int):
+                raise ValueError(f"Issue number must be int, got {type(issue.get('number'))!r}")
+        graph = dep_module.build_dep_graph(issues_raw)
+        closed = {d["number"] for d in issues_raw if d.get("state") == "closed"}
+        unmet = dep_module.find_unmet(graph, batch=set(selected_numbers), closed=closed)
+        _format_dep_warnings(unmet)
+        return graph, unmet
+    except dep_module.CycleError as exc:
+        print(f"  ⚠  Circular dependency detected: {exc}. Wave ordering disabled; executing in original order.")
+        return {}, {}
+    except (GithubError, ValueError) as exc:
+        print(f"  Warning: dependency check failed: {exc}. Continuing without dep analysis.")
+        return {}, {}
+
+
+def _review_and_execute(
+    conn, run_id: str, triage_results: list[TriageResult],
+    issues_raw: list[dict[str, Any]], start_time: float, config: Config,
+) -> int:
+    selected_numbers = [tr.issue_number for tr in triage_results]
+    dep_graph, unmet = _check_dependencies(issues_raw, selected_numbers)
+
+    reviewed = _run_review(triage_results, dep_graph, unmet, config)
     if reviewed is None:
         db.update_run_status(conn, run_id, "cancelled")
         return 0
 
     to_execute = [r for r in reviewed if not r.skipped and r.final_tier != "parked"]
     parked = [r for r in reviewed if r.final_tier == "parked" and not r.skipped]
+
+    # Auto mode: reorder to_execute into dependency waves
+    if config.auto and dep_graph and to_execute:
+        try:
+            nums = [r.triage.issue_number for r in to_execute]
+            waves = dep_module.dep_waves(dep_graph, nums)
+            lookup = {r.triage.issue_number: r for r in to_execute}
+            print("\n  Dependency waves detected:")
+            for i, wave in enumerate(waves, 1):
+                print(f"    Wave {i}: {', '.join(f'#{n}' for n in wave)}")
+            print("  Executing waves sequentially...\n")
+            to_execute = [lookup[n] for wave in waves for n in wave if n in lookup]
+        except dep_module.CycleError:
+            pass  # already warned in _check_dependencies; proceed with original order
 
     if not to_execute and not config.dry_run:
         _post_parked_comments(parked, config)
@@ -119,8 +171,11 @@ def _select_issues(conn, config: Config) -> list[int] | None:
     return selected if selected else None
 
 
-def _run_triage(conn, run_id: str, selected_numbers: list[int], config: Config) -> list[TriageResult]:
+def _run_triage(
+    conn, run_id: str, selected_numbers: list[int], config: Config
+) -> tuple[list[TriageResult], list[dict[str, Any]]]:
     triage_results = []
+    issues_raw: list[dict[str, Any]] = []
     for number in selected_numbers:
         try:
             issue_data = github.view_issue(number, config.repo)
@@ -128,6 +183,7 @@ def _run_triage(conn, run_id: str, selected_numbers: list[int], config: Config) 
             print(f"  Error fetching #{number}: {exc}. Skipping.")
             continue
 
+        issues_raw.append(issue_data)  # collect raw dict (has body + state)
         try:
             tr = triage_issue(issue_data, number, f"https://github.com/{config.repo}/issues/{number}", config)
         except TriageError as exc:
@@ -137,10 +193,15 @@ def _run_triage(conn, run_id: str, selected_numbers: list[int], config: Config) 
         triage_results.append(tr)
         db.insert_issue(conn, run_id, tr)
         print(f"  #{number}: {tr.issue_title} → {tr.triage_tier} ({tr.confidence:.2f})")
-    return triage_results
+    return triage_results, issues_raw
 
 
-def _run_review(triage_results: list[TriageResult], config: Config) -> list[ReviewedIssue] | None:
+def _run_review(
+    triage_results: list[TriageResult],
+    dep_graph: dict[int, list[int]],
+    unmet: dict[int, list[int]],
+    config: Config,
+) -> list[ReviewedIssue] | None:
     if config.auto:
         return [
             ReviewedIssue(triage=tr, final_tier=tr.triage_tier, skipped=False, edited_comment=None)
@@ -149,7 +210,7 @@ def _run_review(triage_results: list[TriageResult], config: Config) -> list[Revi
 
     from dispatcher.tui.review import ReviewApp
 
-    app = ReviewApp(triage_results=triage_results)
+    app = ReviewApp(triage_results=triage_results, unmet=unmet)
     reviewed = app.run()
     return reviewed if reviewed else None
 
