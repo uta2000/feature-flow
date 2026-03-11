@@ -50,6 +50,19 @@ def _is_xml(content: str) -> bool:
     return False
 
 
+def _non_fenced_lines(content: str) -> list[str]:
+    """Return lines from markdown content that are not inside code fences."""
+    in_fence = False
+    result = []
+    for line in content.splitlines():
+        if line.strip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        if not in_fence:
+            result.append(line)
+    return result
+
+
 def _parse_prose(content: str) -> tuple[set[int], dict[int, set[int]], bool]:
     """Parse prose plan for task IDs and `Depends on:` lines.
 
@@ -64,7 +77,7 @@ def _parse_prose(content: str) -> tuple[set[int], dict[int, set[int]], bool]:
     depends_re = re.compile(r"^\s*-\s+Depends\s+on:\s*(.+)$", re.IGNORECASE)
     ref_re = re.compile(r"\bTask\s+(\d+)\b", re.IGNORECASE)
 
-    for line in content.splitlines():
+    for line in _non_fenced_lines(content):
         m = heading_re.match(line)
         if m:
             current_task = int(m.group(1))
@@ -134,7 +147,8 @@ def _find_cycle(task_ids: set[int], successors: dict[int, list[int]]) -> list[in
                 while parent.get(node) != v and node in parent:
                     node = parent[node]
                     path.append(node)
-                path.append(v)
+                if path[-1] != v:
+                    path.append(v)
                 path.reverse()
                 return path
             if color[v] == WHITE:
