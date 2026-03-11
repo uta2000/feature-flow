@@ -647,6 +647,7 @@ Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/p
 | Code review | No skill — inline step (see below) | All Critical/Important findings fixed, tests pass |
 | Generate CHANGELOG entry | No skill — inline step (see below) | CHANGELOG.md updated with categorized entry |
 | Final verification | No skill — inline step (see below) | All criteria PASS + quality gates pass (or skipped if Phase 4 already passed) |
+| Sync with base branch | No skill — inline step (see below) | Branch rebased onto latest base branch; CHANGELOG.md conflicts auto-resolved |
 | Commit and PR | `superpowers:finishing-a-development-branch` | PR URL |
 | Device matrix testing | No skill — manual step | Tested on min OS, small/large screens, slow network |
 | Beta testing | No skill — manual step | TestFlight / Play Console build tested by internal tester |
@@ -700,6 +701,10 @@ Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/p
 ### Documentation Lookup Step (inline — no separate skill)
 
 **Read `references/inline-steps.md` — "Documentation Lookup Step" section** when reaching this step.
+
+### Sync with Base Branch Step (inline — no separate skill)
+
+**Read `references/inline-steps.md` — "Sync with Base Branch Step" section** when reaching this step.
 
 ### Final Verification Step (inline — no separate skill)
 

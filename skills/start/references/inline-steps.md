@@ -357,6 +357,63 @@ After writing, announce: "CHANGELOG.md updated with N entries across M categorie
 
 ---
 
+## Sync with Base Branch Step
+
+This step runs after final verification and before commit and PR. It fetches the latest from origin and rebases the feature branch onto the base branch, ensuring no divergence has accumulated from parallel feature work. CHANGELOG.md conflicts — the most common parallel-branch conflict — are resolved automatically by combining both sets of Unreleased entries.
+
+**Process:**
+
+1. Fetch latest from origin:
+   ```bash
+   git fetch origin
+   ```
+
+2. Check for divergence:
+   ```bash
+   git rev-list HEAD..origin/<base-branch> --count
+   ```
+   - If output is `0`: announce "Base branch is up to date — no rebase needed." Skip to step 5.
+   - If output is non-zero: proceed to step 3.
+
+3. Attempt rebase:
+   ```bash
+   git rebase origin/<base-branch>
+   ```
+
+4. If rebase exits with conflicts:
+   a. Identify conflicted files:
+      ```bash
+      git diff --name-only --diff-filter=U
+      ```
+   b. **For `CHANGELOG.md` conflicts (auto-resolved):**
+      - Read the conflicted file
+      - Extract HEAD's Unreleased entries: lines between `<<<<<<< HEAD` and `=======`
+      - Extract incoming Unreleased entries: lines between `=======` and `>>>>>>> <hash>`
+      - Merge strategy: start with HEAD's full Unreleased block, then append any category entries from the incoming block that aren't already present (case-insensitive dedup per entry)
+      - Write the resolved file (no conflict markers)
+      - Stage the file: `git add CHANGELOG.md`
+   c. **For other conflicted files:**
+      - Announce: "Non-CHANGELOG conflicts detected in: [files]. Pausing for manual resolution."
+      - Show the user exactly what to do:
+        ```
+        1. Resolve conflicts in: [file list]
+        2. Stage resolved files: git add <file>
+        3. Continue rebase: git rebase --continue
+        4. Type 'continue' to resume the lifecycle
+        ```
+      - Wait for the user to resolve and respond before proceeding.
+   d. If only CHANGELOG.md was conflicted (now auto-resolved and staged):
+      ```bash
+      git rebase --continue
+      ```
+      If `git rebase --continue` itself triggers another CHANGELOG conflict (multiple commits touched it), repeat step 4b until the rebase completes.
+
+5. Announce: "Synced with origin/<base-branch>. Ready to push and create PR."
+
+**YOLO behavior:** Run silently. If non-CHANGELOG conflicts are detected, pause and announce the conflict files — YOLO cannot resolve arbitrary conflicts automatically. Announce: `YOLO: start — Sync with base branch → [up to date | rebased N commits | conflicts in: files (paused)]`
+
+---
+
 ## Final Verification Step
 
 This step runs after CHANGELOG generation and before commit and PR. It verifies acceptance criteria and runs quality gates — but skips redundant quality gate runs when the code review pipeline already passed them.
