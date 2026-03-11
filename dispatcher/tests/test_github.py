@@ -23,11 +23,12 @@ def test_list_issues(mock_run):
 
 @patch("dispatcher.github.subprocess.run")
 def test_view_issue(mock_run):
-    data = {"title": "Test", "body": "Description", "comments": [{"body": "comment1"}]}
+    data = {"title": "Test", "body": "Description", "state": "open", "comments": [{"body": "comment1"}]}
     mock_run.return_value = _mock_run(stdout=json.dumps(data))
     result = view_issue(42, "owner/repo")
     assert result["title"] == "Test"
     assert result["body"] == "Description"
+    assert result["state"] == "open"
 
 
 @patch("dispatcher.github.subprocess.run")
@@ -49,14 +50,6 @@ def test_add_label(mock_run):
     mock_run.return_value = _mock_run()
     add_label(100, "needs-human-review", "owner/repo")
     mock_run.assert_called_once()
-
-
-def test_view_issue_fetches_state():
-    """Confirm view_issue requests the state field."""
-    import dispatcher.github as gh_module
-    import inspect
-    source = inspect.getsource(gh_module.view_issue)
-    assert "state" in source, "view_issue must fetch state field"
 
 
 @patch("dispatcher.github.subprocess.run")

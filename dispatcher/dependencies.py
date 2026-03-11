@@ -6,7 +6,7 @@ from typing import Any
 
 class CycleError(Exception):
     """Raised by dep_waves() when a circular dependency is detected.
-    Message contains the cycle path, e.g. '#3 → #5 → #3'."""
+    Message contains the affected issue numbers, e.g. 'Cycle detected among issues: [3, 5]'."""
     pass
 
 
