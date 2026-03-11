@@ -51,16 +51,36 @@ If `.feature-flow.yml` does not exist, offer to create it via auto-detection:
 
 See `../../references/project-context-schema.md` for the full schema documentation.
 
-### Step 3: Explore the Codebase
+### Step 3: Explore the Codebase (Tagged Domains)
 
-Launch exploration agents to understand the areas of the codebase affected by the design. Use the Task tool with `subagent_type: "Explore"` and `model: "haiku"` (see `../../references/tool-api.md` — Task Tool) for thorough analysis.
+Launch parallel exploration agents to understand the areas affected by the design. Organize results into 5 tagged domains so each verification batch (Step 4) receives only its relevant context instead of the full exploration dump.
 
-Key areas to explore:
-- Database schema (migrations, ORM models, type definitions)
-- TypeScript/language types and interfaces
-- Existing pipeline/workflow hooks and API routes
-- UI components that will be modified or reused
-- Configuration files and environment variables
+Use the Task tool with `subagent_type: "Explore"` and `model: "haiku"` (see `../../references/tool-api.md` — Task Tool).
+
+Announce before dispatching: "Dispatching 5 exploration agents in parallel: schema, pipeline, ui, config, patterns."
+
+Dispatch all 5 domain agents in a **single message** (parallel):
+
+1. **Schema agent** — Migration files, ORM models, type definition files (`*.d.ts`, `types.ts`)
+2. **Pipeline agent** — API route files, hook files, pipeline files, shared type consumers
+3. **UI agent** — Component files, layout files, navigation components
+4. **Config agent** — `tsconfig.json`, eslint config, `next.config.*`, `package.json`
+5. **Patterns agent** — Directory structure (2-3 representative paths), naming convention samples (2-3 files), error handling examples
+
+**Expected output per agent:** Each agent returns free-form text describing what it found. The orchestrator slots each agent's text output into `exploration_results` by the domain it was dispatched for (schema, pipeline, ui, config, or patterns). The orchestrator assigns the domain key — agents do not self-report it.
+
+**Failure handling:** If an agent fails, retry it once. If it fails again, use an empty string for that domain's content and log a warning: "[domain] exploration failed — that domain's context will be absent from relevant batch agents." If an agent succeeds but finds no relevant files for the project (e.g., a UI-less CLI project has no component files), treat its output as an empty string — this is correct and safe to pass to batch agents.
+
+**Aggregate results into `exploration_results`:**
+```
+exploration_results = {
+  schema:   <content from schema agent>,
+  pipeline: <content from pipeline agent>,
+  ui:       <content from ui agent>,
+  config:   <content from config agent>,
+  patterns: <content from patterns agent>
+}
+```
 
 ### Step 4: Run Verification Checklist
 
@@ -86,11 +106,24 @@ Dispatch parallel verification agents to check the design against the codebase. 
 Use the Task tool with `subagent_type: "Explore"` and `model: "sonnet"` for Batches 1-5 and Batch 7 (see `../../references/tool-api.md` — Task Tool for correct parameter syntax). Launch all applicable batch agents in a **single message** to run them concurrently. Announce: "Dispatching N verification agents in parallel..."
 
 **Context passed to each agent:**
+
+**Universal context (every batch):**
 - The full design document content
 - Its assigned checklist categories (partitioned from `references/checklist.md` using batch markers)
-- The codebase exploration results from Step 3
 - The `.feature-flow.yml` content (for stack/platform/gotchas context)
 - The list of applicable categories for this batch (from verification depth filtering)
+
+In addition to the universal context above, each batch receives the following domain-filtered sections from `exploration_results` (produced by Step 3). Empty strings from agents that find no relevant files or that failed are passed as-is — no conditional logic required. Include the relevant domain values as named sections in the agent's prompt (e.g., `## Schema Exploration\n[content]`):
+
+| Batch | `exploration_results` sections included |
+|-------|----------------------------------------|
+| 1 — Schema & Types | `schema` |
+| 2 — Pipeline & Components | `pipeline` + `ui` |
+| 3 — Quality & Safety | `schema` + `config` + `patterns` |
+| 4 — Patterns & Build | `patterns` + `config` |
+| 5 — Structure & Layout | `ui` |
+| 6 — Stack/Platform/Docs | *(see Batch 6 section below)* |
+| 7 — Implementation Quality | `schema` + `patterns` |
 
 **Expected return format per agent:**
 
@@ -106,9 +139,9 @@ Batch 6 (Stack/Platform/Docs) is only dispatched if `.feature-flow.yml` exists w
 **Context passed to the Batch 6 agent:**
 - The full design document content
 - The check instructions for categories 15-18 (defined inline below in this SKILL.md, not from checklist.md)
-- The codebase exploration results from Step 3
-- The `.feature-flow.yml` content (stack, platform, gotchas, context7 field)
+- The `.feature-flow.yml` content (stack, platform, gotchas, context7 field) and stack reference files
 - The list of applicable categories for this batch (from verification depth filtering)
+- *(No `exploration_results` sections — Batch 6 operates on project config files and documentation, not codebase exploration results)*
 
 Batch 6 sources its check instructions from this SKILL.md (not from checklist.md):
 
@@ -130,7 +163,7 @@ Batch 7 checks whether the design's proposed implementation can meet the coding 
 **Context passed to the Batch 7 agent:**
 - The full design document content
 - The check instructions for categories 19-23 (defined inline below)
-- The codebase exploration results from Step 3
+- The `schema` and `patterns` sections from `exploration_results` (per the Context Filter Map above)
 - The relevant sections from `references/coding-standards.md` (extracted using `<!-- section: slug -->` markers)
 
 Batch 7 categories:

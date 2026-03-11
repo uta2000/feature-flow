@@ -191,9 +191,19 @@ prose/regex parser.
 
 ```
 1. Read first 50 lines of plan file
-2. If any line matches /^<plan\s/  → XML mode
-3. Else                            → Prose mode (existing behavior unchanged)
+2. Track whether inside a code fence (line starts with ```) — toggle on each fence open/close
+3. For each non-fenced line: check if it matches /^<plan version="/
+4. If match found → XML mode
+5. Else           → Prose mode (existing behavior unchanged)
 ```
+
+**Canonical detection pattern:** `/^<plan version="/` (not bare `<plan`) — this requires the version
+attribute and avoids matching code block examples or documentation snippets. A bare `<plan>` tag
+(no `version=`) is NOT treated as an XML plan.
+
+**Truncation guard:** Before committing to XML mode, scan the full file for `</plan>`. If `</plan>`
+is absent, log a warning ("plan appears truncated — treating as prose") and use prose mode.
+
 
 ### XML extraction algorithm (verify-plan-criteria)
 
@@ -228,26 +238,48 @@ prose/regex parser.
 
 Add to the existing injection in `skills/start/references/yolo-overrides.md`:
 
-> If any existing plan file in `docs/plans/` contains `<plan version=`, generate the new plan
-> in XML format using the schema from `references/xml-plan-format.md`. Otherwise, use the
-> existing prose format.
+> **XML plan format (opt-in):** If the user explicitly requests XML format, or if the specific
+> plan file being updated already begins with `<plan version="`, generate in XML format using
+> the schema from `references/xml-plan-format.md`. Otherwise, use the existing prose format.
+>
+> **For XML plans only — suppress Progress Index:** Do NOT generate the `<!-- PROGRESS INDEX -->`
+> HTML comment block. Task status is tracked via the `status=` attribute on `<task>` elements
+> instead.
 
-This is the only hook needed since `writing-plans` is an external plugin — the quality context
-injection runs before every `superpowers:writing-plans` invocation.
+**Why this scope:** The injection is per-plan, not repo-wide. A team can have mixed prose and XML
+plans in `docs/plans/` with no conflict. The Progress Index suppression is scoped to XML plans
+only — prose plans continue to require the Progress Index as before.
 
 ---
 
 ## Patterns & Constraints
 
 ### Error Handling
-- If `<plan` is detected in the first 50 lines but the XML structure is malformed (e.g., unclosed tags, missing required child elements), log a warning and fall back to the prose parser — never hard-fail on a plan file
-- Missing `<what>`, `<how>`, or `<command>` inside a non-manual `<criterion>` → flag as incomplete criterion (same behavior as missing "measured by" in prose format)
-- Empty `<criteria>` block → flag as "no criteria" (same as a task with no `**Acceptance Criteria:**` in prose format)
+- **Malformed XML triggers prose fallback** (announce: "XML structure invalid — falling back to prose parser"). Triggers:
+  - `</plan>` absent from the full file (truncated plan)
+  - A `<task>` block is not closed before the next `<task>` or `</plan>`
+  - A `<criteria>` block is not closed before `</task>`
+- **Per-criterion errors** (do not trigger full fallback — flag inline):
+  - Missing `<what>`, `<how>`, or `<command>` inside a non-manual `<criterion>` → flag as "incomplete criterion"
+  - Unexpected or missing `<how>` only → flag as incomplete (not malformed)
+- **`<criteria>` present but empty** (no `<criterion>` children) → flag as "no criteria"
+- **Unexpected `status=` value** (anything other than `pending`, `in-progress`, `done`) → treat as `pending`, log a note
+- **Missing `status=` attribute** → treat as `pending`
+- **`status="done"` without `commit=`** → allowed (commit SHA is optional per schema)
 
 ### Types
 - All extracted fields (what, how, command, path, status) are strings — never coerced to other types
 - Task list is always an array — never null, even for an empty plan
 - The `type="manual"` attribute on `<criterion>` is the only supported attribute variant; any other type value is treated as a structured criterion
+- **`[MANUAL]` prose prefix equivalence:** The prose `[MANUAL]` prefix on a criterion line and the XML `type="manual"` attribute are equivalent — both mean "manual check, no command required." Both verification skills treat them identically.
+
+### Edge Cases
+- **Duplicate task IDs** (`id="1"` appearing twice) → flag as "duplicate task ID — plan is invalid" and abort XML extraction; fall back to prose parser
+- **`<plan version="` inside a code fence** → detection algorithm skips fenced lines (see Detection algorithm above); no false positive
+- **`<criteria>` present, zero `<criterion>` children** → same as empty criteria block — flag as "no criteria"
+- **`<criterion>` missing only `<how>`** → flag as incomplete criterion (not malformed); extraction continues for other criteria
+- **Plan file with prose content after `</plan>`** → content after `</plan>` is ignored in XML mode
+- **v1 scope: no split plan support** — XML plans do not support the split plan / Phase Manifest format. Plans requiring splitting (>15,000 words) must use the prose format. The implementation plan should note this constraint in the `references/xml-plan-format.md` authoring guide.
 
 ### Backward Compatibility Constraint
 - Skills must never break on prose plans — the detection check is the single gate; once prose mode is selected, the existing code path runs unchanged

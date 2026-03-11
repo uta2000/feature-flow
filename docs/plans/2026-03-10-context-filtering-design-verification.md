@@ -1,8 +1,8 @@
 # Context Filtering for Design Verification Agents — Implementation Plan
 
 <!-- PROGRESS INDEX (updated by implementation skills)
-Task 1: Restructure Step 3 to produce tagged exploration results — STATUS: pending
-Task 2: Update Step 4 dispatch to filter context per batch — STATUS: pending
+Task 1: Restructure Step 3 to produce tagged exploration results — STATUS: done (commit d113350)
+Task 2: Update Step 4 dispatch to filter context per batch — STATUS: done (commit 2c5af8d)
 CURRENT: none
 -->
 

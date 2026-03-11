@@ -49,7 +49,53 @@ For each criterion:
 
 **Run typecheck and lint commands at most once each**, even if multiple criteria reference them. Determine the correct commands from `package.json` scripts, `Makefile`, or framework conventions (e.g., `npm run typecheck`, `yarn lint`, `cargo check`, `mix compile --warnings-as-errors`). Cache the result.
 
-### Step 3: Produce Report
+### Step 3: Diagnose Failures
+
+For each criterion that returned **FAIL** in Step 2, run diagnosis on the failed command's output. Skip PASS and CANNOT_VERIFY criteria — diagnosis triggers only on failure (zero overhead on passing commands).
+
+#### Pattern-Matching (fast path)
+
+Scan the failed command's stderr/stdout for known patterns:
+
+| Pattern | Diagnosis |
+|---------|-----------|
+| `Cannot find module '...'` or `Module not found` | Missing import — suggest `import { X } from 'path'` |
+| `Type '...' is not assignable to type '...'` | Type mismatch — show expected vs actual, grep for correct usage |
+| `Property '...' does not exist on type '...'` | Missing property — show the type definition, suggest addition |
+| `'...' is not defined` or `Cannot find name '...'` | Undefined variable — suggest import or declaration |
+| ESLint rule name (e.g., `no-unused-vars`) | Lint violation — show rule name, suggest fix |
+| `Expected ... but received ...` (test assertion) | Test assertion failure — show expected vs actual values |
+| `ENOENT` or `No such file or directory` | Missing file — suggest creation or correct path |
+| Stack trace with `file:line` | Runtime error — extract location, show surrounding code |
+| `error TS\d+:` (catch-all) | Generic TypeScript error — reached only when no more specific TS pattern above matched; extract error code and message |
+
+If a pattern matches, record:
+```
+**Root cause:** [diagnosis from table]
+**Suggested fix:** [specific action]
+```
+
+#### Similar-Pattern Search (for type errors)
+
+When `Type '...' is not assignable` or `Property '...' does not exist` is detected, use Grep to find correct usage of the same type or interface in the codebase:
+
+Use Grep to search for the actual type name extracted from the error (e.g., searching for `UserType` when the error mentions `UserType`). Use the Grep tool with the extracted type name as the pattern and `glob: "**/*.{ts,tsx}"`.
+
+Include 1–3 matching examples in the diagnosis. If no matches exist, omit this section.
+
+#### LLM Fallback (for unrecognized errors)
+
+If no pattern matches, analyze the full error output using your own reasoning:
+```
+**Root cause:** [LLM-generated explanation]
+**Suggested fix:** [LLM-generated suggestion]
+```
+
+Record each diagnosis in the FAIL row's **Diagnosis** field for Step 4's report. For PASS and CANNOT_VERIFY criteria, set Diagnosis to `—`.
+
+---
+
+### Step 4: Produce Report
 
 Output a structured report:
 
@@ -62,11 +108,11 @@ Output a structured report:
 
 ### Results
 
-| # | Criterion | Status | Evidence |
-|---|-----------|--------|----------|
-| 1 | [criterion text] | PASS | [what you found] |
-| 2 | [criterion text] | FAIL | [what went wrong] |
-| 3 | [criterion text] | CANNOT_VERIFY | [why — e.g., requires runtime test] |
+| # | Criterion | Status | Evidence | Diagnosis |
+|---|-----------|--------|----------|-----------|
+| 1 | [criterion text] | PASS | [what you found] | — |
+| 2 | [criterion text] | FAIL | [what went wrong] | **Root cause:** [explanation]<br>**Suggested fix:** [action] |
+| 3 | [criterion text] | CANNOT_VERIFY | [why — e.g., requires runtime test] | — |
 
 ### Summary
 

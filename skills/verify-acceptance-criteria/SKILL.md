@@ -106,7 +106,7 @@ Display the verification report from the task-verifier agent to the user.
 ```
 All acceptance criteria verified. Implementation matches the plan.
 
-[show report table]
+[show report table — Diagnosis column shows — for all rows when all criteria pass]
 
 You can proceed with committing / creating a PR.
 ```
@@ -115,11 +115,13 @@ You can proceed with committing / creating a PR.
 ```
 Some acceptance criteria failed. The following need attention:
 
-[show report table, highlighting FAIL items]
+[show report table — includes Diagnosis column for FAIL rows with root cause and suggested fix]
 
 Issues to fix:
 1. [criterion] — [evidence of failure]
+   → [suggested fix from Diagnosis column, if available]
 2. [criterion] — [evidence of failure]
+   → [suggested fix from Diagnosis column, if available]
 
 Fix these issues and run verify-acceptance-criteria again.
 ```
