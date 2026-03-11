@@ -231,13 +231,14 @@ The following conditions are recoverable at the criterion level. The parser flag
 |----------|----------|
 | `<plan version="` inside a code fence | Detection skips fenced lines (code-fence tracking in step 2). No false positive — file is treated as prose. |
 | Prose content after `</plan>` | Ignored in XML mode. The parser stops reading task data at `</plan>`. |
-| Duplicate task IDs | Triggers full fallback to prose. Log: `"duplicate task ID — plan is invalid"`. |
+| Duplicate task IDs | Triggers full fallback to prose. Log: `"duplicate task ID N — plan is invalid, falling back to prose"`. |
 | `<task>` without `status=` | Treated as `pending`. No error. |
 | `<task>` with unrecognized `status=` value | Treated as `pending`. Log note. |
 | `</plan>` present but no `<task>` elements | Valid empty plan. Zero tasks returned. |
 | Manual criterion with `<how>` or `<command>` present | Fields are ignored (not validated, not surfaced). No error. |
 | Plan file is empty | No match in first 50 lines → prose mode. |
 | Plan file shorter than 50 lines | Algorithm reads all available lines; no error if file ends early. |
+| Plan file is exactly 50 lines | Algorithm reads all 50 lines; line 50 is included in the scan (range is 1–50 inclusive). |
 
 <!-- /section: edge-cases -->
 
