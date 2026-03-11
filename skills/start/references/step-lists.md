@@ -18,8 +18,9 @@ Reference file for the start skill lifecycle orchestrator.
 - [ ] 3. Implement fix (TDD)
 - [ ] 4. Self-review
 - [ ] 5. Verify acceptance criteria
-- [ ] 6. Commit and PR
-- [ ] 7. Comment and close issue
+- [ ] 6. Sync with base branch
+- [ ] 7. Commit and PR
+- [ ] 8. Comment and close issue
 ```
 
 ### Small enhancement
@@ -43,8 +44,9 @@ If the small enhancement qualifies for fast-track (issue richness 3+ or equivale
 - [ ] 13. Code review
 - [ ] 14. Generate CHANGELOG entry
 - [ ] 15. Final verification
-- [ ] 16. Commit and PR
-- [ ] 17. Comment and close issue
+- [ ] 16. Sync with base branch
+- [ ] 17. Commit and PR
+- [ ] 18. Comment and close issue
 ```
 
 *Fast-track (issue richness 3+ or detailed inline context):*
@@ -61,8 +63,9 @@ If the small enhancement qualifies for fast-track (issue richness 3+ or equivale
 - [ ] 10. Code review
 - [ ] 11. Generate CHANGELOG entry
 - [ ] 12. Final verification
-- [ ] 13. Commit and PR
-- [ ] 14. Comment and close issue
+- [ ] 13. Sync with base branch
+- [ ] 14. Commit and PR
+- [ ] 15. Comment and close issue
 ```
 
 ### Feature
@@ -84,8 +87,9 @@ If the small enhancement qualifies for fast-track (issue richness 3+ or equivale
 - [ ] 14. Code review
 - [ ] 15. Generate CHANGELOG entry
 - [ ] 16. Final verification
-- [ ] 17. Commit and PR
-- [ ] 18. Comment and close issue
+- [ ] 17. Sync with base branch
+- [ ] 18. Commit and PR
+- [ ] 19. Comment and close issue
 ```
 
 ### Major feature
@@ -108,8 +112,9 @@ If the small enhancement qualifies for fast-track (issue richness 3+ or equivale
 - [ ] 15. Code review
 - [ ] 16. Generate CHANGELOG entry
 - [ ] 17. Final verification
-- [ ] 18. Commit and PR
-- [ ] 19. Comment and close issue
+- [ ] 18. Sync with base branch
+- [ ] 19. Commit and PR
+- [ ] 20. Comment and close issue
 ```
 
 ### Mobile platform adjustments (ios, android, cross-platform)
