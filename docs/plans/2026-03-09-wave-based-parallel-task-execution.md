@@ -4,6 +4,16 @@
 **Status:** Draft
 **Issue:** #167
 
+<!-- PROGRESS INDEX
+Task 1: Create dispatcher/wave_planner.py — STATUS: pending
+Task 2: Create dispatcher/tests/test_wave_planner.py — STATUS: pending
+Task 3: Update yolo-overrides.md Phase A — STATUS: pending
+Task 4: Update verify-plan-criteria/SKILL.md — STATUS: pending
+Task 5: Update references/xml-plan-format.md — STATUS: pending
+Task 6: Add Progress Index to design doc — STATUS: pending
+CURRENT: none
+-->
+
 ## Overview
 
 Feature-flow currently groups implementation tasks into parallel batches using heuristic analysis (Phases A–D in `yolo-overrides.md`). This feature adds a deterministic layer on top: `dispatcher/wave_planner.py` reads explicit dependency declarations from prose and XML plan files, runs a topological sort, and outputs ordered waves as JSON. The subagent-driven-development orchestrator calls `wave_planner.py` first; if no explicit dependencies are declared, it falls back to the existing Phase A–D heuristics unchanged.
