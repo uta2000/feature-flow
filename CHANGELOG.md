@@ -4,6 +4,9 @@ All notable changes to the feature-flow plugin.
 
 ## [Unreleased]
 
+### Added
+- **Wave-based parallel task execution via `dispatcher/wave_planner.py` (GH167)** — new CLI tool reads a plan file (prose or XML format), parses explicit task dependency declarations (`- Depends on: Task N, Task M` in Quality Constraints blocks for prose; `depends_on="N,M"` attribute on `<task>` elements for XML), runs Kahn's topological sort with DFS cycle detection, and outputs ordered execution waves as JSON (`{"waves": [[task_ids...], ...], "errors": [...], "has_explicit_deps": bool}`). Exit 0 on success, exit 1 on cycles or invalid dependency references. Code-fence tracking prevents false matches on documentation examples. The `subagent-driven-development` orchestrator's Phase A is updated to call `wave_planner.py` first and use `has_explicit_deps: true` to skip existing heuristic phases B–D. `verify-plan-criteria` gains Step 5.5 to validate dependency graphs. `references/xml-plan-format.md` documents the new `depends_on` attribute. Both syntaxes are additive — all existing plans work without modification. (Closes #167)
+
 ### Changed
 - **Split `references/xml-plan-format.md` to comply with 300-line guideline (GH182)** — extracted the Detection Algorithm, Error Handling, and Edge Cases sections (~77 lines) into a new `references/xml-plan-format-runtime.md`, reducing the main file from 341 to 271 lines. The main file now contains a `<!-- section: runtime-reference -->` cross-reference block. Updated `skills/verify-plan-criteria/SKILL.md`, `skills/verify-acceptance-criteria/SKILL.md`, and `skills/start/references/yolo-overrides.md` to reference both files. (Closes #182)
 
