@@ -41,6 +41,7 @@ The `version` attribute is **required**. A bare `<plan>` tag without `version=` 
 | `id` | yes | positive integer string | Must be unique within the plan |
 | `status` | yes | `pending`, `in-progress`, `done` | Unknown values are treated as `pending`; absent `status` is treated as `pending` |
 | `commit` | no | git SHA string | Records the commit that completed this task; optional even when `status="done"` |
+| `depends_on` | no | Comma-separated task IDs (e.g., `"1,2"`) | Declares prerequisite tasks that must complete before this task. Used by `dispatcher/wave_planner.py` for topological sort. If absent, task is treated as independent. |
 
 ### Title Element
 
