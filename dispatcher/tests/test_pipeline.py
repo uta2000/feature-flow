@@ -561,6 +561,8 @@ class TestCheckDependencies:
         graph, unmet = _check_dependencies(issues_raw, [])
         assert graph == {}
         assert unmet == {}
+        captured = capsys.readouterr()
+        assert "Warning" in captured.out
 
 
 # --- Worker command env var cleanup tests ---
