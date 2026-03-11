@@ -21,6 +21,7 @@ Validates that every task in an implementation plan has machine-verifiable accep
 Before parsing, determine which format the plan file uses:
 
 See `references/xml-plan-format.md` for the canonical specification and complete field reference.
+See `references/xml-plan-format-runtime.md` for the detection algorithm, error handling rules, and edge cases.
 
 1. Read the first 50 lines of the plan file
 2. Track code-fence state: toggle `in_fence` on each line that starts with ` ``` `
