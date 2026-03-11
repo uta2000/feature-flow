@@ -7,8 +7,6 @@ import sys
 import textwrap
 from pathlib import Path
 
-import pytest
-
 
 def _run(plan_content: str, tmp_path: Path) -> tuple[dict, int]:
     """Write plan to a temp file and run wave_planner. Returns (output_dict, exit_code)."""
