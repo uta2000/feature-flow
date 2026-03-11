@@ -90,7 +90,7 @@ Each `<criterion>` represents one acceptance criterion.
 
 | Field | XML location | Prose equivalent |
 |-------|-------------|------------------|
-| Task status | `<task status="...">` | Progress Index (`[ ]` / `[x]`) |
+| Task status | `<task status="...">` | Progress Index comment (`STATUS: pending/done`) |
 | Task title | `<title>` | Heading under task section |
 | Files modified | `<files>/<file>` | **Files modified:** list |
 | Criterion what | `<what>` | Text before `measured by` |
