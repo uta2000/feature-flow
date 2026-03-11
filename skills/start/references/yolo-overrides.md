@@ -106,6 +106,7 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
    - If the user explicitly requests XML format, or if the plan file being updated already contains
      `<plan version="` within its first 50 lines, generate in XML format using the schema from
      `references/xml-plan-format.md`. Otherwise, use the existing prose format.
+     See `references/xml-plan-format-runtime.md` for the detection algorithm, error handling rules, and edge cases.
    - **For XML plans only — suppress Progress Index:** Do NOT generate the
      `<!-- PROGRESS INDEX -->` HTML comment block. Task status is tracked via the `status=`
      attribute on `<task>` elements instead.
