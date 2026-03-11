@@ -1,4 +1,4 @@
-# XML Plan Format — Schema and Detection Reference
+# XML Plan Format — Schema and Authoring Guide
 
 This file defines the canonical XML plan format schema and authoring guide. Runtime details (detection algorithm, error handling, edge cases) are in `references/xml-plan-format-runtime.md`. Referenced by `skills/verify-plan-criteria/SKILL.md`, `skills/verify-acceptance-criteria/SKILL.md`, and `skills/start/references/yolo-overrides.md`.
 
