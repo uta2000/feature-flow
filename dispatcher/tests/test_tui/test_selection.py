@@ -1,4 +1,5 @@
 import pytest
+from textual.widgets import SelectionList
 
 from dispatcher.tui.selection import SelectionApp
 
@@ -40,3 +41,26 @@ async def test_selection_quit():
     async with app.run_test() as pilot:
         await pilot.press("q")
     assert app.selected == []
+
+
+@pytest.mark.asyncio
+async def test_selection_dep_suffix():
+    from dispatcher.tui.selection import SelectionApp
+    issues = [{"number": 5, "title": "Implement login"}]
+    unmet_deps = {5: [3]}
+    app = SelectionApp(issues=issues, parked_numbers=set(), label="test", unmet_deps=unmet_deps)
+    async with app.run_test() as pilot:
+        sl = app.query_one(SelectionList)
+        # Check that at least one option label contains the dep suffix
+        labels = [str(opt.prompt) for opt in sl._options]
+        assert any("needs #3" in label for label in labels)
+
+@pytest.mark.asyncio
+async def test_selection_no_dep_suffix_when_no_unmet():
+    from dispatcher.tui.selection import SelectionApp
+    issues = [{"number": 5, "title": "Implement login"}]
+    app = SelectionApp(issues=issues, parked_numbers=set(), label="test", unmet_deps={})
+    async with app.run_test() as pilot:
+        sl = app.query_one(SelectionList)
+        labels = [str(opt.prompt) for opt in sl._options]
+        assert not any("needs" in label for label in labels)

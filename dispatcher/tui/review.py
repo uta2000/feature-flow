@@ -25,9 +25,14 @@ class ReviewApp(App[list[ReviewedIssue]]):
         Binding("enter", "toggle_detail", "Detail"),
     ]
 
-    def __init__(self, triage_results: list[TriageResult]) -> None:
+    def __init__(
+        self,
+        triage_results: list[TriageResult],
+        unmet: dict[int, list[int]] | None = None,
+    ) -> None:
         super().__init__()
         self._results = triage_results
+        self._unmet = unmet or {}
         self._tiers: dict[int, str] = {tr.issue_number: tr.triage_tier for tr in triage_results}
         self._skipped: set[int] = set()
         self._comments: dict[int, str | None] = {}
@@ -35,18 +40,38 @@ class ReviewApp(App[list[ReviewedIssue]]):
 
     def compose(self) -> ComposeResult:
         yield Header()
+        # Dep warning banner — hidden by default, shown in on_mount if unmet deps exist
+        yield Static("", id="dep-warning", markup=False)
         table = DataTable()
-        table.add_columns("#", "Issue", "Tier", "Confidence", "Flags")
+        table.add_columns("#", "Issue", "Tier", "Confidence", "Flags", "Deps")
         for tr in self._results:
             flags = ", ".join(tr.risk_flags) if tr.risk_flags else "—"
+            deps_val = (
+                f"needs #{', #'.join(str(d) for d in self._unmet[tr.issue_number])}"
+                if tr.issue_number in self._unmet
+                else "—"
+            )
             table.add_row(
                 str(tr.issue_number), tr.issue_title,
-                tr.triage_tier, f"{tr.confidence:.2f}", flags,
+                tr.triage_tier, f"{tr.confidence:.2f}", flags, deps_val,
                 key=str(tr.issue_number),
             )
         yield table
         yield Static("", id="detail-panel")
         yield Footer()
+
+    def on_mount(self) -> None:
+        banner = self.query_one("#dep-warning", Static)
+        if self._unmet:
+            pairs = ", ".join(
+                f"#{issue} -> #{dep}"
+                for issue, deps in sorted(self._unmet.items())
+                for dep in deps
+            )
+            banner.update(f"Unmet dependencies: {pairs}")
+            banner.visible = True
+        else:
+            banner.visible = False
 
     def _current_issue_number(self) -> int | None:
         table = self.query_one(DataTable)

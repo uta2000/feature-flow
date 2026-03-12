@@ -4,6 +4,9 @@ All notable changes to the feature-flow plugin.
 
 ## [Unreleased]
 
+### Added
+- **Cross-feature dependency detection in `dispatcher/dependencies.py` (GH174)** — new module parses `depends on #N` / `blocked by #N` patterns (case-insensitive) from issue bodies via `extract_deps()`, builds an adjacency graph with `build_dep_graph()`, computes topological execution waves via `dep_waves()` (Kahn's algorithm, raises `CycleError` on cycles including self-loops), and identifies unmet dependencies with `find_unmet()` (closed issues are treated as satisfied). The pipeline's `_check_dependencies()` runs after triage, before review; in auto mode it reorders `to_execute` into dependency waves and prints each wave. Cycles are caught and logged as warnings — execution continues in original order. Out-of-batch dependencies emit a warning but do not block. `ReviewApp` gains a "Deps" column in the `DataTable` and a `Static` warning banner (hidden when no unmet deps exist). `SelectionApp` appends a ` → needs #N` suffix to issues with unresolved dependencies. `github.view_issue()` now fetches the `state` and `number` fields to support closed-dep satisfaction logic. (Closes #174)
+
 ## [1.25.0] - 2026-03-11
 
 ### Added

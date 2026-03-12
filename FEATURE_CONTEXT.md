@@ -1,25 +1,48 @@
-# Feature Context
+# Feature Context — GH#174: Cross-Feature Dependency Detection
 
-> Auto-managed by feature-flow. Stale decisions are archived to DECISIONS_ARCHIVE.md (threshold: `knowledge_base.stale_days` in `.feature-flow.yml`, default 14 days).
+**Issue:** #174
+**Branch:** feat/cross-dep-detection-174
+**Base:** main
+
+## Goal
+
+Add cross-issue dependency detection to the dispatcher. Parse `depends on #N` / `blocked by #N` from issue bodies, build a dependency graph, reorder parallel execution into dep waves, and surface dependency info in both TUIs.
+
+## Design Doc
+
+`docs/plans/2026-03-11-cross-feature-dependency-detection.md`
+
+## Implementation Plan
+
+`docs/plans/2026-03-09-cross-feature-dependency-detection.md`
 
 ## Key Decisions
 
-- [2026-03-11] wave_planner.py output includes `has_explicit_deps: bool` — distinguishes "explicit deps declared" from "all independent by default"
-- [2026-03-11] Phase A uses `has_explicit_deps: true` flag (not grep) to decide whether to skip heuristic phases B-D
-- [2026-03-11] Format detection re-implemented in Python — iterate lines, track code-fence state, match `^<plan version=`
-- [2026-03-11] `Parallelizable: no` + no `Depends on:` = conservative wave placement after tasks sharing Files modified
-- [2026-03-11] Cycle detection: exit 1, `waves: []`, DFS path tracing for descriptive error message
-- [2026-03-11] No changes to dispatcher/pipeline.py — only subagent-driven-development orchestrator updated
-- [2026-03-11] Both syntaxes additive; all existing plans work without modification
+1. New module `dispatcher/dependencies.py` — separate from `wave_planner.py` (different data source: issue numbers vs task IDs)
+2. Patterns: `depends on #N`, `depend on #N`, `depends on: #N`, `blocked by #N` (case-insensitive); NOT `closes/fixes #N`
+3. Cycle detection: `CycleError` raised by `dep_waves()`, caught by `_check_dependencies()` — run continues in original order
+4. Closed deps: treated as satisfied (no warning); batch-fetch state from issues already in memory via `state` field
+5. Out-of-batch deps: warning only, not blocked
+6. `wave_planner.py` unchanged — only issue-level dep detection is added
+7. `_run_triage()` return type → `tuple[list[TriageResult], list[dict[str, Any]]]` to make raw issue body/state available downstream
+8. `_check_dependencies()` catches only `(GithubError, CycleError, ValueError)` — NOT bare `except Exception`
+9. TUI: `widget.visible = True/False` for banner (NOT CSS class toggle); `Static.update(content)` for text
+10. Tests: `@pytest.mark.asyncio` + all-keyword instantiation + `async with app.run_test() as pilot:`
 
-## Open Questions
+## Files to Create/Modify
 
-<!-- None — all design decisions resolved per issue #167 -->
+- CREATE: `dispatcher/dependencies.py`
+- CREATE: `dispatcher/tests/test_dependencies.py`
+- MODIFY: `dispatcher/github.py` — add `state` to `view_issue` JSON fields
+- MODIFY: `dispatcher/pipeline.py` — triage tuple, `_check_dependencies`, wave reorder
+- MODIFY: `dispatcher/tui/review.py` — Deps column + Static warning banner
+- MODIFY: `dispatcher/tui/selection.py` — `→ needs #N` suffix
 
-## Notes
+## Critical Constraints
 
-- Plan file: docs/plans/2026-03-09-wave-based-parallel-task-execution-167-plan.md
-- Design doc: docs/plans/2026-03-09-wave-based-parallel-task-execution.md
-- Issue: #167
-- Branch: feat/gh167-wave-parallel-execution
-- Baseline: 97 tests pass (3 pre-existing collection errors in test_config.py, test_tui — unrelated)
+- `extract_deps(body: str | None)` — must handle `None` without TypeError
+- `dep_waves` needs private `_kahn()` helper (each ≤30 lines)
+- `_check_dependencies` needs `_format_dep_warnings()` helper (each ≤30 lines)
+- `list[dict[str, Any]]` not bare `list[dict]` — Python 3.11+
+- `CycleError` follows `class XyzError(Exception): pass` pattern (no custom methods)
+- Task 1 Step 9 in plan has a messy dual-draft of `_kahn` — use the CLEAN version after "Wait, I need to reconsider"

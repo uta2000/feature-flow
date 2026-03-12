@@ -33,7 +33,7 @@ def view_issue(number: int, repo: str) -> dict:
     out = _run_gh([
         "issue", "view", str(number),
         "--repo", repo,
-        "--json", "title,body,comments",
+        "--json", "title,body,comments,state,number",
     ])
     return json.loads(out)
 

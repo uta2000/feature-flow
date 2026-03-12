@@ -23,11 +23,13 @@ def test_list_issues(mock_run):
 
 @patch("dispatcher.github.subprocess.run")
 def test_view_issue(mock_run):
-    data = {"title": "Test", "body": "Description", "comments": [{"body": "comment1"}]}
+    data = {"title": "Test", "body": "Description", "state": "open", "number": 42, "comments": [{"body": "comment1"}]}
     mock_run.return_value = _mock_run(stdout=json.dumps(data))
     result = view_issue(42, "owner/repo")
     assert result["title"] == "Test"
     assert result["body"] == "Description"
+    assert result["state"] == "open"
+    assert result["number"] == 42
 
 
 @patch("dispatcher.github.subprocess.run")
