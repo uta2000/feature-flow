@@ -174,4 +174,4 @@ Use `AskUserQuestion` with options:
 - Quick fix / Small enhancement: No design approval checkpoint (too small)
 - Feature / Major feature: Design approval checkpoint shown
 
-This checkpoint is owned by the `design-document` skill when invoked with `express: true`. The orchestrator does not present a separate checkpoint — it is handled inside the skill invocation. This is separate from context window checkpoints and fires at a different lifecycle moment (after design, not at phase transitions).
+This checkpoint is owned by the `design-document` skill when invoked with `express: true`. The orchestrator does not present a separate checkpoint — it is handled inside the skill invocation.

@@ -559,7 +559,7 @@ The recommended option always appears first in the list. Each option's descripti
 
 **Express behavior (trigger phrase activated):** If Express was already activated by a trigger phrase in Step 0, skip this question entirely. Auto-classify scope and announce: `Express: start — Scope + mode → [scope], Express (trigger phrase)`
 
-**Express behavior:** If the user selects "Express", set Express mode active. All YOLO auto-selection overrides apply for skill invocations, but context window checkpoints and design approval checkpoints are shown instead of suppressed.
+**Express behavior:** If the user selects "Express", set Express mode active. All YOLO auto-selection overrides apply for skill invocations, but design approval checkpoints are shown instead of suppressed.
 
 ### Step 2: Build the Step List
 
@@ -681,7 +681,7 @@ Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/p
 
 ### Orchestration Overrides
 
-**Read `references/orchestration-overrides.md`** for phase-boundary model hints, brainstorming interview format override (including YOLO self-answering), context window checkpoints (locations, scope filtering, suppression rules), and Express design approval checkpoint.
+**Read `references/orchestration-overrides.md`** for brainstorming interview format override (including YOLO self-answering) and Express design approval checkpoint.
 
 ### YOLO/Express Overrides
 
