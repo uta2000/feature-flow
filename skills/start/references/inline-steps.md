@@ -446,7 +446,7 @@ This step runs after CHANGELOG generation and before commit and PR. It verifies 
 
 ## Wait for CI and Address Reviews Step
 
-This step runs after commit and PR (or after mobile-specific steps like app store review) and before comment and close issue. It waits for all CI checks to complete, then addresses any inline code review comments from automated review bots (e.g., Gemini Code Review, CodeRabbit).
+This step runs after commit and PR (or after mobile-specific steps like app store review) and before comment and close issue. It has two independent phases: (1) wait for CI checks to pass, and (2) wait for automated code review bot comments and address them. These are decoupled because CI and code review are independent processes — CI typically completes in 1-2 minutes, while review bots like Gemini Code Review may not post their review for 5+ minutes after the PR is created.
 
 **Process:**
 
@@ -461,17 +461,56 @@ This step runs after commit and PR (or after mobile-specific steps like app stor
    Note: the JSON field is `status` (values: `queued`, `in_progress`, `completed`), NOT `state`. The `conclusion` field is only populated when `status == "completed"`.
 
 3. Wait until every check has `status: "completed"`.
-   - If all have `conclusion: "success"` → proceed to Phase 2.
-   - If any have `conclusion: "failure"` → proceed to Phase 3.
-   - If no checks exist (empty response) → skip this step entirely, announce: "No CI checks configured — skipped."
+   - If all have `conclusion: "success"` → Phase 1 complete.
+   - If any have `conclusion: "failure"` → proceed to Phase 3 (CI failure handling).
+   - If no checks exist (empty response) → announce: "No CI checks configured." Phase 1 complete.
 
 4. Safety valve: if checks haven't resolved after 15 minutes (configurable via `ci_timeout_seconds` in `.feature-flow.yml`, default 900), announce:
    ```
-   CI checks still pending after 15 minutes. Continuing lifecycle.
+   CI checks still pending after 15 minutes. Continuing without waiting.
    Pending checks: [list names]
    ```
+   Phase 1 complete (timed out).
 
-### Phase 2: Address inline review comments
+### Phase 2: Wait for and address bot review comments
+
+CI and code review are **independent processes**. Review bots (Gemini Code Review, CodeRabbit, etc.) typically post their review 5-10 minutes after the PR is created — well after CI has already passed. This phase detects whether the repo uses review bots and waits for their review to land before proceeding.
+
+**Step 2a: Detect if the repo uses review bots**
+
+Check the last 5 merged/closed PRs for reviews from bot users:
+```bash
+# Get recent PR numbers
+PR_NUMS=$(gh api repos/{owner}/{repo}/pulls?state=all&per_page=5 --jq '.[].number')
+
+# For each, check for bot reviews
+for pr in $PR_NUMS; do
+  gh api repos/{owner}/{repo}/pulls/$pr/reviews \
+    --jq '.[] | select(.user.type == "Bot") | .user.login'
+done
+```
+
+- If any bot reviews found → this repo uses review bots. Record the bot login names. Proceed to step 2b.
+- If no bot reviews found on any of the last 5 PRs → this repo does not use review bots. Skip Phase 2 entirely. Announce: "No review bot history detected — skipping review wait."
+
+**Step 2b: Wait for the bot review to appear on THIS PR**
+
+Poll for a review from a bot user on the current PR:
+```bash
+gh api repos/{owner}/{repo}/pulls/{pr_number}/reviews \
+  --jq '.[] | select(.user.type == "Bot") | .user.login'
+```
+
+Poll every 30 seconds. The **completion signal** is a review from a bot user appearing — this is what we're waiting for, not CI passing.
+
+- If a bot review appears → proceed to step 2c.
+- Safety valve: if no bot review appears after `ci_timeout_seconds` (default 900 = 15 minutes), announce:
+  ```
+  Review bot has not posted after 15 minutes. Continuing lifecycle.
+  ```
+  Skip to output.
+
+**Step 2c: Fetch and address inline review comments**
 
 Review bots like Gemini Code Review and CodeRabbit post inline code review comments as **PR review threads** — comments attached to specific file lines. Each thread must be replied to individually.
 
@@ -487,7 +526,7 @@ Review bots like Gemini Code Review and CodeRabbit post inline code review comme
 
 3. Filter for bot-authored comments: check `user.type == "Bot"` in the response. This catches any review bot without hardcoding names.
 
-4. If no bot comments → skip to output.
+4. If no bot inline comments (bot posted a review but no inline threads) → skip to output.
 
 5. For each bot inline comment:
    a. Read the comment body, the `path` (file), and `line`/`original_line` it references.
@@ -525,7 +564,7 @@ Review bots like Gemini Code Review and CodeRabbit post inline code review comme
 
    **IMPORTANT:** The GitHub API for replying to PR review comments uses `POST /repos/{owner}/{repo}/pulls/{pr_number}/comments` with the `in_reply_to` field set to the original comment's `id`. There is NO `/replies` sub-resource on this endpoint.
 
-8. After pushing fixes, re-wait for CI (Phase 1) one more time to confirm the fix commit passes.
+8. After pushing fixes, re-wait for CI (Phase 1) one more time to confirm the fix commit passes. Do NOT re-wait for a second round of bot reviews — the fix commit does not trigger a new full review from most bots.
 
 ### Phase 3: Handle CI failures
 
@@ -534,33 +573,49 @@ Review bots like Gemini Code Review and CodeRabbit post inline code review comme
    - **Test failure** → read failure output via `gh pr checks <pr_number> --json name,conclusion,detailsUrl`, attempt fix, push
    - **Lint / typecheck** → read errors, fix, push
    - **Deploy / infra failure** → not actionable by code changes, warn and continue
-   - **Review bot failure** → same as Phase 2
 3. After pushing a fix, return to Phase 1 (re-wait for CI).
+
+### Phase Ordering
+
+Phase 1 (CI) and Phase 2 (bot review) run sequentially but are logically independent:
+
+```
+Phase 1: Wait for CI → handle failures if any → CI green
+Phase 2: Detect bot history → wait for bot review → address inline comments → push fix → reply to threads
+Phase 1 (again): Re-wait for CI after fix push (if fixes were made)
+```
+
+If Phase 1 times out or has no checks, Phase 2 still runs (the bot review is independent of CI). If Phase 2 detects no bot history, it skips immediately.
 
 ### Loop Termination
 
-Maximum 2 total fix-and-recheck cycles across Phase 2 and Phase 3 combined. After 2 cycles:
+Maximum 2 total fix-and-recheck cycles across Phase 1 and Phase 3 combined. After 2 cycles:
 - If checks still failing → warn: "CI still failing after 2 fix attempts. Continuing lifecycle." List failing checks.
-- If review bot posts new comments on a fix commit → covered by the cycle count.
 
-**Output:** "CI checks: [N passed, M failed]. Review comments: [X addressed, Y declined]." or "No CI checks configured — skipped."
+Phase 2 (bot review) runs at most once per PR — no loop. If the bot posts additional comments on the fix commit, they are not automatically addressed (this would require a separate manual invocation).
+
+**Output:** "CI checks: [N passed, M failed]. Review comments: [X addressed, Y declined]." or "No CI checks configured, no review bot history — skipped."
 
 **YOLO behavior:** Auto-wait silently. Announce periodic status every 60 seconds:
 `YOLO: start — Waiting for CI checks (N of M complete, K pending: [names])`
+`YOLO: start — CI passed. Waiting for review bot ([bot_name] detected on recent PRs)...`
 After addressing: `YOLO: start — Review comments → N addressed, K declined`
 
-**Interactive/Express behavior:** Announce wait and show progress. The user can type "skip" to continue without waiting.
+**Interactive/Express behavior:** Announce wait and show progress. The user can type "skip" to continue without waiting at either phase.
 
 **Edge cases:**
 
 | Scenario | Behavior |
 |----------|----------|
-| Repo has no CI checks | `gh pr checks` returns empty → skip entire step |
-| Bot posts summary comment but no inline comments | No inline thread comments to address → skip Phase 2 |
+| Repo has no CI checks | Phase 1 skips (no checks). Phase 2 still runs (independent). |
+| Repo has CI but no review bot history | Phase 1 waits for CI. Phase 2 skips (no bot history on last 5 PRs). |
+| Bot posts summary comment but no inline comments | No inline thread comments to address → skip step 2c |
 | Bot review arrives after timeout | Missed — user can re-run manually |
 | PR has merge conflicts blocking CI | Warn and continue |
 | Multiple review bots on same repo | Address inline comments from all bots in one pass |
 | Bot suggests change that contradicts design doc | Decline with rationale in the thread reply |
+| CI passes before bot review arrives | Normal — Phase 2 waits independently for the bot review |
+| Bot review arrives before CI passes | Phase 2 will find it when it runs after Phase 1 |
 
 ---
 
