@@ -53,6 +53,18 @@ git show HEAD                  # reveals which criterion introduced the regressi
 git bisect reset
 ```
 
+## Integration Strategy: Merge-First
+
+Feature-flow defaults to `git merge` (not `git rebase`) when syncing feature branches with the base branch before PR creation. This is configurable via `git_strategy` in `.feature-flow.yml`.
+
+**Why merge over rebase:**
+- `git rebase` replays each commit individually — N commits can produce N separate conflict rounds
+- `git merge` resolves everything in a single pass — one conflict resolution at most
+- Feature-flow context files (`.feature-flow/*`, `FEATURE_CONTEXT.md`, `CHANGELOG.md`) change on every feature branch, making them guaranteed conflict targets during rebase
+- Most PRs are squash-merged, so the linear history benefit of rebase is moot
+
+**When to use rebase:** Only when the project enforces linear history and does not use squash-merge. Set `git_strategy: rebase` in `.feature-flow.yml`.
+
 ## Examples
 
 **Single criterion (short):**

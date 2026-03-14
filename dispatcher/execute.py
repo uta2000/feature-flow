@@ -20,9 +20,16 @@ def create_branch(issue_number: int, scope: str, config: Config) -> str:
     slug = _slugify(f"issue-{issue_number}")
     branch_name = f"{prefix}/{issue_number}-{slug}"
 
+    # Sync with remote before branching to prevent stale-base conflicts
+    subprocess.run(
+        ["git", "fetch", "origin"],
+        capture_output=True, text=True, timeout=30,
+    )
+    start_point = f"origin/{config.base_branch}"
+
     try:
         subprocess.run(
-            ["git", "checkout", "-b", branch_name, config.base_branch],
+            ["git", "checkout", "-b", branch_name, start_point],
             capture_output=True, text=True, timeout=30, check=True,
         )
     except subprocess.CalledProcessError:
