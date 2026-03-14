@@ -55,7 +55,7 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive). 
    CURRENT: none
    -->
 
-   > **For Claude:** After compaction, read only the PROGRESS INDEX to determine current task.
+   > **For Claude:** Read only the PROGRESS INDEX to determine current task.
    > Then read the full section for that specific task only.
    > Tool parameter types: Edit `replace_all`: boolean (`true`/`false`), NOT string. Read `offset`/`limit`: number, NOT string.
    ```

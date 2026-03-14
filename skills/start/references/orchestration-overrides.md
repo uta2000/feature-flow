@@ -155,36 +155,6 @@ How to proceed:
 
 This is the most complex YOLO interaction — the LLM makes design-level decisions. The user reviews these via the design document output rather than each micro-decision.
 
-## Context Window Checkpoints
-
-At specific phase transitions, output a checkpoint prompt suggesting the user run `/compact` to free context window space. The lifecycle pauses — the user must respond before the next step begins. `/compact` is a client-side Claude Code command that cannot be invoked programmatically — the skill can only suggest it.
-
-**Checkpoint format and recovery procedure:** See `../../references/context-checkpoints.md`.
-
-**Checkpoint locations:**
-
-| # | After Step | Before Step | Focus Hint |
-|---|-----------|-------------|------------|
-| 1 | Documentation lookup | Design Document | `focus on brainstorming decisions and documentation patterns` |
-| 2 | Design Verification (or Design Document for small enhancements, or Documentation Lookup for fast-track small enhancements) | Create Issue + Implementation Plan | `focus on the approved design and implementation plan` |
-| 3 | Worktree Setup + Copy Env Files | Implement | `focus on the implementation plan, acceptance criteria, and worktree path` |
-| 4 | Implementation complete (last task done) | Self-review + Code Review | `focus on the implementation commit SHAs, acceptance criteria, and any known issues from implementation` |
-
-**Scope-based filtering:**
-
-| Scope | Checkpoints shown |
-|-------|------------------|
-| Quick fix | None (too few steps) |
-| Small enhancement | 2 and 3 only (checkpoint 2 triggers after Design Document, or after Documentation Lookup if fast-track) |
-| Feature | All 4 |
-| Major feature | All 4 |
-
-**Suppression rules:**
-- **YOLO mode:** All checkpoints suppressed — do not output the checkpoint block, do not end your turn. Proceed immediately to the next step (see **YOLO Execution Continuity** in Step 3).
-- **Express mode:** Checkpoints are shown — output the checkpoint block and wait
-- **Interactive mode:** Checkpoints are shown — output the checkpoint block and wait
-- **Quick fix scope:** No checkpoints regardless of mode
-
 ## Express Design Approval Checkpoint
 
 When Express mode is active and the scope is **Feature** or **Major Feature**, present a design approval checkpoint after the design document step (or design verification step if present). This checkpoint pauses Express mode for the user to review the design before implementation begins.
@@ -204,4 +174,4 @@ Use `AskUserQuestion` with options:
 - Quick fix / Small enhancement: No design approval checkpoint (too small)
 - Feature / Major feature: Design approval checkpoint shown
 
-This checkpoint is owned by the `design-document` skill when invoked with `express: true`. The orchestrator does not present a separate checkpoint — it is handled inside the skill invocation. This is separate from context window checkpoints and fires at a different lifecycle moment (after design, not at phase transitions).
+This checkpoint is owned by the `design-document` skill when invoked with `express: true`. The orchestrator does not present a separate checkpoint — it is handled inside the skill invocation.

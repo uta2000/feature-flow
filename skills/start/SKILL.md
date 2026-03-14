@@ -162,7 +162,7 @@ Internal agents marked `(internal)` run inside their parent plugin's subagent an
 
 ### Tool Parameter Types
 
-> **Post-compaction reminder:** Tool parameters must use correct types. Wrong types cause cascading failures.
+> **Reminder:** Tool parameters must use correct types. Wrong types cause cascading failures.
 >
 > | Parameter | Tool | Correct type | Wrong type (do NOT use) |
 > |-----------|------|-------------|------------------------|
@@ -522,7 +522,7 @@ When the recommended mode is Interactive AND the context pressure for Interactiv
 ```
 This looks like a **[scope]** ([N] steps).
 [If issue linked: "Found issue #N: [title] — [richness summary]."]
-Context note: Interactive mode at this scope typically requires 3-4 /compact pauses. Express auto-selects decisions while preserving those checkpoints.
+Context note: Interactive mode at this scope involves extended conversation. Express auto-selects decisions while preserving design approval checkpoints.
 
 Run mode?
 ```
@@ -536,20 +536,20 @@ Run mode?
 
 *YOLO recommended* (quick fix, small enhancement, or feature with detailed context):
 - Option 1: "YOLO — fully unattended, no pauses" with description: "*Recommended — [reasoning]*"
-- Option 2: "Express — I'll auto-select decisions but pause for design approval and at phase transitions to optionally compact the conversation"
-- Option 3: "Interactive — I'll interview you to address outstanding design questions, with pauses at phase transitions to optionally compact the conversation"
+- Option 2: "Express — I'll auto-select decisions but pause for design approval"
+- Option 3: "Interactive — I'll interview you to address outstanding design questions"
 
 *Interactive recommended* (feature/major without detailed context):
-- Option 1: "Interactive — I'll interview you to address outstanding design questions, with pauses at phase transitions to optionally compact the conversation" with description: "*Recommended — [reasoning]*"
-- Option 2: "Express — I'll auto-select decisions but pause for design approval and at phase transitions to optionally compact the conversation"
+- Option 1: "Interactive — I'll interview you to address outstanding design questions" with description: "*Recommended — [reasoning]*"
+- Option 2: "Express — I'll auto-select decisions but pause for design approval"
 - Option 3: "YOLO — fully unattended, no pauses"
 
 *Express recommended* (major feature with detailed issue or detailed inline context):
-- Option 1: "Express — I'll auto-select decisions but pause for design approval and at phase transitions to optionally compact the conversation" with description: "*Recommended — detailed requirements cover design decisions; Express preserves compaction checkpoints at each phase transition.*"
-- Option 2: "Interactive — I'll interview you to address outstanding design questions, with pauses at phase transitions to optionally compact the conversation"
+- Option 1: "Express — I'll auto-select decisions but pause for design approval" with description: "*Recommended — detailed requirements cover design decisions; Express auto-selects while preserving design approval gate.*"
+- Option 2: "Interactive — I'll interview you to address outstanding design questions"
 - Option 3: "YOLO — fully unattended, no pauses"
 
-*Footnote (always shown after the options):* "For Express and Interactive: at each pause you can run `/compact` then type 'continue' to resume, or just type 'continue' to skip compaction."
+*Footnote (always shown after the options):* "Express pauses at design approval. Interactive pauses for each design question."
 
 The recommended option always appears first in the list. Each option's description includes italicized reasoning when a recommendation is made.
 
@@ -559,7 +559,7 @@ The recommended option always appears first in the list. Each option's descripti
 
 **Express behavior (trigger phrase activated):** If Express was already activated by a trigger phrase in Step 0, skip this question entirely. Auto-classify scope and announce: `Express: start — Scope + mode → [scope], Express (trigger phrase)`
 
-**Express behavior:** If the user selects "Express", set Express mode active. All YOLO auto-selection overrides apply for skill invocations, but context window checkpoints and design approval checkpoints are shown instead of suppressed.
+**Express behavior:** If the user selects "Express", set Express mode active. All YOLO auto-selection overrides apply for skill invocations, but design approval checkpoints are shown instead of suppressed.
 
 ### Step 2: Build the Step List
 
@@ -576,8 +576,7 @@ For each step, follow this pattern:
 3. **Invoke the skill** using the Skill tool (see mapping below and `../../references/tool-api.md` — Skill Tool for correct parameter names)
 4. **Confirm completion:** Verify the step produced its expected output. *(Turn Bridge Rule — include any confirmation notes alongside the `TaskUpdate` call in step 5, not as a separate text-only response.)*
 5. **Mark complete:** Update the todo item to `completed` — **always call `TaskUpdate` here.** *(Turn Bridge Rule — this call keeps your turn alive.)* **Batching optimization:** When the next step (N+1) is in the `in_progress`-eligible list (study existing patterns, implementation, self-review, code review, generate CHANGELOG entry, final verification, documentation lookup), send both `TaskUpdate` calls as a single parallel message: `[TaskUpdate(N, completed), TaskUpdate(N+1, in_progress)]`. This saves one API round-trip per eligible step transition. If N is the final lifecycle step, no N+1 exists — skip the batch and call only `TaskUpdate(N, completed)` as usual.
-6. **Check for context checkpoint:** If the just-completed step is a checkpoint trigger (see Context Window Checkpoints section), and the current mode is not YOLO, and the current scope includes this checkpoint — output the checkpoint block and wait for the user to respond before announcing the next step.
-7. **Announce next step and loop:** "Step N complete. Next: Step N+1 — [name]." Then **immediately loop back to sub-step 1 (Announce the step)** for the next lifecycle step.
+6. **Announce next step and loop:** "Step N complete. Next: Step N+1 — [name]." Then **immediately loop back to sub-step 1 (Announce the step)** for the next lifecycle step.
 
 **YOLO Execution Continuity (CRITICAL):** In YOLO mode, the execution loop must be **uninterrupted**. After completing one step, proceed directly to the next step in the same turn — do NOT end your turn between steps. The most common failure mode is: a skill outputs text (e.g., brainstorming decisions table), the assistant's turn ends because there are no pending tool calls, and the user must type "continue" to resume — this defeats the purpose of YOLO ("fully unattended, no pauses"). To prevent this: apply the **Turn Bridge Rule** (below) after every step, then continue to step 7 and loop back to step 1 for the next step.
 
@@ -682,7 +681,7 @@ Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/p
 
 ### Orchestration Overrides
 
-**Read `references/orchestration-overrides.md`** for phase-boundary model hints, brainstorming interview format override (including YOLO self-answering), context window checkpoints (locations, scope filtering, suppression rules), and Express design approval checkpoint.
+**Read `references/orchestration-overrides.md`** for brainstorming interview format override (including YOLO self-answering) and Express design approval checkpoint.
 
 ### YOLO/Express Overrides
 
@@ -806,7 +805,7 @@ When adjusting, announce: "Adjusting scope from [old] to [new]. Adding/removing 
 Extracted reference files (read on-demand during lifecycle execution):
 - **`references/project-context.md`** — Step 0: YOLO triggers, .feature-flow.yml, base branch, model check, notifications
 - **`references/step-lists.md`** — Step 2: scope-specific step lists, mobile adjustments, pre-flight reviewer audit/marketplace/install
-- **`references/orchestration-overrides.md`** — Brainstorming interview format, context checkpoints, Express design approval
+- **`references/orchestration-overrides.md`** — Brainstorming interview format, Express design approval
 - **`references/yolo-overrides.md`** — YOLO/Express overrides for writing-plans, git-worktrees, finishing-branch, subagent-driven-dev; quality context injections
 - **`references/code-review-pipeline.md`** — Code review pipeline Phases 0-5
 - **`references/inline-steps.md`** — 8 inline step definitions (documentation lookup, commit artifacts, copy env, study patterns, self-review, CHANGELOG, final verification, comment/close issue)
