@@ -674,6 +674,7 @@ Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/p
 | Final verification | No skill — inline step (see below) | All criteria PASS + quality gates pass (or skipped if Phase 4 already passed) |
 | Sync with base branch | No skill — inline step (see below) | Branch rebased onto latest base branch; CHANGELOG.md conflicts auto-resolved |
 | Commit and PR | `superpowers:finishing-a-development-branch` | PR URL |
+| Wait for CI and address reviews | No skill — inline step (see below) | CI green, review comments addressed |
 | Device matrix testing | No skill — manual step | Tested on min OS, small/large screens, slow network |
 | Beta testing | No skill — manual step | TestFlight / Play Console build tested by internal tester |
 | App store review | No skill — manual step | Submission accepted |

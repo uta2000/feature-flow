@@ -188,6 +188,20 @@ git_strategy: merge  # merge (default) | rebase
 
 **When absent:** Defaults to `merge`. The field is never auto-written; add it manually only if you need `rebase`.
 
+### `ci_timeout_seconds`
+
+Optional maximum seconds to wait for CI checks to complete after PR creation before continuing the lifecycle. Used by the "Wait for CI and address reviews" inline step.
+
+**Default:** 900 (15 minutes). The safety valve prevents infinite polling if a check is stuck or requires manual approval.
+
+**Format:** Integer.
+
+```yaml
+ci_timeout_seconds: 900  # default: 900 (15 minutes)
+```
+
+**When absent:** Defaults to 900 seconds. The field is never auto-written; add it manually only if you need a different timeout.
+
 ### `notifications`
 
 Optional notification preference for the `start:` lifecycle. When set, `start` skips the notification prompt on subsequent invocations and applies the saved preference directly.
