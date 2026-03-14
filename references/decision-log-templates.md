@@ -40,10 +40,6 @@ These templates are used during Step 5 (Completion) of the start skill lifecycle
 | 1 | start | Scope + mode | [scope], Express |
 | N | start | Fast-track detection | Activated (issue richness: [score]/4) — skipped: brainstorming, design document, verify-plan-criteria |
 | ... | ... | ... | ... |
-| N | start | Compact checkpoint 1 | /compact (or skipped) |
-| N | start | Compact checkpoint 2 | /compact (or skipped) |
-| N | start | Compact checkpoint 3 | /compact (or skipped) |
-| N | start | Compact checkpoint 4 | /compact (or skipped) |
 | N | design-document | Design approval | ✋ User reviewed (approved / adjusted) |
 | N | brainstorming | Design questions (self-answered) | [count decisions auto-answered] |
 | N | writing-plans | Execution choice | Subagent-Driven (auto-selected) |

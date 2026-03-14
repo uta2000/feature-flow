@@ -17,7 +17,7 @@ Before any other processing, check if the user requested YOLO mode via a trigger
 2. If a trigger is found:
    - If the trigger is `--express` or `express mode`:
      - Set Express mode active for the remainder of the lifecycle
-     - Announce: "Express mode active. Auto-selecting decisions but pausing for design approval and at phase transitions for optional `/compact`. Decision log will be printed at completion."
+     - Announce: "Express mode active. Auto-selecting decisions but pausing for design approval. Decision log will be printed at completion."
      - Strip the trigger phrase from the arguments before further processing
    - Otherwise (standard YOLO triggers):
      - Set YOLO mode active for the remainder of the lifecycle
