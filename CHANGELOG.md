@@ -2,6 +2,17 @@
 
 All notable changes to the feature-flow plugin.
 
+## [1.26.0] - 2026-03-14
+
+### Changed
+- **Opus orchestrator with per-phase model routing (GH190)** — The orchestrator now runs on Opus 4.6 (`claude-opus-4-6`, 1M context, standard pricing) for the full session. In YOLO mode, brainstorming and design document phases are dispatched as `Task(model: "opus")`, planning as `Task(model: "sonnet")` — giving full per-phase model control regardless of orchestrator model. Interactive/Express modes use inline Skill calls that inherit the parent model. The old Sonnet-first philosophy is retired; cost optimization comes from subagent routing (haiku/sonnet via explicit Task `model` params), not orchestrator model switching.
+- **`/model` command permanently removed from lifecycle (GH190)** — All `/model opus` and `/model sonnet` hints deleted from orchestration-overrides.md and project-context.md. The `/model` command writes to `~/.claude/settings.json` (a global config file) affecting all terminal windows and tmux panes. Session model is now controlled exclusively via `--model` startup flag or the default.
+- **Compaction checkpoints removed (GH190)** — The 4 compaction checkpoints that paused the lifecycle to suggest `/compact` are no longer needed with Opus 1M context. A full session runs 300-500K tokens, well under the 1M ceiling. Express Design Approval checkpoint preserved (serves a different purpose). Session-report compaction tracking preserved for observability.
+- **Dispatcher model IDs updated to Claude 4.6 (GH192)** — `claude-opus-4-20250514` → `claude-opus-4-6`, `claude-sonnet-4-20250514` → `claude-sonnet-4-6` across dispatcher.yml, config.py, models.py, tests, and README.
+
+### Added
+- **PreToolUse hook enforcing explicit `model` param on Task dispatches (GH191)** — New hook blocks any `Task` or `Agent` dispatch missing an explicit `model` parameter, preventing silent Opus inheritance on subagents (8-10x cost increase per dispatch). Both `Agent` and `Task` matchers included for defense-in-depth.
+
 ## [Unreleased]
 
 ### Added
