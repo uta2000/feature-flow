@@ -424,7 +424,7 @@ Ensure the lifecycle is followed from start to finish. Track which steps are com
 1. YOLO/Express trigger phrase detection (word-boundary matching on `--yolo`, `yolo mode`, `--express`, etc.)
 2. Load or create `.feature-flow.yml` (version drift check, stack cross-check, auto-detection)
 3. Base branch detection (cascade: `.feature-flow.yml` → git config → develop/staging → main/master)
-4. Session model recommendation (Sonnet-first routing)
+4. Session model check
 5. Notification preference (macOS-only, saved to `.feature-flow.yml`)
 
 ### Step 1: Determine Scope
@@ -583,14 +583,34 @@ For each step, follow this pattern:
 
 **Turn Bridge Rule:** After outputting results for any inline step, **immediately call `TaskUpdate` to mark that step complete in the same response** — do not end your turn with only text output. A text-only response ends your turn and forces the user to type "continue" to resume, which breaks YOLO continuity. The `TaskUpdate` tool call is the bridge that keeps your turn alive between lifecycle steps.
 
-**YOLO Propagation:** When YOLO mode is active, prepend `yolo: true. scope: [scope].` to the `args` parameter of every `Skill` invocation. Scope context is required because design-document uses it to determine checkpoint behavior. For example:
+**YOLO Propagation:** When YOLO mode is active, prepend `yolo: true. scope: [scope].` to the `args` parameter of every `Skill` invocation. Scope context is required because design-document uses it to determine checkpoint behavior.
 
+**YOLO Model Routing (CRITICAL):** In YOLO mode, brainstorming and design document phases MUST be dispatched as `Task` calls with explicit `model` params — not as inline `Skill` calls. This gives full per-phase model control regardless of the orchestrator's model. Planning is also dispatched as a `Task` with `model: "sonnet"`.
+
+**Why:** The `Skill` tool has no `model` parameter — it inherits the parent model. The `Task` tool has an explicit `model` parameter. In YOLO mode there is no user interaction, so running skills inside a Task subagent works identically to running them inline. The `/model` command must NEVER be used — it writes to `~/.claude/settings.json` (a global config file) and affects all other terminal windows and tmux panes.
+
+YOLO mode invocations:
+```
+# Brainstorming — Opus for creative reasoning
+Task(subagent_type: "general-purpose", model: "opus", description: "YOLO brainstorming",
+     prompt: "Invoke Skill(skill: 'superpowers:brainstorming', args: 'yolo: true. scope: [scope]. [context args]'). Return the complete brainstorming output including all self-answered design decisions.")
+
+# Design document — Opus for architectural decisions
+Task(subagent_type: "general-purpose", model: "opus", description: "YOLO design document",
+     prompt: "Invoke Skill(skill: 'feature-flow:design-document', args: 'yolo: true. scope: [scope]. [context args]'). Return the design document path and key decisions.")
+
+# Implementation planning — Sonnet for structured task decomposition
+Task(subagent_type: "general-purpose", model: "sonnet", description: "YOLO implementation plan",
+     prompt: "Invoke Skill(skill: 'superpowers:writing-plans', args: 'yolo: true. scope: [scope]. [context args]'). Return the plan file path and task summary.")
+```
+
+**Interactive/Express mode** continues to use inline `Skill` calls (unchanged — these inherit the parent model, which should be Opus at session start):
 ```
 Skill(skill: "superpowers:brainstorming", args: "yolo: true. scope: [scope]. [original args]")
 Skill(skill: "feature-flow:design-document", args: "yolo: true. scope: [scope]. [original args]")
 ```
 
-**Express Propagation:** When Express mode is active, prepend `express: true. scope: [scope].` to the `args` parameter of every `Skill` invocation. Express inherits all YOLO auto-selection overrides — skills that check for `yolo: true` should also check for `express: true` and behave the same way (auto-select decisions). The only difference is at the orchestrator level where checkpoints are shown instead of suppressed. For example:
+**Express Propagation:** When Express mode is active, prepend `express: true. scope: [scope].` to the `args` parameter of every `Skill` invocation. Express inherits all YOLO auto-selection overrides — skills that check for `yolo: true` should also check for `express: true` and behave the same way (auto-select decisions). The only difference is at the orchestrator level where checkpoints are shown instead of suppressed. Express mode uses inline `Skill` calls (not Task dispatch) to preserve the user's ability to interact at checkpoints:
 
 ```
 Skill(skill: "superpowers:brainstorming", args: "express: true. scope: [scope]. [original args]")
@@ -613,13 +633,19 @@ For inline steps (CHANGELOG generation, self-review, code review, study existing
 Include only paths that are known at the time of each invocation — do not include paths for artifacts that haven't been created yet. Example invocations showing progressive accumulation:
 
 ```
-# Before design doc (base_branch and issue known):
-Skill(skill: "superpowers:brainstorming", args: "yolo: true. scope: [scope]. base_branch: main. issue: 119. [original args]")
+# YOLO mode — brainstorming and design doc via Task dispatch with explicit model:
+Task(subagent_type: "general-purpose", model: "opus", description: "YOLO brainstorming",
+     prompt: "Invoke Skill(skill: 'superpowers:brainstorming', args: 'yolo: true. scope: [scope]. base_branch: main. issue: 119. [original args]'). Return the complete output.")
 
-# Before implementation (plan_file and design_doc known, worktree not yet):
+# YOLO mode — planning via Task dispatch with explicit model:
+Task(subagent_type: "general-purpose", model: "sonnet", description: "YOLO implementation plan",
+     prompt: "Invoke Skill(skill: 'superpowers:writing-plans', args: 'yolo: true. scope: [scope]. base_branch: main. issue: 119. design_doc: /abs/path/design.md. [original args]'). Return the plan file path.")
+
+# Interactive/Express mode — inline Skill calls (inherit parent model):
+Skill(skill: "superpowers:brainstorming", args: "yolo: true. scope: [scope]. base_branch: main. issue: 119. [original args]")
 Skill(skill: "superpowers:writing-plans", args: "yolo: true. scope: [scope]. base_branch: main. issue: 119. design_doc: /abs/path/design.md. [original args]")
 
-# During and after implementation (all paths known):
+# During and after implementation (all paths known, all modes):
 Skill(skill: "superpowers:subagent-driven-development", args: "yolo: true. scope: [scope]. plan_file: /abs/path/plan.md. design_doc: /abs/path/design.md. worktree: /abs/path/.worktrees/feat-xyz. base_branch: main. issue: 119. [original args]")
 Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/path/plan.md. [original args]")
 ```
@@ -668,7 +694,7 @@ Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/p
 
 ### Model Routing Defaults
 
-**Read `references/model-routing.md`** for the full model routing tables. Summary: Sonnet-first for all mechanical phases; Opus only for brainstorming and design document phases. Subagents: Explore → haiku, general-purpose → sonnet, Plan → sonnet.
+**Read `references/model-routing.md`** for the full model routing tables. Summary: Opus orchestrator for the full session; subagents routed to Sonnet/Haiku for cost optimization. In YOLO mode, brainstorming and design doc are dispatched as Task(model: "opus"), planning as Task(model: "sonnet").
 
 ### Commit Planning Artifacts Step (inline — no separate skill)
 
@@ -778,9 +804,9 @@ When adjusting, announce: "Adjusting scope from [old] to [new]. Adding/removing 
 ### Reference Files
 
 Extracted reference files (read on-demand during lifecycle execution):
-- **`references/project-context.md`** — Step 0: YOLO triggers, .feature-flow.yml, base branch, model recommendation, notifications
+- **`references/project-context.md`** — Step 0: YOLO triggers, .feature-flow.yml, base branch, model check, notifications
 - **`references/step-lists.md`** — Step 2: scope-specific step lists, mobile adjustments, pre-flight reviewer audit/marketplace/install
-- **`references/orchestration-overrides.md`** — Phase-boundary hints, brainstorming interview format, context checkpoints, Express design approval
+- **`references/orchestration-overrides.md`** — Brainstorming interview format, context checkpoints, Express design approval
 - **`references/yolo-overrides.md`** — YOLO/Express overrides for writing-plans, git-worktrees, finishing-branch, subagent-driven-dev; quality context injections
 - **`references/code-review-pipeline.md`** — Code review pipeline Phases 0-5
 - **`references/inline-steps.md`** — 8 inline step definitions (documentation lookup, commit artifacts, copy env, study patterns, self-review, CHANGELOG, final verification, comment/close issue)
