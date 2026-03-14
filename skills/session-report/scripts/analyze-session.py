@@ -26,14 +26,48 @@ _START_SKILL_RE = re.compile(r"\bstart:\s", re.IGNORECASE)
 # =========================================================================
 # PRICING TABLE (USD per 1M tokens) — update when Anthropic changes pricing
 # =========================================================================
-# Source: https://docs.anthropic.com/en/docs/about-claude/models
+# Source: https://platform.claude.com/docs/en/about-claude/pricing
 # Format: model_substring -> {input, output, cache_read, cache_creation}
+# IMPORTANT: More specific keys must come BEFORE generic ones (e.g., "opus-4-6"
+# before "opus-4") because get_pricing() returns the first substring match.
 MODEL_PRICING = {
+    # Claude 4.6 (latest — reduced pricing vs 4.0/4.1)
+    "opus-4-6": {
+        "input": 5.00,
+        "output": 25.00,
+        "cache_read": 0.50,       # 10% of input
+        "cache_creation": 6.25,   # 125% of input (5m TTL)
+    },
+    "opus-4-5": {
+        "input": 5.00,
+        "output": 25.00,
+        "cache_read": 0.50,
+        "cache_creation": 6.25,
+    },
+    "sonnet-4-6": {
+        "input": 3.00,
+        "output": 15.00,
+        "cache_read": 0.30,
+        "cache_creation": 3.75,
+    },
+    "sonnet-4-5": {
+        "input": 3.00,
+        "output": 15.00,
+        "cache_read": 0.30,
+        "cache_creation": 3.75,
+    },
+    "haiku-4-5": {
+        "input": 1.00,
+        "output": 5.00,
+        "cache_read": 0.10,
+        "cache_creation": 1.25,
+    },
+    # Claude 4.0/4.1 (higher pricing tier)
     "opus-4": {
         "input": 15.00,
         "output": 75.00,
-        "cache_read": 1.50,       # 10% of input
-        "cache_creation": 18.75,  # 125% of input
+        "cache_read": 1.50,
+        "cache_creation": 18.75,
     },
     "sonnet-4": {
         "input": 3.00,
