@@ -42,7 +42,7 @@ Launches a specialized agent to handle a subtask. Returns a result message when 
 ```
 Task(subagent_type: "Explore", model: "haiku", description: "Study API patterns", prompt: "Read files in src/api/ and extract...")
 Task(subagent_type: "general-purpose", model: "sonnet", isolation: "worktree", description: "Run spike experiment", prompt: "Test whether...")
-Task(subagent_type: "feature-flow:task-verifier", description: "Verify acceptance criteria", prompt: "Verify the following...")
+Task(subagent_type: "feature-flow:task-verifier", model: "haiku", description: "Verify acceptance criteria", prompt: "Verify the following...")
 ```
 
 ### Recommended Model Defaults
