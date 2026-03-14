@@ -444,9 +444,129 @@ This step runs after CHANGELOG generation and before commit and PR. It verifies 
 
 ---
 
+## Wait for CI and Address Reviews Step
+
+This step runs after commit and PR (or after mobile-specific steps like app store review) and before comment and close issue. It waits for all CI checks to complete, then addresses any inline code review comments from automated review bots (e.g., Gemini Code Review, CodeRabbit).
+
+**Process:**
+
+### Phase 1: Wait for CI checks
+
+1. Get the PR number from the previous step's output.
+
+2. Poll CI check status every 30 seconds:
+   ```bash
+   gh pr checks <pr_number> --json name,status,conclusion
+   ```
+   Note: the JSON field is `status` (values: `queued`, `in_progress`, `completed`), NOT `state`. The `conclusion` field is only populated when `status == "completed"`.
+
+3. Wait until every check has `status: "completed"`.
+   - If all have `conclusion: "success"` → proceed to Phase 2.
+   - If any have `conclusion: "failure"` → proceed to Phase 3.
+   - If no checks exist (empty response) → skip this step entirely, announce: "No CI checks configured — skipped."
+
+4. Safety valve: if checks haven't resolved after 15 minutes (configurable via `ci_timeout_seconds` in `.feature-flow.yml`, default 900), announce:
+   ```
+   CI checks still pending after 15 minutes. Continuing lifecycle.
+   Pending checks: [list names]
+   ```
+
+### Phase 2: Address inline review comments
+
+Review bots like Gemini Code Review and CodeRabbit post inline code review comments as **PR review threads** — comments attached to specific file lines. Each thread must be replied to individually.
+
+1. Derive owner/repo for API calls:
+   ```bash
+   gh repo view --json owner,name -q '.owner.login + "/" + .name'
+   ```
+
+2. Fetch all review comments (inline thread comments) on the PR:
+   ```bash
+   gh api repos/{owner}/{repo}/pulls/{pr_number}/comments
+   ```
+
+3. Filter for bot-authored comments: check `user.type == "Bot"` in the response. This catches any review bot without hardcoding names.
+
+4. If no bot comments → skip to output.
+
+5. For each bot inline comment:
+   a. Read the comment body, the `path` (file), and `line`/`original_line` it references.
+   b. Read the referenced file and surrounding code to understand context.
+   c. Evaluate against the design doc — if the suggestion contradicts a design decision, mark as "declined."
+   d. Classify priority:
+      - **Bug / security** → always address
+      - **Style / convention** → address if it aligns with project conventions
+      - **Nit / suggestion** → address if trivial, decline if subjective
+      - **Contradicts design** → decline with explanation
+   e. Make the code change (if addressing).
+
+6. Batch all fixes into a single commit:
+   ```bash
+   git add <changed files>
+   git commit -m "fix: address automated code review feedback
+
+   Addressed N of M review comments. Declined K with rationale."
+   git push
+   ```
+
+7. **Post a review thread reply for each inline comment.** This is critical — review bots expect replies on their specific threads, not a single summary comment on the PR. For each bot comment, reply directly to that comment's thread:
+
+   ```bash
+   # For addressed comments — reply on the inline thread:
+   gh api repos/{owner}/{repo}/pulls/{pr_number}/comments \
+     -f body="Fixed in <commit_sha>. <brief description of what was changed>." \
+     -F in_reply_to=<comment_id>
+
+   # For declined comments — reply on the inline thread:
+   gh api repos/{owner}/{repo}/pulls/{pr_number}/comments \
+     -f body="Declined — <rationale>. This was a deliberate design decision." \
+     -F in_reply_to=<comment_id>
+   ```
+
+   **IMPORTANT:** The GitHub API for replying to PR review comments uses `POST /repos/{owner}/{repo}/pulls/{pr_number}/comments` with the `in_reply_to` field set to the original comment's `id`. There is NO `/replies` sub-resource on this endpoint.
+
+8. After pushing fixes, re-wait for CI (Phase 1) one more time to confirm the fix commit passes.
+
+### Phase 3: Handle CI failures
+
+1. Identify which checks failed from the `conclusion` field.
+2. Categorize:
+   - **Test failure** → read failure output via `gh pr checks <pr_number> --json name,conclusion,detailsUrl`, attempt fix, push
+   - **Lint / typecheck** → read errors, fix, push
+   - **Deploy / infra failure** → not actionable by code changes, warn and continue
+   - **Review bot failure** → same as Phase 2
+3. After pushing a fix, return to Phase 1 (re-wait for CI).
+
+### Loop Termination
+
+Maximum 2 total fix-and-recheck cycles across Phase 2 and Phase 3 combined. After 2 cycles:
+- If checks still failing → warn: "CI still failing after 2 fix attempts. Continuing lifecycle." List failing checks.
+- If review bot posts new comments on a fix commit → covered by the cycle count.
+
+**Output:** "CI checks: [N passed, M failed]. Review comments: [X addressed, Y declined]." or "No CI checks configured — skipped."
+
+**YOLO behavior:** Auto-wait silently. Announce periodic status every 60 seconds:
+`YOLO: start — Waiting for CI checks (N of M complete, K pending: [names])`
+After addressing: `YOLO: start — Review comments → N addressed, K declined`
+
+**Interactive/Express behavior:** Announce wait and show progress. The user can type "skip" to continue without waiting.
+
+**Edge cases:**
+
+| Scenario | Behavior |
+|----------|----------|
+| Repo has no CI checks | `gh pr checks` returns empty → skip entire step |
+| Bot posts summary comment but no inline comments | No inline thread comments to address → skip Phase 2 |
+| Bot review arrives after timeout | Missed — user can re-run manually |
+| PR has merge conflicts blocking CI | Warn and continue |
+| Multiple review bots on same repo | Address inline comments from all bots in one pass |
+| Bot suggests change that contradicts design doc | Decline with rationale in the thread reply |
+
+---
+
 ## Comment and Close Issue Step
 
-This step runs after "Commit and PR" (or after mobile-specific steps like app store review) and before the completion summary. It only runs when a GitHub issue was linked during Step 1 (issue reference detection). If no issue was linked, skip this step silently.
+This step runs after "Wait for CI and address reviews" (or after mobile-specific steps like app store review) and before the completion summary. It only runs when a GitHub issue was linked during Step 1 (issue reference detection). If no issue was linked, skip this step silently.
 
 **Process:**
 

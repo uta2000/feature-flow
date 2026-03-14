@@ -20,7 +20,8 @@ Reference file for the start skill lifecycle orchestrator.
 - [ ] 5. Verify acceptance criteria
 - [ ] 6. Sync with base branch
 - [ ] 7. Commit and PR
-- [ ] 8. Comment and close issue
+- [ ] 8. Wait for CI and address reviews
+- [ ] 9. Comment and close issue
 ```
 
 ### Small enhancement
@@ -46,7 +47,8 @@ If the small enhancement qualifies for fast-track (issue richness 3+ or equivale
 - [ ] 15. Final verification
 - [ ] 16. Sync with base branch
 - [ ] 17. Commit and PR
-- [ ] 18. Comment and close issue
+- [ ] 18. Wait for CI and address reviews
+- [ ] 19. Comment and close issue
 ```
 
 *Fast-track (issue richness 3+ or detailed inline context):*
@@ -65,7 +67,8 @@ If the small enhancement qualifies for fast-track (issue richness 3+ or equivale
 - [ ] 12. Final verification
 - [ ] 13. Sync with base branch
 - [ ] 14. Commit and PR
-- [ ] 15. Comment and close issue
+- [ ] 15. Wait for CI and address reviews
+- [ ] 16. Comment and close issue
 ```
 
 ### Feature
@@ -89,7 +92,8 @@ If the small enhancement qualifies for fast-track (issue richness 3+ or equivale
 - [ ] 16. Final verification
 - [ ] 17. Sync with base branch
 - [ ] 18. Commit and PR
-- [ ] 19. Comment and close issue
+- [ ] 19. Wait for CI and address reviews
+- [ ] 20. Comment and close issue
 ```
 
 ### Major feature
@@ -114,7 +118,8 @@ If the small enhancement qualifies for fast-track (issue richness 3+ or equivale
 - [ ] 17. Final verification
 - [ ] 18. Sync with base branch
 - [ ] 19. Commit and PR
-- [ ] 20. Comment and close issue
+- [ ] 20. Wait for CI and address reviews
+- [ ] 21. Comment and close issue
 ```
 
 ### Mobile platform adjustments (ios, android, cross-platform)
