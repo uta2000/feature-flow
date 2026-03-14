@@ -24,6 +24,7 @@ gotchas:
   - "WhoisFreaks bulk endpoint has separate RPM bucket from single-domain"
 types_path: src/types/database.types.ts  # Optional: canonical generated types path
 default_branch: staging  # Optional: PR target branch (default: detected via cascade)
+git_strategy: merge      # Optional: merge (default) | rebase — integration strategy for syncing with base branch
 notifications:          # Optional: notification preference written by start skill
   on_stop: bell         # bell | desktop | none
 knowledge_base:         # Optional: per-feature context file settings
@@ -167,6 +168,25 @@ default_branch: staging
 ```
 
 **When needed:** Only when the automatic detection cascade doesn't select the correct branch. Most projects using `main` as their PR target don't need this field.
+
+### `git_strategy`
+
+Optional integration strategy for the "Sync with Base Branch" lifecycle step. Controls whether `git merge` or `git rebase` is used to integrate base branch changes before PR creation.
+
+| Value | Behavior |
+|-------|----------|
+| `merge` (default) | `git merge origin/<base-branch> --no-edit` — single conflict resolution pass regardless of commit count |
+| `rebase` | `git rebase origin/<base-branch>` — replays each commit individually (linear history, but N commits = up to N conflict rounds) |
+
+**When to use `rebase`:** Only when the project enforces linear history and does not use squash-merge for PRs. Most projects should use the default `merge`.
+
+**Format:** Single string value.
+
+```yaml
+git_strategy: merge  # merge (default) | rebase
+```
+
+**When absent:** Defaults to `merge`. The field is never auto-written; add it manually only if you need `rebase`.
 
 ### `notifications`
 

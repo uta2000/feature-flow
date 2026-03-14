@@ -99,6 +99,44 @@ Announce: `"Detected base branch: [branch]. All PR targets and branch diffs will
 
 **YOLO behavior:** No prompt — always auto-detected. Announce: `YOLO: start — Base branch detection → [branch]`
 
+## Base Branch Sync
+
+After detecting the base branch, sync it with the remote to ensure the worktree is created from the latest state. This prevents stale-base conflicts during the end-of-lifecycle sync step.
+
+1. Fetch latest from origin:
+   ```bash
+   git fetch origin
+   ```
+
+2. Check if local base branch is behind remote:
+   ```bash
+   git rev-list <base_branch>..origin/<base_branch> --count
+   ```
+   - If `0`: announce "Base branch is up to date with origin." Skip to next section.
+   - If non-zero: proceed to step 3.
+
+3. Update local base branch to match remote:
+   ```bash
+   # If currently on the base branch:
+   git pull --ff-only origin/<base_branch>
+
+   # If on a different branch (can't pull):
+   git fetch origin <base_branch>:<base_branch>
+   ```
+   `git fetch origin <branch>:<branch>` does a fast-forward update of the local ref without checking it out. If the local branch has diverged (non-fast-forward), it will fail — see edge cases below.
+
+**Edge cases:**
+
+| Scenario | Behavior |
+|----------|----------|
+| Local base has uncommitted changes | Stash before sync (`git stash`), pop after (`git stash pop`) |
+| Local base has diverged (non-fast-forward) | Fetch will fail. Warn: "Local `<branch>` has diverged from `origin/<branch>` — cannot fast-forward. Proceeding with local state." |
+| Remote unreachable (offline) | `git fetch origin` fails. Announce: "Remote unreachable — proceeding with local base branch." Continue lifecycle. |
+
+**YOLO behavior:** Auto-sync silently. Announce: `YOLO: start — Base branch sync → fetched origin/<base_branch> (N commits ahead of local)` or `YOLO: start — Base branch sync → up to date`
+
+**Interactive/Express behavior:** Announce sync result. If local has diverged (non-fast-forward), warn the user and proceed with local state.
+
 ## Session Model Check
 
 After detecting the base branch, detect the current model and announce it. The orchestrator should run on Opus 4.6 for the full session (1M context, standard pricing). Cost optimization comes from subagent routing — Task dispatches use explicit `model` params to run subagents on Sonnet or Haiku. See `references/model-routing.md` for the full routing strategy.
