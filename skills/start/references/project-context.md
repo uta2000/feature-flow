@@ -119,7 +119,7 @@ After detecting the base branch, detect the current model and announce it. The o
 
 ## Notification Preference
 
-After the Session Model Recommendation, check whether the user wants to be notified when Claude Code stops and waits for input. This fires the preference prompt once per lifecycle session (or skips it if a saved preference exists).
+After the Session Model Check, check whether the user wants to be notified when Claude Code stops and waits for input. This fires the preference prompt once per lifecycle session (or skips it if a saved preference exists).
 
 **macOS guard:** If `$OSTYPE` does not match `darwin*`, skip this subsection entirely and announce: `"Notification preference skipped — osascript only available on macOS."`
 

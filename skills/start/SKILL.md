@@ -424,7 +424,7 @@ Ensure the lifecycle is followed from start to finish. Track which steps are com
 1. YOLO/Express trigger phrase detection (word-boundary matching on `--yolo`, `yolo mode`, `--express`, etc.)
 2. Load or create `.feature-flow.yml` (version drift check, stack cross-check, auto-detection)
 3. Base branch detection (cascade: `.feature-flow.yml` → git config → develop/staging → main/master)
-4. Session model recommendation (Sonnet-first routing)
+4. Session model check
 5. Notification preference (macOS-only, saved to `.feature-flow.yml`)
 
 ### Step 1: Determine Scope
@@ -694,7 +694,7 @@ Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/p
 
 ### Model Routing Defaults
 
-**Read `references/model-routing.md`** for the full model routing tables. Summary: Sonnet-first for all mechanical phases; Opus only for brainstorming and design document phases. Subagents: Explore → haiku, general-purpose → sonnet, Plan → sonnet.
+**Read `references/model-routing.md`** for the full model routing tables. Summary: Opus orchestrator for the full session; subagents routed to Sonnet/Haiku for cost optimization. In YOLO mode, brainstorming and design doc are dispatched as Task(model: "opus"), planning as Task(model: "sonnet").
 
 ### Commit Planning Artifacts Step (inline — no separate skill)
 
@@ -804,9 +804,9 @@ When adjusting, announce: "Adjusting scope from [old] to [new]. Adding/removing 
 ### Reference Files
 
 Extracted reference files (read on-demand during lifecycle execution):
-- **`references/project-context.md`** — Step 0: YOLO triggers, .feature-flow.yml, base branch, model recommendation, notifications
+- **`references/project-context.md`** — Step 0: YOLO triggers, .feature-flow.yml, base branch, model check, notifications
 - **`references/step-lists.md`** — Step 2: scope-specific step lists, mobile adjustments, pre-flight reviewer audit/marketplace/install
-- **`references/orchestration-overrides.md`** — Phase-boundary hints, brainstorming interview format, context checkpoints, Express design approval
+- **`references/orchestration-overrides.md`** — Brainstorming interview format, context checkpoints, Express design approval
 - **`references/yolo-overrides.md`** — YOLO/Express overrides for writing-plans, git-worktrees, finishing-branch, subagent-driven-dev; quality context injections
 - **`references/code-review-pipeline.md`** — Code review pipeline Phases 0-5
 - **`references/inline-steps.md`** — 8 inline step definitions (documentation lookup, commit artifacts, copy env, study patterns, self-review, CHANGELOG, final verification, comment/close issue)
