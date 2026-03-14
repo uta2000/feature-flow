@@ -386,8 +386,8 @@ Create a `dispatcher.yml` in your project root:
 plugin_path: /path/to/your/claude/plugins
 repo: owner/repo                    # auto-detected from git remote if omitted
 base_branch: main                   # auto-detected if omitted
-triage_model: claude-sonnet-4-20250514
-execution_model: claude-opus-4-20250514
+triage_model: claude-sonnet-4-6
+execution_model: claude-opus-4-6
 execution_max_turns: 200
 default_label: dispatcher-ready
 selection_limit: 50

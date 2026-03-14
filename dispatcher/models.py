@@ -8,8 +8,8 @@ class Config:
     plugin_path: str
     repo: str = ""
     base_branch: str = "main"
-    triage_model: str = "claude-sonnet-4-20250514"
-    execution_model: str = "claude-opus-4-20250514"
+    triage_model: str = "claude-sonnet-4-6"
+    execution_model: str = "claude-opus-4-6"
     triage_max_turns: int = 1
     execution_max_turns: int = 200
     max_resume_attempts: int = 2
