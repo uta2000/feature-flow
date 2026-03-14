@@ -24,6 +24,26 @@
           }
         ],
         "description": "BLOCK on any/as any/empty catch in edited source files"
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const i=JSON.parse(d);const t=i.tool_input||{};if(!t.subagent_type)process.exit(0);if(!t.model)console.log('BLOCK: Task/Agent dispatch to \\\"'+t.subagent_type+'\\\" is missing explicit `model` parameter. Set model: \\\"haiku\\\" (Explore), \\\"sonnet\\\" (general-purpose/Plan), or \\\"opus\\\" (creative phases). See references/tool-api.md.')}catch{}process.exit(0)})\""
+          }
+        ],
+        "description": "BLOCK Task/Agent dispatches missing explicit model parameter"
+      },
+      {
+        "matcher": "Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const i=JSON.parse(d);const t=i.tool_input||{};if(!t.subagent_type)process.exit(0);if(!t.model)console.log('BLOCK: Task/Agent dispatch to \\\"'+t.subagent_type+'\\\" is missing explicit `model` parameter. Set model: \\\"haiku\\\" (Explore), \\\"sonnet\\\" (general-purpose/Plan), or \\\"opus\\\" (creative phases). See references/tool-api.md.')}catch{}process.exit(0)})\""
+          }
+        ],
+        "description": "BLOCK Task/Agent dispatches missing explicit model parameter"
       }
     ],
     "PostToolUse": [

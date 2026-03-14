@@ -42,12 +42,12 @@ Launches a specialized agent to handle a subtask. Returns a result message when 
 ```
 Task(subagent_type: "Explore", model: "haiku", description: "Study API patterns", prompt: "Read files in src/api/ and extract...")
 Task(subagent_type: "general-purpose", model: "sonnet", isolation: "worktree", description: "Run spike experiment", prompt: "Test whether...")
-Task(subagent_type: "feature-flow:task-verifier", description: "Verify acceptance criteria", prompt: "Verify the following...")
+Task(subagent_type: "feature-flow:task-verifier", model: "haiku", description: "Verify acceptance criteria", prompt: "Verify the following...")
 ```
 
 ### Recommended Model Defaults
 
-**Sonnet-first principle:** The feature-flow lifecycle defaults to Sonnet for all mechanical work. Opus is reserved for creative/architectural reasoning (brainstorming, design documents). Always set the `model` parameter explicitly — omitting it causes agents to inherit the parent model, which wastes cost if the parent is Opus.
+**Always set `model` explicitly.** Omitting it causes agents to inherit the parent model, which wastes cost when the orchestrator is Opus (the default). This is enforced by a PreToolUse hook that blocks Task/Agent dispatches without an explicit `model` parameter.
 
 | `subagent_type` | Recommended Model | Rationale |
 |-----------------|-------------------|-----------|
