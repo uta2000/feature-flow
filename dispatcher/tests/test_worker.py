@@ -27,7 +27,7 @@ def _sample_issue_dict() -> dict:
 def _sample_config_dict() -> dict:
     return {
         "plugin_path": "/p", "repo": "o/r", "base_branch": "main",
-        "execution_model": "claude-opus-4-20250514", "execution_max_turns": 200,
+        "execution_model": "claude-opus-4-6", "execution_max_turns": 200,
         "branch_prefix_fix": "fix", "branch_prefix_feat": "feat",
     }
 

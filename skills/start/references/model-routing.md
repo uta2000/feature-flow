@@ -4,7 +4,11 @@
 
 ---
 
-**Sonnet-first philosophy:** Default to Sonnet for the entire lifecycle. Escalate to Opus only for phases requiring deep creative or architectural reasoning. This reduces session cost by ~75% with no quality loss on mechanical work (implementation, review, verification, git operations). Evidence: a full lifecycle on Opus costs ~$61; Sonnet-first routing costs ~$27 (source: session analysis in issue #94).
+**Opus orchestrator, cheap subagents:** The orchestrator runs on Opus 4.6 (`claude-opus-4-6`, 1M context, standard pricing) for the full session. Cost optimization comes from subagent routing — Task dispatches use explicit `model` params to run subagents on Sonnet or Haiku.
+
+Standard Sonnet (`claude-sonnet-4-6`, ~200K context) compacts 2–3 times on full sessions (300–500K orchestrator tokens), degrading context quality. Sonnet 1M context is a separate option billed as extra usage — avoid it. Opus 1M is included at standard pricing with no premium.
+
+**YOLO mode** wraps each phase in a Task with an explicit `model` param — giving full per-phase model control regardless of orchestrator model. **Interactive mode** inherits the orchestrator's model for inline Skill invocations (brainstorming, design document).
 
 This section applies unconditionally in all modes (YOLO, Express, Interactive).
 
