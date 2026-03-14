@@ -2,6 +2,14 @@
 
 All notable changes to the feature-flow plugin.
 
+## [1.27.0] - 2026-03-14
+
+### Added
+- **Wait for CI and address review bot comments (GH200)** — New lifecycle step "Wait for CI and address reviews" runs after PR creation. Phase 1 polls `gh pr checks` until all CI checks complete. Phase 2 detects review bot history on recent PRs, waits for the bot review to appear on the current PR, addresses inline comments (fix or decline with rationale), posts a review thread reply for each inline comment, and pushes a single fix commit. CI and bot review waits are fully decoupled — review bots like Gemini Code Review may post 5+ minutes after CI clears. Bot detection uses `user.type == "Bot"` (no hardcoded names). Configurable timeout via `ci_timeout_seconds` in `.feature-flow.yml`.
+- **Sync base branch with remote before worktree creation (GH198)** — New Step 0 sub-step fetches origin and fast-forward updates the local base branch before creating the worktree, preventing stale-base conflicts. Session `d07f7109` spent 42% of its time resolving rebase conflicts caused by a stale local branch.
+- **Merge-first integration strategy (GH198)** — End-of-lifecycle sync changed from `git rebase` to `git merge` as the default. Merge resolves conflicts in a single pass vs N rounds for rebase. Configurable via `git_strategy: merge | rebase` in `.feature-flow.yml`. Dispatcher `create_branch()` now uses `origin/<base_branch>` as the start point.
+- **Session report pricing fix (GH199)** — Fixed 3x cost overcharge for Opus 4.6 sessions. The pricing table matched `"opus-4"` (Opus 4.0 at $15/$75 MTok) for `claude-opus-4-6` instead of the correct $5/$25 MTok. Added specific entries for all 4.6/4.5 models.
+
 ## [1.26.0] - 2026-03-14
 
 ### Changed
