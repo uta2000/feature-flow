@@ -99,37 +99,23 @@ Announce: `"Detected base branch: [branch]. All PR targets and branch diffs will
 
 **YOLO behavior:** No prompt — always auto-detected. Announce: `YOLO: start — Base branch detection → [branch]`
 
-## Session Model Recommendation
+## Session Model Check
 
-After detecting the base branch, detect the current model and recommend Sonnet-first routing. The lifecycle's mechanical phases (implementation, review, verification, git operations) do not require Opus-level reasoning — Sonnet handles them equally well at significantly lower cost (see Model Routing Defaults for figures).
+After detecting the base branch, detect the current model and announce it. The orchestrator should run on Opus 4.6 for the full session (1M context, standard pricing). Cost optimization comes from subagent routing — Task dispatches use explicit `model` params to run subagents on Sonnet or Haiku. See `references/model-routing.md` for the full routing strategy.
 
 1. **Detect model:** The system prompt contains `"You are powered by the model named X. The exact model ID is Y"`. Check if the model ID contains `opus`.
 
-2. **If Opus detected**, use `AskUserQuestion`:
-   - Question: `"You're on Opus. Sonnet-first routing saves ~70% with no quality loss on mechanical phases. Switch?"`
-   - Option 1: `"Yes — I'll run /model sonnet"` with description: `"*Recommended — estimated ~70% cost reduction for lifecycle phases that don't need Opus reasoning*"`
-   - Option 2: `"No — stay on Opus"` with description: `"Opus for all phases. Higher cost but maximum reasoning quality throughout."`
+2. **If Opus detected** — announce: `"Model check: running on [model] — Opus confirmed for orchestration."` No further model-related prompts.
 
-3. **If user selects "Yes"** — instruct: `"Run '/model sonnet' now, then type 'continue' to resume the lifecycle."` Pause until the user's next message. On resume, proceed regardless (the user controls when to resume; re-checking the model at this point is not reliable since the system prompt may not have updated yet).
+3. **If non-Opus detected** (Sonnet, Haiku, or other) — announce: `"Model check: running on [model]. For best results, start feature-flow sessions with Opus (claude --model claude-opus-4-6 or use the default). Continuing on current model."` Do not suggest `/model` — it mutates global config and affects all other terminal windows and tmux panes.
 
-4. **If user selects "No"** — announce: `"Staying on Opus. No further model prompts."` Proceed without further model-related prompts for the remainder of the lifecycle.
-
-5. **If already on a non-Opus model** (Sonnet, Haiku, or other) — no prompt needed. Announce: `"Model check: running on [model] — no switch needed."`
-
-6. **If model detection fails** (model ID string not found in system prompt) — announce: `"Model detection: could not determine current model. Falling back to informational recommendation."` Then display the informational fallback:
-   ```
-   Model routing: Sonnet-first is recommended for this lifecycle.
-   - Brainstorming and design phases benefit from Opus (deep reasoning)
-   - Implementation, review, and verification phases run well on Sonnet
-   - All subagent dispatches set explicit model parameters (see Model Routing Defaults)
-   If you're on Opus, consider `/model sonnet` — the skill will suggest `/model opus` before phases that benefit from it.
-   ```
+4. **If model detection fails** — announce: `"Model detection: could not determine current model. Continuing."` No further model-related prompts.
 
 **YOLO behavior:** No prompt — detect model and announce:
-- If detected: `YOLO: start — Model detection → [model ID] (Sonnet-first recommended, no gate in YOLO mode)`
-- If detection fails: `YOLO: start — Model detection → unknown (Sonnet-first recommended, no gate in YOLO mode)`
+- If detected: `YOLO: start — Model detection → [model ID]`
+- If detection fails: `YOLO: start — Model detection → unknown`
 
-**Express behavior:** Same as Interactive — show the `AskUserQuestion` prompt. Express auto-selects decisions but model switching requires user action (`/model` command), so it must pause.
+**Express behavior:** Same as Interactive — announce model, no prompt.
 
 ## Notification Preference
 

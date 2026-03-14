@@ -12,21 +12,31 @@ Standard Sonnet (`claude-sonnet-4-6`, ~200K context) compacts 2–3 times on ful
 
 This section applies unconditionally in all modes (YOLO, Express, Interactive).
 
-## Orchestrator-level phases (main conversation model)
+## YOLO mode — Task dispatch with explicit model params
 
-| Phase | Recommended Model | Rationale |
-|-------|-------------------|-----------|
-| Brainstorming | `opus` | Creative reasoning, design-level decisions |
-| Design document | `opus` | Architectural decisions, trade-off analysis |
-| Design verification | `sonnet` | Checklist comparison against codebase |
-| Implementation planning | `sonnet` | Structured task decomposition from approved design |
-| Study existing patterns | `sonnet` | Pattern extraction (subagents use `haiku`) |
-| Implementation (orchestrator) | `sonnet` | Dispatching and reviewing subagent results |
-| Self-review | `sonnet` | Checklist-based diff review |
-| Code review pipeline | `sonnet` | Dispatching and consolidating agent results |
-| CHANGELOG generation | `sonnet` | Mechanical commit parsing |
-| Final verification | `sonnet` | Acceptance criteria checking |
-| Git operations (commit, PR, issue) | `sonnet` | Mechanical CLI operations |
+In YOLO mode, brainstorming, design document, and planning phases are dispatched as `Task` calls wrapping the skill invocation. This gives per-phase model control regardless of the orchestrator's model.
+
+| Phase | Dispatch | Model | Rationale |
+|-------|----------|-------|-----------|
+| Brainstorming | `Task(model: "opus")` → Skill | `opus` | Creative reasoning, design-level decisions |
+| Design document | `Task(model: "opus")` → Skill | `opus` | Architectural decisions, trade-off analysis |
+| Design verification | `Task(model: "sonnet")` via existing dispatch | `sonnet` | Checklist comparison against codebase |
+| Implementation planning | `Task(model: "sonnet")` → Skill | `sonnet` | Structured task decomposition |
+| All other phases | Inline (orchestrator) | Orchestrator model | Mechanical work, subagents handle heavy lifting |
+
+## Interactive / Express mode — inline Skill calls
+
+Brainstorming and design document run as inline `Skill` calls (no `model` param — inherits parent). Start sessions with Opus (`claude --model claude-opus-4-6` or use the default) so brainstorming inherits Opus.
+
+| Phase | Dispatch | Model | Rationale |
+|-------|----------|-------|-----------|
+| Brainstorming | `Skill(...)` inline | Inherits parent (should be Opus) | Interactive Q&A with user |
+| Design document | `Skill(...)` inline | Inherits parent (should be Opus) | Architectural decisions |
+| All other phases | Same as YOLO | Same as YOLO | No difference after design phase |
+
+## `/model` command — permanently off-limits
+
+The `/model` command writes to `~/.claude/settings.json`, a global config file. It applies to "this session and future Claude Code sessions" — affecting all terminal windows and tmux panes. Never use `/model` in feature-flow workflows. Use `--model` at session startup for session-scoped isolation.
 
 ## Subagent dispatches (Task tool `model` parameter)
 
@@ -39,4 +49,4 @@ This section applies unconditionally in all modes (YOLO, Express, Interactive).
 
 ## Enforcement
 
-Convention-based via skill instructions. Skills that dispatch Task agents must include the `model` parameter explicitly. The YOLO/Express override section and inline steps reference this table rather than re-stating routing rules.
+All `Task` dispatches must include an explicit `model` parameter. Omitting `model` causes the subagent to inherit the parent model — which wastes cost when the parent is Opus. See #191 for the enforcement hook that blocks dispatches without `model`.

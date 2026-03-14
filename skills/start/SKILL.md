@@ -583,14 +583,34 @@ For each step, follow this pattern:
 
 **Turn Bridge Rule:** After outputting results for any inline step, **immediately call `TaskUpdate` to mark that step complete in the same response** — do not end your turn with only text output. A text-only response ends your turn and forces the user to type "continue" to resume, which breaks YOLO continuity. The `TaskUpdate` tool call is the bridge that keeps your turn alive between lifecycle steps.
 
-**YOLO Propagation:** When YOLO mode is active, prepend `yolo: true. scope: [scope].` to the `args` parameter of every `Skill` invocation. Scope context is required because design-document uses it to determine checkpoint behavior. For example:
+**YOLO Propagation:** When YOLO mode is active, prepend `yolo: true. scope: [scope].` to the `args` parameter of every `Skill` invocation. Scope context is required because design-document uses it to determine checkpoint behavior.
 
+**YOLO Model Routing (CRITICAL):** In YOLO mode, brainstorming and design document phases MUST be dispatched as `Task` calls with explicit `model` params — not as inline `Skill` calls. This gives full per-phase model control regardless of the orchestrator's model. Planning is also dispatched as a `Task` with `model: "sonnet"`.
+
+**Why:** The `Skill` tool has no `model` parameter — it inherits the parent model. The `Task` tool has an explicit `model` parameter. In YOLO mode there is no user interaction, so running skills inside a Task subagent works identically to running them inline. The `/model` command must NEVER be used — it writes to `~/.claude/settings.json` (a global config file) and affects all other terminal windows and tmux panes.
+
+YOLO mode invocations:
+```
+# Brainstorming — Opus for creative reasoning
+Task(subagent_type: "general-purpose", model: "opus", description: "YOLO brainstorming",
+     prompt: "Invoke Skill(skill: 'superpowers:brainstorming', args: 'yolo: true. scope: [scope]. [context args]'). Return the complete brainstorming output including all self-answered design decisions.")
+
+# Design document — Opus for architectural decisions
+Task(subagent_type: "general-purpose", model: "opus", description: "YOLO design document",
+     prompt: "Invoke Skill(skill: 'feature-flow:design-document', args: 'yolo: true. scope: [scope]. [context args]'). Return the design document path and key decisions.")
+
+# Implementation planning — Sonnet for structured task decomposition
+Task(subagent_type: "general-purpose", model: "sonnet", description: "YOLO implementation plan",
+     prompt: "Invoke Skill(skill: 'superpowers:writing-plans', args: 'yolo: true. scope: [scope]. [context args]'). Return the plan file path and task summary.")
+```
+
+**Interactive/Express mode** continues to use inline `Skill` calls (unchanged — these inherit the parent model, which should be Opus at session start):
 ```
 Skill(skill: "superpowers:brainstorming", args: "yolo: true. scope: [scope]. [original args]")
 Skill(skill: "feature-flow:design-document", args: "yolo: true. scope: [scope]. [original args]")
 ```
 
-**Express Propagation:** When Express mode is active, prepend `express: true. scope: [scope].` to the `args` parameter of every `Skill` invocation. Express inherits all YOLO auto-selection overrides — skills that check for `yolo: true` should also check for `express: true` and behave the same way (auto-select decisions). The only difference is at the orchestrator level where checkpoints are shown instead of suppressed. For example:
+**Express Propagation:** When Express mode is active, prepend `express: true. scope: [scope].` to the `args` parameter of every `Skill` invocation. Express inherits all YOLO auto-selection overrides — skills that check for `yolo: true` should also check for `express: true` and behave the same way (auto-select decisions). The only difference is at the orchestrator level where checkpoints are shown instead of suppressed. Express mode uses inline `Skill` calls (not Task dispatch) to preserve the user's ability to interact at checkpoints:
 
 ```
 Skill(skill: "superpowers:brainstorming", args: "express: true. scope: [scope]. [original args]")
@@ -613,13 +633,19 @@ For inline steps (CHANGELOG generation, self-review, code review, study existing
 Include only paths that are known at the time of each invocation — do not include paths for artifacts that haven't been created yet. Example invocations showing progressive accumulation:
 
 ```
-# Before design doc (base_branch and issue known):
-Skill(skill: "superpowers:brainstorming", args: "yolo: true. scope: [scope]. base_branch: main. issue: 119. [original args]")
+# YOLO mode — brainstorming and design doc via Task dispatch with explicit model:
+Task(subagent_type: "general-purpose", model: "opus", description: "YOLO brainstorming",
+     prompt: "Invoke Skill(skill: 'superpowers:brainstorming', args: 'yolo: true. scope: [scope]. base_branch: main. issue: 119. [original args]'). Return the complete output.")
 
-# Before implementation (plan_file and design_doc known, worktree not yet):
+# YOLO mode — planning via Task dispatch with explicit model:
+Task(subagent_type: "general-purpose", model: "sonnet", description: "YOLO implementation plan",
+     prompt: "Invoke Skill(skill: 'superpowers:writing-plans', args: 'yolo: true. scope: [scope]. base_branch: main. issue: 119. design_doc: /abs/path/design.md. [original args]'). Return the plan file path.")
+
+# Interactive/Express mode — inline Skill calls (inherit parent model):
+Skill(skill: "superpowers:brainstorming", args: "yolo: true. scope: [scope]. base_branch: main. issue: 119. [original args]")
 Skill(skill: "superpowers:writing-plans", args: "yolo: true. scope: [scope]. base_branch: main. issue: 119. design_doc: /abs/path/design.md. [original args]")
 
-# During and after implementation (all paths known):
+# During and after implementation (all paths known, all modes):
 Skill(skill: "superpowers:subagent-driven-development", args: "yolo: true. scope: [scope]. plan_file: /abs/path/plan.md. design_doc: /abs/path/design.md. worktree: /abs/path/.worktrees/feat-xyz. base_branch: main. issue: 119. [original args]")
 Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/path/plan.md. [original args]")
 ```
