@@ -325,25 +325,28 @@ Optional configuration for YOLO mode stopping points. When YOLO mode runs the fu
 
 | Value | Pauses after… |
 |-------|---------------|
-| `brainstorming` | Brainstorming phase — review the feature brief and direction before design begins |
-| `design` | Design document phase — review the design document before verification runs |
-| `verification` | Design verification phase — review the verification report before planning begins |
-| `plan` | Planning phase — review the task plan before implementation begins |
+| `brainstorming` | Brainstorming phase — review design decisions before design doc |
+| `design` | Design document phase — review the design before verification |
+| `verification` | Design verification phase — review blockers/warnings before planning |
+| `plan` | Planning phase — review the task breakdown before implementation |
+| `implementation` | Before implementation starts — last chance to review before subagents code |
+| `pr` | Before PR creation — review the final diff before it goes public |
 
 **Format:**
 
 ```yaml
 yolo:
   stop_after:
-    - brainstorming   # pause after brainstorming for review
+    - design          # pause after design doc for review
     - plan            # pause after planning before implementation
+    - pr              # pause before PR creation
 ```
 
 **When absent:** YOLO runs all phases end-to-end without stopping. Equivalent to an empty `stop_after` list.
 
 **When `stop_after` is an empty list:** Same as absent — YOLO runs all phases without stopping.
 
-**Invalid values:** Unrecognized phase names in `stop_after` are silently ignored. Only the valid values listed above trigger checkpoints.
+**Invalid values:** Unrecognized phase names in `stop_after` are silently ignored. Only the 6 valid values listed above trigger checkpoints.
 
 **Checkpoint behavior:** At each listed stopping point, the `start` skill orchestrator pauses and presents the phase output via `AskUserQuestion` with two options: "Continue YOLO" (resume unattended execution) or "Switch to Interactive" (disable YOLO for remaining phases).
 

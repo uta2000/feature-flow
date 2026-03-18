@@ -132,17 +132,26 @@ After the user selects a setting, display its edit UI. On save, write the change
 Display the current stops (empty list = never stop = full YOLO mode).
 
 ```
-AskUserQuestion: "Which phases should feature-flow stop and wait for your approval?"
+AskUserQuestion (multiSelect: true): "Which phases should YOLO pause after for review? (select all that apply)"
 Options:
-- "brainstorming, design, verification, plan (all stops)" with description: "Pause at every major phase — maximum control"
-- "brainstorming, plan" with description: "Pause only at the start (brainstorming) and before coding begins (plan)"
-- "plan only" with description: "Pause only before coding — approve the plan before implementation starts"
-- "none (full YOLO)" with description: "Never pause — run all phases automatically without asking"
+- "brainstorming" with description: "Pause after brainstorming completes — review design decisions"
+- "design" with description: "Pause after design document is written — review the design"
+- "verification" with description: "Pause after design verification runs — review blockers/warnings"
+- "plan" with description: "Pause after implementation plan is created — review task breakdown"
 ```
 
-Write result to `yolo.stop_after` as a YAML list. For "none", write an empty list `[]`.
+If the user selects phases, present a second `AskUserQuestion` (multiSelect: true) for the remaining 2 phases:
 
-**Confirmation:** `"YOLO stops updated: [new value]"`
+```
+AskUserQuestion (multiSelect: true): "Also pause at these later phases?"
+Options:
+- "implementation" with description: "Pause before subagents start coding — last chance to review"
+- "pr" with description: "Pause before pushing and creating the PR — review final diff"
+```
+
+Write the combined selections to `yolo.stop_after` as a YAML list. If no phases selected in either question, write an empty list `[]`.
+
+**Confirmation:** `"YOLO stops updated: [selected phases, comma-separated, or 'none (full YOLO)']"`
 
 ---
 

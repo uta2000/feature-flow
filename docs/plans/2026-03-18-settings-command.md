@@ -103,7 +103,7 @@ When the user selects a specific setting, the skill presents the appropriate edi
 
 | Setting | Edit UI |
 |---------|---------|
-| YOLO stops | Multi-select: brainstorming, design, verification, plan |
+| YOLO stops | Multi-select (2 questions of 4 options each): brainstorming, design, verification, plan, implementation, pr |
 | Notifications | Single-select: bell, desktop, none |
 | Default branch | Single-select from local + remote branches (via `git branch -a`), plus "Clear (auto-detect)" |
 | Git strategy | Single-select: merge, rebase |
@@ -141,15 +141,17 @@ yolo:
     - design           # Stop after design document is written
     - verification     # Stop after design verification runs
     - plan             # Stop after implementation plan is created
+    - implementation   # Stop before subagents start coding
+    - pr               # Stop before pushing and creating the PR
 ```
 
-**Behavior:** When YOLO mode is active and `yolo.stop_after` contains the current phase name, the lifecycle pauses after that phase completes and presents the phase output for user review. The user can then continue (resume YOLO) or switch to Interactive mode.
+**Behavior:** When YOLO mode is active and `yolo.stop_after` contains the current phase name, the lifecycle pauses and presents the phase output for user review. The user can then continue (resume YOLO) or switch to Interactive mode.
 
 **When absent:** Full YOLO — no stopping points (current default behavior unchanged).
 
 **When empty list `[]`:** Same as absent — full YOLO.
 
-**Valid values:** `brainstorming`, `design`, `verification`, `plan`. Invalid values are silently ignored.
+**Valid values:** `brainstorming`, `design`, `verification`, `plan`, `implementation`, `pr`. Invalid values are silently ignored.
 
 ### Integration with start skill
 

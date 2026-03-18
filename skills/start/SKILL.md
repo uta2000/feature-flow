@@ -695,12 +695,14 @@ Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/p
 
 **Phase mapping:**
 
-| `stop_after` value | Lifecycle step | Fires after |
+| `stop_after` value | Lifecycle step | Fires after/before |
 |---------------------|---------------|-------------|
-| `brainstorming` | Brainstorm requirements | `superpowers:brainstorming` skill returns |
-| `design` | Design document | `feature-flow:design-document` skill returns |
-| `verification` | Design verification | `feature-flow:design-verification` skill returns |
-| `plan` | Implementation plan | `superpowers:writing-plans` skill returns |
+| `brainstorming` | Brainstorm requirements | After `superpowers:brainstorming` returns |
+| `design` | Design document | After `feature-flow:design-document` returns |
+| `verification` | Design verification | After `feature-flow:design-verification` returns |
+| `plan` | Implementation plan | After `superpowers:writing-plans` returns |
+| `implementation` | Implement | Before `superpowers:subagent-driven-development` is invoked |
+| `pr` | Commit and PR | Before `superpowers:finishing-a-development-branch` is invoked |
 
 **Checkpoint behavior:** In the Step 3 execution loop, after a YOLO-eligible phase completes (between sub-steps 4 "Confirm completion" and 5 "Mark complete"), check if the completed phase name is in the loaded `stop_after` list:
 
