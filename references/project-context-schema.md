@@ -36,6 +36,9 @@ design_preferences:    # Optional: project-wide design preference answers
   state_management: server_state
   testing: unit_integration
   ui_pattern: tailwind
+yolo:                  # Optional: YOLO mode stopping points
+  stop_after:          # Phases where YOLO pauses for review
+    - plan             # brainstorming | design | verification | plan
 ```
 
 ## Fields
@@ -136,6 +139,31 @@ Free-text list of project-specific pitfalls learned from past bugs. These are in
 - Be specific: "PostgREST caps queries at 1000 rows" not "watch out for query limits"
 - Include the fix pattern: "...without .range() pagination"
 - State the consequence: "causes silent data truncation with 200 OK"
+
+### `tool_selector`
+
+Optional configuration for the Tool Selector — the Step 0 pre-flight check that reviews available MCP tools and recommends (or auto-launches) the Get Shit Done (GSD) toolset before a lifecycle run.
+
+**Sub-fields:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | boolean | `true` | Whether the Tool Selector step runs at all. Set to `false` to skip tool evaluation entirely. |
+| `confidence_threshold` | float (0–1) | `0.7` | Minimum confidence score required before a tool recommendation is surfaced. Recommendations below this threshold are suppressed. |
+| `auto_launch_gsd` | boolean | `false` | When `true`, automatically launches the GSD toolset without prompting the user if confidence meets the threshold. When `false`, the user is shown the recommendation and must confirm. |
+
+**Format:**
+
+```yaml
+tool_selector:
+  enabled: true
+  confidence_threshold: 0.7   # suppress low-confidence recommendations
+  auto_launch_gsd: false       # true = auto-launch without prompting
+```
+
+**When needed:** Only when you want to change Tool Selector behaviour from its defaults. Most projects can omit this section.
+
+**When absent:** All three fields use their defaults silently — Tool Selector runs, uses a 0.7 confidence threshold, and prompts before launching GSD. The field is never auto-written; it is only used when manually added.
 
 ### `types_path`
 
@@ -283,6 +311,42 @@ design_preferences:
 
 **When absent:** The brainstorming preamble fires on the next Feature or Major Feature lifecycle run, capturing preferences interactively (or inferring via codebase scan in YOLO/Express mode). Quick fix and Small enhancement scopes never trigger the preamble.
 
+### `yolo`
+
+Optional configuration for YOLO mode stopping points. When YOLO mode runs the full lifecycle automatically, `stop_after` defines phase boundaries where YOLO pauses and waits for user review before continuing.
+
+**Sub-fields:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `stop_after` | list of strings | `[]` (empty) | Phases after which YOLO pauses for user review. Valid values: `brainstorming`, `design`, `verification`, `plan`. |
+
+**Valid `stop_after` values:**
+
+| Value | Pauses after… |
+|-------|---------------|
+| `brainstorming` | Brainstorming phase — review the feature brief and direction before design begins |
+| `design` | Design document phase — review the design document before verification runs |
+| `verification` | Design verification phase — review the verification report before planning begins |
+| `plan` | Planning phase — review the task plan before implementation begins |
+
+**Format:**
+
+```yaml
+yolo:
+  stop_after:
+    - brainstorming   # pause after brainstorming for review
+    - plan            # pause after planning before implementation
+```
+
+**When absent:** YOLO runs all phases end-to-end without stopping. Equivalent to an empty `stop_after` list.
+
+**When `stop_after` is an empty list:** Same as absent — YOLO runs all phases without stopping.
+
+**Invalid values:** Unrecognized phase names in `stop_after` are silently ignored. Only the valid values listed above trigger checkpoints.
+
+**Checkpoint behavior:** At each listed stopping point, the `start` skill orchestrator pauses and presents the phase output via `AskUserQuestion` with two options: "Continue YOLO" (resume unattended execution) or "Switch to Interactive" (disable YOLO for remaining phases).
+
 ## How Skills Use This File
 
 ### start (reads + writes)
@@ -325,3 +389,7 @@ Includes platform-relevant sections in the issue template.
 ### SessionStart hook (reads + writes)
 - **Reads** `plugin_version` to detect drift against the running plugin version.
 - **Writes** `plugin_version` to current running version on every session start.
+
+### settings (reads + writes)
+- **Reads** any field in `.feature-flow.yml` to display the current configuration to the user.
+- **Writes** updated field values to `.feature-flow.yml` when the user changes a setting (e.g., `tool_selector`, `notifications`, `knowledge_base`, `design_preferences`).

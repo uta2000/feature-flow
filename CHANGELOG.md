@@ -2,6 +2,11 @@
 
 All notable changes to the feature-flow plugin.
 
+## [1.28.0] - 2026-03-18
+
+### Added
+- **`/settings` slash command for interactive configuration management (GH204)** — New `skills/settings/SKILL.md` skill provides a show-then-edit dashboard for all 9 user-editable `.feature-flow.yml` settings. Settings are grouped into 3 categories (Workflow, Design, Advanced) respecting AskUserQuestion's 4-option limit. Supports inline editing with immediate YAML persistence, save-and-return loop, notification hook side-effects, and error recovery (malformed YAML recreate, Edit-to-Write fallback). Includes a new `yolo.stop_after` schema field for configurable YOLO stopping points — users can pause YOLO at brainstorming, design, verification, or plan phases for review. The `tool_selector` field is now documented in `project-context-schema.md`. Start skill gains checkpoint logic in the Step 3 execution loop that honors `stop_after` (YOLO-only, Express excluded).
+
 ## [1.27.0] - 2026-03-14
 
 ### Added

@@ -426,6 +426,7 @@ Ensure the lifecycle is followed from start to finish. Track which steps are com
 3. Base branch detection (cascade: `.feature-flow.yml` → git config → develop/staging → main/master)
 4. Session model check
 5. Notification preference (macOS-only, saved to `.feature-flow.yml`)
+6. YOLO stop_after reading (from `.feature-flow.yml`)
 
 ### Step 1: Determine Scope
 
@@ -687,6 +688,34 @@ Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/p
 ### YOLO/Express Overrides
 
 **Read `references/yolo-overrides.md`** when in YOLO or Express mode. Contains overrides for: Writing Plans, Using Git Worktrees, Finishing a Development Branch, and Subagent-Driven Development.
+
+### YOLO Stop-After Checkpoints
+
+**Read `yolo.stop_after` from `.feature-flow.yml`** during Step 0 project context loading. If the field is absent or the list is empty, no checkpoints fire — existing YOLO behavior is preserved.
+
+**Phase mapping:**
+
+| `stop_after` value | Lifecycle step | Fires after |
+|---------------------|---------------|-------------|
+| `brainstorming` | Brainstorm requirements | `superpowers:brainstorming` skill returns |
+| `design` | Design document | `feature-flow:design-document` skill returns |
+| `verification` | Design verification | `feature-flow:design-verification` skill returns |
+| `plan` | Implementation plan | `superpowers:writing-plans` skill returns |
+
+**Checkpoint behavior:** In the Step 3 execution loop, after a YOLO-eligible phase completes (between sub-steps 4 "Confirm completion" and 5 "Mark complete"), check if the completed phase name is in the loaded `stop_after` list:
+
+```
+if yolo_mode AND current_phase_name in config.yolo.stop_after:
+    Present via AskUserQuestion:
+      "YOLO checkpoint: [phase] complete. Review the output above. Continue?"
+      - "Continue YOLO" — resume unattended execution
+      - "Switch to Interactive" — disable YOLO for all remaining phases
+    Announce: "YOLO: checkpoint — [phase] → paused for review"
+```
+
+**Express behavior:** Express mode does NOT honor `stop_after` — Express already has its own design approval checkpoint. `stop_after` is YOLO-only.
+
+**Turn Bridge Rule compliance:** The AskUserQuestion call at the checkpoint serves as the turn bridge — it keeps the turn alive while waiting for user input. After the user responds, proceed to sub-step 5 (Mark complete) and continue the loop.
 
 ### Quality Context Injections
 
