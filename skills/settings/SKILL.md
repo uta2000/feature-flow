@@ -1,6 +1,6 @@
 ---
 name: settings
-description: View and manage Feature-flow settings. Use when the user asks to "open settings", "configure feature-flow", "change settings", "edit .feature-flow.yml", "update my preferences", "set default branch", "configure notifications", "change YOLO stops", "update design preferences", "configure tool selector", "manage context7 libraries", "set CI timeout", or "adjust knowledge base limits".
+description: View and manage Feature-flow settings — YOLO stops, notifications, branches, design preferences, and more. Use when the user asks to "configure", "change settings", "update config", or "/settings".
 tools: Read, Edit, Bash, AskUserQuestion, Glob, Grep
 ---
 
