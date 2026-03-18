@@ -137,6 +137,31 @@ Free-text list of project-specific pitfalls learned from past bugs. These are in
 - Include the fix pattern: "...without .range() pagination"
 - State the consequence: "causes silent data truncation with 200 OK"
 
+### `tool_selector`
+
+Optional configuration for the Tool Selector — the Step 0 pre-flight check that reviews available MCP tools and recommends (or auto-launches) the Get Shit Done (GSD) toolset before a lifecycle run.
+
+**Sub-fields:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | boolean | `true` | Whether the Tool Selector step runs at all. Set to `false` to skip tool evaluation entirely. |
+| `confidence_threshold` | float (0–1) | `0.7` | Minimum confidence score required before a tool recommendation is surfaced. Recommendations below this threshold are suppressed. |
+| `auto_launch_gsd` | boolean | `false` | When `true`, automatically launches the GSD toolset without prompting the user if confidence meets the threshold. When `false`, the user is shown the recommendation and must confirm. |
+
+**Format:**
+
+```yaml
+tool_selector:
+  enabled: true
+  confidence_threshold: 0.7   # suppress low-confidence recommendations
+  auto_launch_gsd: false       # true = auto-launch without prompting
+```
+
+**When needed:** Only when you want to change Tool Selector behaviour from its defaults. Most projects can omit this section.
+
+**When absent:** All three fields use their defaults silently — Tool Selector runs, uses a 0.7 confidence threshold, and prompts before launching GSD. The field is never auto-written; it is only used when manually added.
+
 ### `types_path`
 
 Optional path to the canonical generated types file (e.g., `src/types/database.types.ts`). Used by the Stop hook quality gate to check type freshness and detect duplicate type files in edge function directories.
@@ -325,3 +350,7 @@ Includes platform-relevant sections in the issue template.
 ### SessionStart hook (reads + writes)
 - **Reads** `plugin_version` to detect drift against the running plugin version.
 - **Writes** `plugin_version` to current running version on every session start.
+
+### settings (reads + writes)
+- **Reads** any field in `.feature-flow.yml` to display the current configuration to the user.
+- **Writes** updated field values to `.feature-flow.yml` when the user changes a setting (e.g., `tool_selector`, `notifications`, `knowledge_base`, `design_preferences`).
