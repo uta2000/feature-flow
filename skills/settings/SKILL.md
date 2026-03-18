@@ -475,10 +475,12 @@ When the user selects "Reset all" in the design preferences UI, remove the entir
 | Situation | Response |
 |-----------|----------|
 | `.feature-flow.yml` missing | Create with defaults (Step 1), then continue |
+| `.feature-flow.yml` malformed YAML | Warn: "`.feature-flow.yml` appears malformed and cannot be parsed." Use `AskUserQuestion`: "Recreate with auto-detected defaults?" — "Recreate" (recommended) or "Cancel". If recreate: run auto-detection (match `start` skill behavior), write new file, continue. If cancel: exit settings. |
 | `git branch -r` fails or returns empty | Show "Clear (auto-detect)" only for branch selection; skip branch list |
 | `~/.claude/settings.json` missing | Create it before writing the notification hook |
 | `~/.claude/settings.json` is malformed JSON | Report: "Could not update notification hook — `~/.claude/settings.json` is malformed. Please fix it manually." Do not overwrite. |
-| Edit fails (file write error) | Report: "Failed to save [setting name]. Check file permissions on `.feature-flow.yml`." Return to Step 3 without updating. |
+| Edit fails (old_string not found) | Fallback: read the full `.feature-flow.yml`, modify the parsed content in memory, and use the Write tool to replace the entire file. Announce: "Edit failed — rewrote file with updated value." |
+| Edit fails (permission error) | Report: "Failed to save [setting name]. Check file permissions on `.feature-flow.yml`." Return to Step 3 without updating. |
 | Unknown YAML values in file | Display the raw value in the dashboard; do not reject or modify unknown keys. |
 
 ---
