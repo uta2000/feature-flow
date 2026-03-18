@@ -365,7 +365,7 @@ Options:
 - "Back" with description: "Return to category selection without changes"
 ```
 
-**If "Add a mapping":** Prompt for the stack name, then the Context7 library ID. Write to `context7.[stack-name]: [library-id]` in `.feature-flow.yml`. Announce: `"Added context7.[stack-name] = [library-id]."`
+**If "Add a mapping":** The user provides the stack name and library ID via freeform text input (the "Other" option on AskUserQuestion). Ask: "Enter the stack name and Context7 library ID (e.g., `supabase /supabase/supabase-js`):" — the user types their answer in the "Other" text field. Parse the response to extract stack name and library ID. If available, use `mcp__plugin_context7_context7__resolve-library-id` to validate the ID before saving. Write to `context7.[stack-name]: [library-id]` in `.feature-flow.yml`. Announce: `"Added context7.[stack-name] = [library-id]."`
 
 **If "Remove a mapping":** Show the list of current keys as options. Ask which to remove. Delete the key from the `context7` block. Announce: `"Removed context7.[stack-name]."`
 
@@ -396,7 +396,7 @@ Write result to `ci_timeout_seconds` as an integer.
 AskUserQuestion: "Knowledge base max lines — maximum lines per KB entry before truncation?"
 Options:
 - "50 lines" with description: "Compact entries — saves context tokens"
-- "100 lines" with description: "*Default — balanced detail and token use*"
+- "150 lines" with description: "*Default — balanced detail and token use*"
 - "150 lines" with description: "Detailed entries — richer context"
 - "200 lines" with description: "Verbose entries — maximum detail"
 ```
@@ -410,7 +410,7 @@ AskUserQuestion: "Knowledge base stale days — how many days before an entry is
 Options:
 - "7 days" with description: "Aggressive freshness — entries expire in one week"
 - "14 days" with description: "Moderate freshness — entries expire in two weeks"
-- "30 days" with description: "*Default — one month retention*"
+- "14 days" with description: "*Default — two-week retention*"
 - "60 days" with description: "Long retention — entries survive two months before stale"
 ```
 
@@ -444,8 +444,8 @@ Do not exit the skill after a save. The user exits explicitly by selecting "Done
 | 5 | Design preferences | `design_preferences.*` | _(absent = infer from codebase)_ |
 | 6 | Tool selector | `tool_selector.*` | enabled, 0.7, no auto-launch |
 | 7 | Context7 libraries | `context7.*` | _(absent = no mappings)_ |
-| 8 | CI timeout | `ci_timeout_seconds` | `600` |
-| 9 | KB limits | `knowledge_base.max_lines`, `knowledge_base.stale_days` | `100`, `30` |
+| 8 | CI timeout | `ci_timeout_seconds` | `900` |
+| 9 | KB limits | `knowledge_base.max_lines`, `knowledge_base.stale_days` | `150`, `14` |
 
 ---
 

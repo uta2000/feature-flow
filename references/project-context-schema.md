@@ -345,7 +345,7 @@ yolo:
 
 **Invalid values:** Unrecognized phase names in `stop_after` are silently ignored. Only the valid values listed above trigger checkpoints.
 
-**Checkpoint behavior:** At each listed stopping point, YOLO presents the phase output and prompts the user to continue, adjust, or abort before proceeding to the next phase.
+**Checkpoint behavior:** At each listed stopping point, the `start` skill orchestrator pauses and presents the phase output via `AskUserQuestion` with two options: "Continue YOLO" (resume unattended execution) or "Switch to Interactive" (disable YOLO for remaining phases).
 
 ## How Skills Use This File
 
