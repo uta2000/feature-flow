@@ -36,6 +36,9 @@ design_preferences:    # Optional: project-wide design preference answers
   state_management: server_state
   testing: unit_integration
   ui_pattern: tailwind
+yolo:                  # Optional: YOLO mode stopping points
+  stop_after:          # Phases where YOLO pauses for review
+    - plan             # brainstorming | design | verification | plan
 ```
 
 ## Fields
@@ -307,6 +310,42 @@ design_preferences:
 ```
 
 **When absent:** The brainstorming preamble fires on the next Feature or Major Feature lifecycle run, capturing preferences interactively (or inferring via codebase scan in YOLO/Express mode). Quick fix and Small enhancement scopes never trigger the preamble.
+
+### `yolo`
+
+Optional configuration for YOLO mode stopping points. When YOLO mode runs the full lifecycle automatically, `stop_after` defines phase boundaries where YOLO pauses and waits for user review before continuing.
+
+**Sub-fields:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `stop_after` | list of strings | `[]` (empty) | Phases after which YOLO pauses for user review. Valid values: `brainstorming`, `design`, `verification`, `plan`. |
+
+**Valid `stop_after` values:**
+
+| Value | Pauses after… |
+|-------|---------------|
+| `brainstorming` | Brainstorming phase — review the feature brief and direction before design begins |
+| `design` | Design document phase — review the design document before verification runs |
+| `verification` | Design verification phase — review the verification report before planning begins |
+| `plan` | Planning phase — review the task plan before implementation begins |
+
+**Format:**
+
+```yaml
+yolo:
+  stop_after:
+    - brainstorming   # pause after brainstorming for review
+    - plan            # pause after planning before implementation
+```
+
+**When absent:** YOLO runs all phases end-to-end without stopping. Equivalent to an empty `stop_after` list.
+
+**When `stop_after` is an empty list:** Same as absent — YOLO runs all phases without stopping.
+
+**Invalid values:** Unrecognized phase names in `stop_after` are silently ignored. Only the valid values listed above trigger checkpoints.
+
+**Checkpoint behavior:** At each listed stopping point, YOLO presents the phase output and prompts the user to continue, adjust, or abort before proceeding to the next phase.
 
 ## How Skills Use This File
 
