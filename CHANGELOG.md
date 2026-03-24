@@ -2,6 +2,11 @@
 
 All notable changes to the feature-flow plugin.
 
+## [1.28.2] - 2026-03-24
+
+### Fixed
+- **Worktree cleanup CWD destruction bug** — Worktree removal commands could run while CWD was inside the worktree being removed, causing "fatal: Unable to read current working directory" and an unrecoverable Claude Code session crash. Added "Never destroy your own CWD" quality rule requiring `cd` to parent repo root before any `git worktree remove`. YOLO finishing-branch override now explicitly prohibits merging PRs or removing worktrees — lifecycle ends at PR creation. Dispatcher `remove_worktree()` now accepts optional `repo_root` and always sets `cwd`.
+
 ## [1.28.1] - 2026-03-18
 
 ### Added
