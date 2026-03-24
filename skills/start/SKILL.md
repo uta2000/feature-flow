@@ -793,12 +793,12 @@ Summary:
 - All acceptance criteria verified
 
 Worktree: [Removed / Still active at .worktrees/feature-name]
-[If still active: "Run `git worktree remove .worktrees/feature-name` when done."]
+[If still active: "Run `cd <repo-root> && git worktree remove .worktrees/feature-name` from the parent repo (NOT from inside the worktree)."]
 
 What to do next:
 1. Review PR #[number] on GitHub (or request team review)
 2. After PR merges to [base branch], verify in [base branch] environment
-3. Clean up local branch: `git branch -d feature-name && git fetch --prune`
+3. Clean up local branch: `cd <repo-root> && git worktree remove .worktrees/feature-name && git branch -d feature-name && git fetch --prune`
 
 [List any skipped steps and their risks]
 [List any platform-specific notes (e.g., "App store submission pending")]
@@ -829,6 +829,7 @@ When adjusting, announce: "Adjusting scope from [old] to [new]. Adding/removing 
 - **No silent skips.** If a step is skipped, it must be acknowledged with a reason.
 - **Scope can change.** The lifecycle adapts to what is discovered during execution.
 - **Platform context is loaded once.** Read `.feature-flow.yml` at the start; pass context to skills that need it.
+- **Never destroy your own CWD.** Before removing a worktree or deleting a directory, `cd` to the parent repo root first. Running `git worktree remove` while your shell is inside the worktree deletes the CWD, which crashes the session with an unrecoverable error. Always: `cd <parent-repo-root> && git worktree remove .worktrees/<name>`.
 
 ## Additional Resources
 

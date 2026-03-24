@@ -23,10 +23,12 @@ def create_worktree(issue_number: int, base_branch: str, repo_root: Path) -> Pat
     return path
 
 
-def remove_worktree(path: Path) -> None:
+def remove_worktree(path: Path, repo_root: Path | None = None) -> None:
+    # cwd must NOT be inside the worktree being removed — use repo_root
+    cwd = repo_root or path.parent.parent
     subprocess.run(
         ["git", "worktree", "remove", str(path), "--force"],
-        capture_output=True, text=True, timeout=30,
+        capture_output=True, text=True, timeout=30, cwd=cwd,
     )
 
 

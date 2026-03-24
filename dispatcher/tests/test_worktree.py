@@ -43,6 +43,14 @@ class TestRemoveWorktree:
         cmd = mock_run.call_args[0][0]
         assert "remove" in cmd
         assert "--force" in cmd
+        # CWD must be the repo root, not inside the worktree being removed
+        assert mock_run.call_args[1]["cwd"] == Path("/repo")
+
+    @patch("dispatcher.worktree.subprocess.run")
+    def test_removes_worktree_with_explicit_repo_root(self, mock_run):
+        mock_run.return_value = subprocess.CompletedProcess([], 0, "", "")
+        remove_worktree(Path("/repo/.dispatcher-worktrees/issue-42"), repo_root=Path("/repo"))
+        assert mock_run.call_args[1]["cwd"] == Path("/repo")
 
 
 class TestCleanupAll:
