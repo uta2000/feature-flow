@@ -7,6 +7,7 @@ The upfront design adds ~20-30 minutes but typically saves 2-4 hours of mid-impl
 ## Requirements
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI
+- [GitHub CLI](https://cli.github.com/) (`gh` on PATH, authenticated via `gh auth login`) — used for issue creation, PR checks, review bot handling, and issue commenting/closing
 - [superpowers](https://github.com/obra/superpowers) plugin (required — handles brainstorming, implementation planning, TDD, worktrees, and PR workflow)
 - [Context7](https://marketplace.claude.ai/plugin/context7) MCP plugin (required — provides live documentation lookups for any tech stack during design and implementation)
 
@@ -70,7 +71,7 @@ feature-flow will:
 
 The lifecycle adds ~20-30 minutes of upfront design but typically saves 2-4 hours of mid-implementation debugging per feature.
 
-For a quick fix, just say what's broken — the lifecycle is 4 steps: understand, fix (TDD), verify, PR.
+For a quick fix, just say what's broken — the lifecycle is streamlined: understand, fix (TDD), verify, PR.
 
 Add `--yolo` to auto-select recommended options and skip confirmation prompts:
 
@@ -100,28 +101,48 @@ At completion, a full decision log table is printed so you can review what was d
 
 **Activation:** Include `--yolo`, `yolo mode`, or `run unattended` in your start command, or select "YOLO" when asked at startup.
 
+### YOLO Stops
+
+For users who want YOLO's auto-selection but want to review output at specific phases, configure `yolo.stop_after` in `.feature-flow.yml`:
+
+```yaml
+yolo:
+  stop_after:
+    - design        # Pause after design document
+    - plan          # Pause after implementation plan
+```
+
+Available stop points: `brainstorming`, `design`, `verification`, `plan`, `implementation`, `pr`. At each checkpoint, you can continue YOLO or switch to Interactive for the remaining phases. Express mode does not honor `stop_after` — it has its own design approval checkpoint.
+
+Use `/settings` to configure stop points interactively with a multi-select UI.
+
 ## How It Works with Superpowers and Context7
 
 feature-flow owns the design and verification phases. superpowers owns implementation and delivery. Context7 provides live documentation lookups. The `start` orchestrator coordinates all three:
 
 | Lifecycle Step | Plugin | Skill / Tool |
 |---------------|--------|-------------|
-| Brainstorm | superpowers | `brainstorming` |
+| Brainstorm | superpowers | `brainstorming` (includes design preferences preamble for Feature/Major) |
 | Spike / PoC | **feature-flow** | `spike` (queries Context7 docs before experiments) |
 | Documentation lookup | **Context7** | `resolve-library-id` + `query-docs` |
 | Design document | **feature-flow** | `design-document` |
-| Design verification | **feature-flow** + **Context7** | `design-verification` (includes doc compliance check) |
+| Design verification | **feature-flow** + **Context7** | `design-verification` (includes doc compliance + design preferences compliance) |
 | Create issue | **feature-flow** | `create-issue` |
-| Implementation plan | superpowers | `writing-plans` |
-| Verify plan criteria | **feature-flow** | `verify-plan-criteria` |
-| Worktree setup | superpowers | `using-git-worktrees` |
+| Implementation plan | superpowers | `writing-plans` (supports XML plan format + split plans for large features) |
+| Verify plan criteria | **feature-flow** | `verify-plan-criteria` (validates dependency graphs) |
+| Commit planning artifacts | **feature-flow** (inline) | Commits design docs and config to base branch |
+| Worktree setup | superpowers | `using-git-worktrees` (+ `FEATURE_CONTEXT.md` + phase context dirs) |
+| Copy env files | **feature-flow** (inline) | Copies `.env*` files into worktree |
 | Study existing patterns | **feature-flow** (inline) | Reads codebase conventions, generates "How to Code This" notes |
-| Implement (TDD) | superpowers | `test-driven-development` |
+| Implement (TDD) | superpowers | `subagent-driven-development` (wave-based parallel task execution) |
 | Self-review | **feature-flow** (inline) | Reviews code against `coding-standards.md` checklist |
-| Code review | **feature-flow** (inline) | Multi-agent review pipeline (7 agents, auto-fix, re-verify loop) |
+| Code review | **feature-flow** (inline) | 5-phase pipeline: pre-pass → report-only → consolidate → fix → re-verify |
 | Generate CHANGELOG entry | **feature-flow** (inline) | Parses branch commits, generates Keep a Changelog entry |
 | Final verification | **feature-flow** + superpowers | `verify-acceptance-criteria` + `verification-before-completion` |
+| Sync with base branch | **feature-flow** (inline) | Merge or rebase (configurable via `git_strategy`) |
 | Commit and PR | superpowers | `finishing-a-development-branch` |
+| Wait for CI & reviews | **feature-flow** (inline) | Polls CI checks, detects review bots, addresses inline comments |
+| Comment and close issue | **feature-flow** (inline) | Posts implementation summary, closes linked issue |
 
 ## Skills
 
@@ -130,6 +151,7 @@ feature-flow owns the design and verification phases. superpowers owns implement
 | Skill | Purpose |
 |-------|---------|
 | `start` | Orchestrates the full lifecycle from idea to PR — classifies scope, loads project context, builds the platform-aware step list, and invokes the right skill at each stage |
+| `settings` | Interactive dashboard for viewing and editing `.feature-flow.yml` settings — workflow, design, and advanced configuration with immediate YAML persistence |
 
 ### Pre-Implementation (Design Phase)
 
@@ -146,6 +168,7 @@ feature-flow owns the design and verification phases. superpowers owns implement
 |-------|------|---------|
 | `verify-plan-criteria` | 8 | Validate every task has machine-verifiable acceptance criteria, auto-draft missing ones |
 | `verify-acceptance-criteria` | 12 | Mechanically check each criterion against the codebase before claiming work is done |
+| `session-report` | — | Analyze completed Claude Code session JSON files for token usage, cost, test progression, thrashing, and optimization recommendations |
 
 ### Agent
 
@@ -171,26 +194,31 @@ Skills that need project context (`design-verification`, `spike`) will auto-crea
 
 ```
  1. Idea
- 2. Brainstorming                  ← superpowers:brainstorming
+ 2. Brainstorming                  ← superpowers:brainstorming (includes design preferences preamble for Feature/Major)
  3. Spike / PoC                    ← spike (queries Context7 docs first)
  4. Documentation Lookup           ← Context7 (resolve-library-id + query-docs)
  5. Design Document                ← design-document
  6. Design Verification            ← design-verification (+ stack/platform/doc compliance checks)
  7. GitHub Issue                   ← create-issue
- 8. Implementation Plan            ← superpowers:writing-plans
- 9. Plan Criteria Check            ← verify-plan-criteria
-10. Worktree Setup                 ← superpowers:using-git-worktrees
-11. Study Existing Patterns        ← inline (reads codebase, generates "How to Code This" notes)
-12. Implementation (TDD)           ← superpowers:test-driven-development
-12b. Device Matrix Testing         ← mobile only
-13. Self-Review                    ← inline (coding-standards.md checklist)
-14. Code Review                    ← inline (multi-agent pipeline: find → fix → re-verify)
-15. Generate CHANGELOG Entry       ← inline (conventional commits → Keep a Changelog)
-16. Final Verification             ← verify-acceptance-criteria + superpowers:verification-before-completion
-16b. Beta Testing                  ← mobile only (TestFlight / Play Console)
-17. PR / Merge                     ← superpowers:finishing-a-development-branch
-17b. App Store Review              ← mobile only
-18. Deploy
+ 8. Implementation Plan            ← superpowers:writing-plans (supports XML plan format + split plans)
+ 9. Plan Criteria Check            ← verify-plan-criteria (validates dependency graphs)
+10. Commit Planning Artifacts      ← inline (design docs + config committed to base branch)
+11. Worktree Setup                 ← superpowers:using-git-worktrees (+ FEATURE_CONTEXT.md + phase context dirs)
+12. Copy Env Files                 ← inline (env files available in worktree)
+13. Study Existing Patterns        ← inline (reads codebase, generates "How to Code This" notes)
+14. Implementation (TDD)           ← superpowers:subagent-driven-development (wave-based parallel execution)
+14b. Device Matrix Testing         ← mobile only
+15. Self-Review                    ← inline (coding-standards.md checklist)
+16. Code Review                    ← inline (5-phase pipeline: pre-pass → report → consolidate → fix → re-verify)
+17. Generate CHANGELOG Entry       ← inline (conventional commits → Keep a Changelog)
+18. Final Verification             ← verify-acceptance-criteria + superpowers:verification-before-completion
+18b. Beta Testing                  ← mobile only (TestFlight / Play Console)
+19. Sync with Base Branch          ← inline (merge or rebase, configurable via git_strategy)
+20. PR / Merge                     ← superpowers:finishing-a-development-branch
+21. Wait for CI & Address Reviews  ← inline (polls CI checks, detects review bots, addresses comments)
+21b. App Store Review              ← mobile only
+22. Comment and Close Issue        ← inline (implementation summary + close)
+23. Deploy
 ```
 
 ## Hooks
@@ -199,10 +227,11 @@ Skills that need project context (`design-verification`, `spike`) will auto-crea
 |------|---------|--------|
 | PreToolUse (Write) | New source file being created | Reminds to check Context7 docs; **BLOCKS** if code contains `any` types, `as any`, or empty catch blocks |
 | PreToolUse (Edit) | Source file being edited | **BLOCKS** if new code contains `any` types, `as any`, or empty catch blocks |
+| PreToolUse (Task/Agent) | Subagent dispatch without explicit `model` param | **BLOCKS** dispatch to prevent silent Opus inheritance (8-10x cost increase) |
 | PostToolUse (Write) | Plan file written to `plans/*.md` | Reminds to run `verify-plan-criteria` |
 | PostToolUse (Write/Edit) | Source file written or edited | Warns about `console.log`/`console.debug` (non-blocking — useful during TDD, cleaned up in self-review) |
 | SessionStart | Every session | Injects feature-flow conventions into context |
-| Stop | Session ending | Blocks if code was implemented without running `verify-acceptance-criteria` |
+| Stop | Session ending | Runs `tsc`, lint, and type-sync checks; blocks if code was implemented without running `verify-acceptance-criteria` |
 
 ## Project Context
 
@@ -224,6 +253,23 @@ context7:              # Context7 library IDs for live doc lookups
   vercel: /vercel/next.js
 gotchas:
   - "PostgREST caps all queries at 1000 rows without .range() pagination"
+git_strategy: merge      # merge (default) | rebase — integration strategy for syncing with base branch
+ci_timeout_seconds: 600  # Timeout for CI check polling after PR creation (default: 600)
+notifications:           # macOS-only notification when Claude waits for input
+  on_stop: bell          # bell | desktop | none
+design_preferences:      # Project-wide design preferences (captured during first Feature brainstorming)
+  error_handling: result_types
+  api_style: rest
+  state_management: server_state
+  testing: unit_integration
+  ui_pattern: tailwind
+knowledge_base:          # Per-feature context file settings
+  max_lines: 150         # Archive oldest decisions when file exceeds this
+  stale_days: 14         # Archive decisions older than this many days
+yolo:                    # YOLO mode stopping points (empty = no pauses)
+  stop_after:
+    - design             # brainstorming | design | verification | plan | implementation | pr
+    - plan
 ```
 
 **Should you commit this file?** Yes — `.feature-flow.yml` should be committed to your repo. It captures project-specific knowledge (especially gotchas) that benefits the whole team. It's not sensitive data and evolves with the project.
@@ -233,6 +279,12 @@ gotchas:
 - `stack` loads stack-specific verification checks during design verification
 - `context7` maps each stack to Context7 library IDs — skills query these for current patterns before designing and implementing
 - `gotchas` are injected into every verification — project-specific pitfalls learned from past bugs
+- `git_strategy` controls how the feature branch syncs with the base branch before PR creation
+- `notifications` configures bell or desktop alerts when Claude waits for input (macOS only)
+- `design_preferences` stores 5 project-wide design choices (error handling, API style, state management, testing, UI pattern) captured during the first Feature-scope brainstorming — loaded silently on subsequent runs
+- `knowledge_base` controls per-feature `FEATURE_CONTEXT.md` archival (line count, staleness)
+- `ci_timeout_seconds` controls how long the post-PR step waits for CI checks to complete
+- `yolo.stop_after` adds review checkpoints at specific lifecycle phases during YOLO mode (see YOLO Stops below)
 
 **Auto-discovery:** On first run, `start` scans your project files, detects the stack, and resolves Context7 library IDs for each detected technology. It presents the full context for confirmation. On subsequent runs, it cross-checks for new dependencies and suggests additions.
 
@@ -253,13 +305,14 @@ gotchas:
 
 ### Coding Standards and Code Quality
 
-feature-flow enforces senior-engineer code quality through three layers:
+feature-flow enforces senior-engineer code quality through four layers:
 
 1. **Study Existing Patterns** (before implementation) — Reads 2-3 existing files per area being modified, extracts conventions, and generates per-task "How to Code This" notes that map implementation tasks to specific codebase patterns
 2. **Self-Review** (after implementation) — Reviews all changed code against a 10-point checklist: function size (≤30 lines), naming conventions, error handling, type safety (no `any`), DRY, pattern adherence, separation of concerns, guard clauses (≤3 nesting levels), debug artifacts, import organization
 3. **Anti-pattern hooks** (real-time) — PreToolUse hooks on Write and Edit that **block** `any` types, `as any` assertions, and empty catch blocks from being written. `console.log/debug` is warned but not blocked (useful during TDD, cleaned up in self-review)
+4. **5-Phase Code Review Pipeline** (after self-review) — Phase 0: deterministic pre-filter (stack affinity + plugin availability). Phase 1a: pr-review-toolkit pre-pass with auto-fixes committed. Phase 1b: report-only parallel agents (no file modifications). Phase 2: conflict detection and deduplication across all findings. Phase 3: single-pass fix implementation (bottom-up line ordering, one commit). Phase 4: targeted re-verification (max 2 iterations, only re-runs relevant checks). Phase 5: summary report included in PR body
 
-All three reference `references/coding-standards.md` — a comprehensive guide covering functions, error handling, DRY, TypeScript types, separation of concerns, naming, comments, performance, and testing. Stack-specific standards (Next.js, Supabase, React) are included.
+The first three reference `references/coding-standards.md` — a comprehensive guide covering functions, error handling, DRY, TypeScript types, separation of concerns, naming, comments, performance, and testing. Stack-specific standards (Next.js, Supabase, React) are included.
 
 ### Context7 Documentation Integration
 
@@ -278,6 +331,32 @@ Context7 provides live documentation lookups for any technology, ensuring code f
 - Supabase deprecated `auth-helpers` in favor of `@supabase/ssr` — Context7 docs show the new `createServerClient` pattern
 - Next.js Server Actions should return `{ errors }` objects, not throw — Context7 docs show the `useActionState` pattern
 - A library changed its API between versions — Context7 has the current version's patterns
+
+### Context Engineering
+
+feature-flow persists decisions and discoveries across sessions using two mechanisms:
+
+**`FEATURE_CONTEXT.md`** — Created automatically in the worktree root at setup. Captures curated decisions during the lifecycle. On session resume, the `start` skill loads this file, archives stale entries (configurable via `knowledge_base.max_lines` and `knowledge_base.stale_days`), and injects remaining decisions into context. This means you can stop mid-feature and resume in a new session without losing context.
+
+**Phase context directories** — `.feature-flow/design/` and `.feature-flow/implement/` directories are created at worktree setup with four template files:
+- `design-decisions.md` — Scope and approach choices from brainstorming and design
+- `verification-results.md` — Design verification blockers and resolutions
+- `patterns-found.md` — Codebase patterns discovered during study
+- `blockers-and-resolutions.md` — Implementation blockers and how they were resolved
+
+In YOLO/Express mode, these are archived to `.feature-flow/sessions/{date}-{branch}/` before PR creation and excerpted into the PR body.
+
+### Implementation Plan Formats
+
+feature-flow supports two plan formats:
+
+**Prose format** (default) — Standard markdown with numbered tasks, acceptance criteria, and quality constraints. Works with all existing plans.
+
+**XML plan format** (optional) — Plans opening with `<plan version="1.0">` enable machine-readable task metadata: `status` attributes, `<file action="create|modify">` references, and `<criterion>` elements with `<what>/<how>/<command>` children. Malformed XML falls back to prose mode automatically.
+
+**Split plans** — Plans exceeding 15,000 words are automatically split into a lightweight index file (with Progress Index and Phase Manifest table) plus per-phase detail files. This prevents Read token limit failures on large features.
+
+**Wave-based parallel execution** — Implementation tasks declare a `Parallelizable:` field. The orchestrator runs dependency analysis, groups tasks into execution waves, and dispatches independent tasks in parallel. Plans with >5 tasks target ≥50% parallel dispatch.
 
 ### Platform Lifecycle Differences
 
