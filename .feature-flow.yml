@@ -1,4 +1,4 @@
-plugin_version: 1.28.2
+plugin_version: 1.28.1
 platform: cli
 stack:
   - node-js
@@ -15,3 +15,6 @@ tool_selector:
 gotchas: []
 notifications:
   on_stop: bell
+design_preferences:
+  error_handling: exceptions
+  testing: match_existing
