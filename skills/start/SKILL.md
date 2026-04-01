@@ -80,85 +80,21 @@ When launching GSD:
 
 ## Pre-Flight Check
 
-Before starting, verify required and recommended plugins are available.
+Before starting, build the plugin registry by scanning installed plugins.
 
-### superpowers (required)
+**Read `references/plugin-scanning.md`** for the full scanning process, keyword classification, and registry management.
 
-Check for its presence by looking for any skill starting with `superpowers:` in the loaded skill list (namespace-prefix detection) — do NOT invoke a superpowers skill just to test availability. If superpowers is not found, stop and tell the user:
+### Dynamic Plugin Registry
 
-```
-The superpowers plugin is required but doesn't appear to be installed.
-Install it first: claude plugins add superpowers
-Then re-run start.
-```
+At Step 0, feature-flow scans `~/.claude/plugins/cache/` to discover all installed plugins. It reads each plugin's `plugin.json` manifest and component metadata, classifies capabilities via keyword matching into 8 lifecycle roles, and persists the results in `.feature-flow.yml` under `plugin_registry`.
 
-Do not proceed with the lifecycle if superpowers is missing — most steps depend on it.
+Base plugins (superpowers, context7, pr-review-toolkit, feature-dev, backend-api-security) are always present with hardcoded known roles. Discovered plugins extend beyond the base set. If a base required plugin (superpowers, context7) is missing, stop the lifecycle with an installation message. If a recommended plugin is missing, warn and continue.
 
-### Context7 (required)
-
-Check for the Context7 MCP plugin by looking for `mcp__plugin_context7_context7__resolve-library-id` in the available tools (use ToolSearch if needed). If Context7 is not found, warn the user:
-
-```
-The Context7 plugin is required for documentation lookups but doesn't appear to be installed.
-Install it: claude plugins add context7
-Without it, feature-flow cannot query up-to-date library documentation during design and implementation.
-```
-
-Do not proceed with the lifecycle if Context7 is missing — documentation lookups are a core part of the design phase. The `context7` field in `.feature-flow.yml` will not be populated, and the documentation lookup step, documentation compliance verification, and PreToolUse hook will all be non-functional.
-
-### pr-review-toolkit (recommended)
-
-Check for its presence by looking for any skill starting with `pr-review-toolkit:` in the loaded skill list (namespace-prefix detection). If not found, warn but continue:
-
-```
-The pr-review-toolkit plugin is recommended for full code review coverage.
-Install it: claude plugins add pr-review-toolkit
-Without it, the pr-review-toolkit subagent will not run — the code review pipeline will skip the pr-review-toolkit agents (silent-failure-hunter, code-simplifier, pr-test-analyzer, type-design-analyzer) that it dispatches internally.
-```
-
-### feature-dev (recommended)
-
-Check for its presence by looking for any skill starting with `feature-dev:` in the loaded skill list (namespace-prefix detection). If not found, warn but continue:
-
-```
-The feature-dev plugin is recommended for code review.
-Install it: claude plugins add feature-dev
-Without it, the code review pipeline will skip: feature-dev reviewers.
-```
-
-### backend-api-security (recommended)
-
-Check for its presence using two strategies (either is sufficient to consider it installed):
-1. **Skill namespace prefix:** look for any skill starting with `backend-api-security:` in the loaded skill list
-2. **Agent file path:** if not found in skill list, run `find ~/.claude/plugins/cache -maxdepth 3 -name backend-api-security -type d 2>/dev/null | head -1` — if output is non-empty, the plugin is installed as an agent-based plugin
-
-If neither strategy detects the plugin, warn but continue:
-
-```
-The backend-api-security plugin is recommended for security review.
-Install it: claude plugins add backend-api-security
-Without it, the code review pipeline will skip: backend-api-security reviewers.
-```
-
-### Reviewer Stack Affinity Table
-
-A static mapping of each code reviewer to the tech stacks it is relevant for. The orchestrator reads the `stack` field from `.feature-flow.yml` and uses this table for both the pre-flight audit and the code review pipeline dispatch.
-
-| Reviewer | Plugin | Stack Affinity | Tier |
-|----------|--------|---------------|------|
-| `superpowers:code-reviewer` | superpowers | `*` (universal — all stacks) | 1 |
-| `silent-failure-hunter` | pr-review-toolkit (internal) | `*` (universal) | 1 |
-| `code-simplifier` | pr-review-toolkit (internal) | `*` (universal) | 2 |
-| `feature-dev:code-reviewer` | feature-dev | `*` (universal) | 2 |
-| `pr-test-analyzer` | pr-review-toolkit | `*` (universal) | 3 |
-| `type-design-analyzer` | pr-review-toolkit | `typescript`, `node-js` | 3 |
-| `backend-api-security:backend-security-coder` | backend-api-security | `node-js`, `python`, `go`, `ruby`, `java`, `supabase` | 3 |
-
-Internal agents marked `(internal)` run inside their parent plugin's subagent and are not dispatched independently during the code review pipeline. They are excluded from the reviewer audit process (step 2 skips internal agents) but remain in this table as a reference for which agents each plugin provides.
+After scanning, run fallback validation: verify base plugins are actually loaded in the current session via namespace-prefix detection in the skill/tool list.
 
 ### Pre-Flight Reviewer Audit, Marketplace Discovery & Install
 
-**Read `references/step-lists.md` — "Pre-Flight Reviewer Audit", "Marketplace Discovery", and "Install Missing Plugins Prompt" sections** after completing plugin availability checks above.
+**Read `references/step-lists.md` — "Pre-Flight Reviewer Audit", "Marketplace Discovery", and "Install Missing Plugins Prompt" sections** after completing the registry scan above. The audit now reads from `plugin_registry` in `.feature-flow.yml` instead of individual hardcoded checks.
 
 ### Tool Parameter Types
 

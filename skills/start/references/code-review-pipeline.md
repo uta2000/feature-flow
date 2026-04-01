@@ -18,19 +18,26 @@ This step runs after self-review and before final verification. It dispatches mu
 
 **Large file handling:** If the branch diff includes files >200KB, instruct review agents to use `git diff [base-branch]...HEAD -- <file>` (where `[base-branch]` is the branch detected in Step 0) for those files instead of reading the full file. The diff contains only the changed sections, which is what reviewers need.
 
-**Scope-based agent selection with stack filtering:** Select which agents to dispatch based on scope tier AND stack relevance. The scope determines the maximum tier. The Reviewer Stack Affinity Table (defined in Pre-Flight Check) determines which agents are relevant for the project's stack.
+**Scope-based agent selection with registry filtering:** Select which agents to dispatch based on scope tier AND the plugin registry. Query `plugin_registry` from `.feature-flow.yml` using `get_plugins_for_step("code_review", project_stack)` where `project_stack` is the `stack` field from `.feature-flow.yml` (see `references/plugin-scanning.md` — Registry Query section).
+
+Base plugins retain their existing tier assignments:
+- Tier 1: superpowers:code-reviewer, silent-failure-hunter (internal)
+- Tier 2: code-simplifier (internal), feature-dev:code-reviewer
+- Tier 3: pr-test-analyzer, type-design-analyzer, backend-api-security:backend-security-coder
+
+**Discovered plugins** with `code_review` or `security_review` roles from the registry are dispatched as **Tier 3** agents in report-only mode. Their checklist is derived from the plugin's own agent/skill description.
 
 | Scope | Max Tier | Agents to Dispatch |
 |-------|----------|--------------------|
 | Quick fix | — | Code review step not included for this scope |
-| Small enhancement | 1 | All Tier 1 agents from affinity table where stack matches and plugin is installed |
-| Feature | 2 | All Tier 1-2 agents from affinity table where stack matches and plugin is installed |
-| Major feature | 3 | All Tier 1-3 agents from affinity table where stack matches and plugin is installed |
+| Small enhancement | 1 | All Tier 1 agents from registry where stack matches and plugin status is `installed` |
+| Feature | 2 | All Tier 1-2 agents from registry where stack matches and plugin status is `installed` |
+| Major feature | 3 | All Tier 1-3 agents (including discovered) from registry where stack matches and plugin status is `installed` |
 
-**Filtering at dispatch time:** For each reviewer in the affinity table at or below the scope's max tier:
-1. Skip reviewers marked `(internal)` — they run inside their parent agent
-2. Check if the reviewer's plugin is installed
-3. Check if the reviewer's stack affinity includes `*` OR intersects with the project's `stack` list from `.feature-flow.yml`
+**Filtering at dispatch time:** For each plugin in the registry with a `code_review` or `security_review` role at or below the scope's max tier:
+1. Skip plugins marked `(internal)` — they run inside their parent agent
+2. Check `status` is `installed` (not `missing` or `installed_not_loaded`)
+3. Check `stack_affinity` includes `"*"` or intersects with the project's `stack` list
 4. If all conditions met → include in dispatch. Otherwise → skip with log.
 
 The pr-review-toolkit subagent always runs in Phase 1a when pr-review-toolkit is installed and scope ≠ Quick fix — it handles internal agents (`silent-failure-hunter`, `code-simplifier`, `pr-test-analyzer`, `type-design-analyzer`) based on the scope.
@@ -163,6 +170,7 @@ Agents must name the specific rule violated from their checklist. Findings witho
 | `feature-dev:code-reviewer` | feature-dev | (1) Every external call has error handling, (2) inputs validated at system boundaries, (3) no SQL/command injection vectors, (4) race conditions in async code, (5) off-by-one in loops/pagination | **Report** → Claude fixes | sonnet | 2 |
 | `superpowers:code-reviewer` | superpowers | (1) Every function ≤30 lines, (2) no nesting >3 levels, (3) guard clauses for error cases, (4) naming matches conventions, (5) no god files >300 lines, (6) all acceptance criteria met | **Report** → Claude fixes | sonnet | 1 |
 | `backend-api-security:backend-security-coder` | backend-api-security | (1) Every user input validated before use, (2) auth checked on every route, (3) no secrets in code, (4) CORS configured correctly, (5) rate limiting on public endpoints | **Report** → Claude fixes | opus | 3 |
+| Discovered `code_review` agents | (from registry) | Checklist derived from plugin's own agent/skill description | **Report** → Claude fixes | sonnet | 3 |
 
 **Availability check:** Before dispatching, apply the stack filtering logic from the scope-based agent selection section. Announce: "Running N report-only agents in parallel (Tier T — [scope], stack: [stack list])..."
 
