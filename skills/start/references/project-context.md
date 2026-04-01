@@ -234,3 +234,23 @@ Downstream skills receive `context.feature_context` injected into their args alo
 **YOLO behavior:** Run archival silently. If archival ran, announce: `YOLO: start — Knowledge base → Archived {M} stale decisions, {N} decisions loaded`. If no file found, announce: `YOLO: start — Knowledge base → No FEATURE_CONTEXT.md found (new feature)`. If N > 0, announce resume notice as normal.
 
 **Express behavior:** Same as YOLO for this step — run archival silently, print resume notice if N > 0.
+
+## Plugin Registry Loading
+
+After the Knowledge Base Pre-Flight step, build the plugin registry by scanning installed plugins. This must complete before the Pre-Flight Reviewer Audit in `references/step-lists.md`.
+
+**Read `references/plugin-scanning.md`** for the full scanning process, keyword classification, base plugin registry, fallback validation, and error handling. Summary:
+
+1. Check for `plugin_registry` in `.feature-flow.yml`. If absent and `~/.claude/plugins/cache/` doesn't exist, bootstrap with base plugins only (all `status: missing`).
+2. Walk `~/.claude/plugins/cache/`, read `plugin.json` manifests. Use content hash fast path — compare SHA-256 hash against stored `content_hashes` to skip unchanged plugins.
+3. For changed/new plugins: read agent `.md` frontmatter and skill `SKILL.md` frontmatter. Classify capabilities via keyword matching into 8 lifecycle roles (`code_review`, `security_review`, `testing`, `design`, `documentation`, `deployment`, `formatting`, `type_checking`).
+4. Infer stack affinity from description keywords. Default to `["*"]` (universal) if no stack keywords found.
+5. Diff against persisted registry. Announce additions: `"New plugin discovered: [name] → [roles]"`. Announce removals: `"Plugin removed: [name]"`.
+6. Run fallback validation: verify base required plugins (superpowers, context7) are actually loaded in the current session via namespace-prefix detection in the skill/tool list.
+7. Write updated registry to `.feature-flow.yml` under `plugin_registry`.
+
+**YOLO behavior:** Auto-scan silently. Announce: `YOLO: start — Plugin registry → [N] plugins ([M] base, [K] discovered), [J] new, [L] removed`
+
+**Express behavior:** Same as YOLO — auto-scan silently, announce inline.
+
+**Interactive behavior:** Announce scan results. No prompt needed — scanning is non-interactive.
