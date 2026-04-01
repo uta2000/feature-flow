@@ -138,27 +138,34 @@ Announce the platform-specific additions: "Mobile platform detected. Adding: dev
 
 ## Pre-Flight Reviewer Audit
 
-After loading `.feature-flow.yml` and completing the recommended plugin checks above, cross-reference installed plugins against the Reviewer Stack Affinity Table to report review coverage for the current stack.
+After loading `.feature-flow.yml` and completing the plugin registry scan (see `references/plugin-scanning.md`), report review coverage for the current stack using the registry data.
 
 **Process:**
-1. Read the `stack` field from `.feature-flow.yml`
-2. For each non-internal reviewer in the affinity table:
-   a. Check if the reviewer's plugin is installed (from the plugin checks above)
-   b. Check if the reviewer's stack affinity includes `*` OR intersects with the project's `stack` list
-   c. Classify as: relevant+installed, relevant+missing, or irrelevant
-3. Report to the user:
+1. Read `plugin_registry` from `.feature-flow.yml`
+2. Read the `stack` field from `.feature-flow.yml`
+3. Group plugins by `source`:
+   - **Base (required):** superpowers, context7
+   - **Base (recommended):** pr-review-toolkit, feature-dev, backend-api-security
+   - **Discovered:** all other plugins
+4. For each plugin with a `code_review` or `security_review` role:
+   a. Check `status` (installed / missing / installed_not_loaded)
+   b. Check if `stack_affinity` includes `"*"` or intersects with the project's `stack` list
+   c. Classify as: relevant+installed, relevant+missing, or irrelevant (stack mismatch)
+5. Report to the user:
 
 ```
-Reviewer availability (stack: [stack list]):
-  Relevant + installed:
-    - [reviewer] ([affinity])
-  Relevant + missing:
-    - [reviewer] ([affinity]) — install: claude plugins add [plugin]
+Plugin Registry (stack: [stack list]):
+  Base (required):
+    [status emoji] [plugin-name] — [roles] [stack_affinity]
+  Base (recommended):
+    [status emoji] [plugin-name] — [roles] [stack_affinity]
+  Discovered:
+    [confidence emoji] [plugin-name] — [roles] ([confidence]) [stack_affinity]
   Irrelevant (skipped for this stack):
-    - [reviewer] ([affinity] — not matching stack)
+    - [plugin-name] ([stack_affinity] — not matching stack)
 ```
 
-**YOLO behavior:** No prompt for the audit display — always auto-run. Announce: `YOLO: start — Reviewer audit → [N] relevant ([M] installed, [K] missing), [J] irrelevant`
+**YOLO behavior:** No prompt for the audit display — always auto-run. Announce: `YOLO: start — Plugin registry audit → [N] relevant ([M] installed, [K] missing), [J] discovered, [L] irrelevant`
 
 **Express behavior:** Same as YOLO for the audit display — announce inline.
 
