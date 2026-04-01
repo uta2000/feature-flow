@@ -12,7 +12,8 @@ tool_selector:
   enabled: true                    # Enable/disable intelligent tool selection
   confidence_threshold: 0.7        # Only recommend GSD if confidence >= 70%
   auto_launch_gsd: false          # If true, launch GSD automatically without asking
-gotchas: []
+gotchas:
+  - "Settings SKILL.md enforces max 4 options per AskUserQuestion — adding new dashboard categories requires merging with existing ones, not adding a 5th option"
 notifications:
   on_stop: bell
 design_preferences:
