@@ -36,6 +36,11 @@ design_preferences:    # Optional: project-wide design preference answers
   state_management: server_state
   testing: unit_integration
   ui_pattern: tailwind
+standards:             # Optional: project standards for design cross-checking
+  enabled: true        # Enable/disable the cross-check
+  files:               # Paths to standards files (relative to project root)
+    - docs/architecture.md
+    - .claude/conventions.md
 yolo:                  # Optional: YOLO mode stopping points
   stop_after:          # Phases where YOLO pauses for review
     - plan             # brainstorming | design | verification | plan
@@ -350,6 +355,33 @@ yolo:
 
 **Checkpoint behavior:** At each listed stopping point, the `start` skill orchestrator pauses and presents the phase output via `AskUserQuestion` with two options: "Continue YOLO" (resume unattended execution) or "Switch to Interactive" (disable YOLO for remaining phases).
 
+### `standards`
+
+Optional configuration for the Standards Cross-Check step in the `design-document` skill. When present, `design-document` reads the listed files and verifies the design spec against them before suggesting next steps.
+
+**Sub-fields:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | boolean | `true` (when key present) | Whether the cross-check runs. Set to `false` to disable without removing the `files` list. |
+| `files` | list of strings | _(absent = auto-discovery)_ | Paths to standards files, relative to the project root. |
+
+**Format:**
+
+```yaml
+standards:
+  enabled: true
+  files:
+    - docs/architecture.md
+    - .claude/conventions.md
+```
+
+**When absent:** On the next `design-document` run, first-run auto-discovery triggers: the skill scans `.claude/`, `docs/`, and the project root for files named `architecture.md`, `conventions.md`, `standards.md`, `coding-standards.md`, or `style-guide.md` (case-insensitive). In Interactive mode the user selects which to register; in YOLO/Express mode all discovered files are auto-selected. The field is then written to `.feature-flow.yml`. If no files are discovered, `standards.enabled: false` is written and the cross-check is skipped silently on all subsequent runs.
+
+**When `enabled: false`:** The cross-check is skipped silently. Auto-discovery does not trigger. Existing `files` list is preserved so re-enabling is a one-line change.
+
+**When `files` is absent or empty and `enabled` is not `false`:** Auto-discovery triggers (same as when the entire key is absent).
+
 ## How Skills Use This File
 
 ### start (reads + writes)
@@ -377,10 +409,12 @@ yolo:
 - **Reads** stack-specific assumption patterns when evaluating risky unknowns.
 - **Writes** new gotchas from DENIED assumptions that future features would likely hit.
 
-### design-document (reads)
+### design-document (reads + writes)
 Adds platform-aware sections:
 - Mobile → Feature Flag Strategy, Rollback Plan, API Versioning sections
 - Web → standard sections
+- **Reads** `standards.enabled` and `standards.files` to perform the Standards Cross-Check (Step 6). Triggers auto-discovery when the key is absent.
+- **Writes** `standards.enabled` and `standards.files` after first-run auto-discovery selects files (or writes `standards.enabled: false` when no files are found).
 
 ### create-issue (reads)
 Includes platform-relevant sections in the issue template.
