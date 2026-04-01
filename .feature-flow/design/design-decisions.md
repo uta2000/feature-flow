@@ -1,10 +1,7 @@
 # Design Decisions
 
-## Key Decisions
-- **[Decision]:** [what was decided and why]
-
-## Rejected Alternatives
-- **[Option]:** [why it was rejected]
-
-## Open Questions
-- [ ] [question still unresolved at design time]
+- Standards cross-check is a new Step 6 in design-document/SKILL.md
+- Config: standards.enabled (boolean) + standards.files (path list)
+- Auto-discovery triggers when standards key is absent
+- YOLO/Express: auto-select all discovered files, auto-apply concrete fixes
+- Settings: Standards option added to Design category (not a new category)

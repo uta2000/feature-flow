@@ -1,15 +1,19 @@
 # Feature Context
 
-> Auto-managed by feature-flow. Stale decisions are archived to DECISIONS_ARCHIVE.md (threshold: `knowledge_base.stale_days` in `.feature-flow.yml`, default 14 days).
+> Auto-managed by feature-flow.
 
 ## Key Decisions
 
-<!-- Add decisions as they're made. Format: - [YYYY-MM-DD] Decision text -->
+- [2026-04-01] Standards cross-check scoped to design-document skill only
+- [2026-04-01] Config uses `standards` namespace in .feature-flow.yml (enabled + files list)
+- [2026-04-01] LLM-inline processing, no subagents
+- [2026-04-01] First-run auto-discovery scans common locations
+- [2026-04-01] Settings integration adds Standards to existing Design category
 
 ## Open Questions
 
-<!-- Optional: unresolved questions to revisit next session -->
-
 ## Notes
 
-<!-- Optional: discoveries, gotchas, links -->
+- Issue: #206
+- Design doc: docs/plans/2026-04-01-standards-cross-check.md
+- Plan: docs/plans/2026-04-01-standards-cross-check-plan.md
