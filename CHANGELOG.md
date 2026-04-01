@@ -2,6 +2,11 @@
 
 All notable changes to the feature-flow plugin.
 
+## [1.29.0] - 2026-04-01
+
+### Added
+- **Dynamic plugin scanning and registry (GH207)** — Replace hardcoded plugin checks with a dynamic scanning system that discovers all installed Claude Code plugins at lifecycle start. Scans `~/.claude/plugins/cache/`, classifies plugin capabilities via keyword matching into 8 lifecycle roles, and persists results in `.feature-flow.yml` under `plugin_registry`. Includes content hash fast path (SHA-256) to skip unchanged plugins, marketplace-namespaced registry keys to prevent collisions, fallback namespace-prefix validation for base plugins, and first-run bootstrap for fresh installs. Code review pipeline now dispatches discovered plugins as Tier 3 agents. New `/settings` Plugins submenu for viewing registry, rescanning, overriding roles, excluding plugins, and resetting overrides. Schema documented in `project-context-schema.md` with 6 enum types.
+
 ## [1.28.2] - 2026-03-24
 
 ### Fixed
