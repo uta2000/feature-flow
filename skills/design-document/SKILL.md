@@ -197,7 +197,98 @@ If the document is short enough (under 1,000 words total), present it all at onc
 
   The scope is determined from the `scope:` field in the skill's `ARGUMENTS` (e.g., `args: "express: true. scope: feature. ..."`). If no scope is specified, default to the skip behavior.
 
-### Step 6: Suggest Next Steps
+### Step 6: Standards Cross-Check
+
+Read `.feature-flow.yml` to check `standards.enabled` and `standards.files`.
+
+**Skip conditions (no output, no warning):**
+- `standards.enabled` is explicitly `false`
+- `standards.files` is absent or empty AND auto-discovery finds no files
+
+#### Auto-Discovery (when `standards.files` is absent or empty and `enabled` is not `false`)
+
+Scan these locations for standards files:
+- `.claude/` directory
+- `docs/` directory
+- Project root
+
+Target filenames (case-insensitive): `architecture.md`, `conventions.md`, `standards.md`, `coding-standards.md`, `style-guide.md`
+
+Exclude any file named `CLAUDE.md` (these are memory/activity tracking files, not project standards).
+
+**Interactive mode:**
+
+```
+AskUserQuestion (multiSelect: true): "Standards files discovered — which should be used for design cross-checks?"
+Options: [up to 4 discovered files per question; if more than 4 are found, present in batches of 4]
+```
+
+Write the selected files to `.feature-flow.yml`:
+
+```yaml
+standards:
+  enabled: true
+  files:
+    - [selected paths]
+```
+
+**YOLO behavior:** Auto-select all discovered files. Write to `.feature-flow.yml`. Announce: `YOLO: design-document — Standards auto-discovery → N files found, all selected`
+
+**Express behavior:** Same as YOLO — auto-select all discovered files. Announce: `Express: design-document — Standards auto-discovery → N files found, all selected`
+
+**If no files are discovered:** Write `standards.enabled: false` to `.feature-flow.yml`. Skip the cross-check silently.
+
+#### Cross-Check Execution
+
+If `standards.files` has entries (from config or from auto-discovery above):
+
+1. If more than 5 files are configured, announce: `Note: [N] standards files configured. Large standards sets may reduce cross-check precision.`
+
+2. For each file in `standards.files`: read its contents. If the file does not exist on disk, announce: `Warning: Standards file [path] not found — skipping.` and continue with the remaining files.
+
+3. If all files are missing after attempting to read them, skip the cross-check entirely (no further output).
+
+4. Concatenate the content of all successfully-read files with source labels (e.g., `--- Source: docs/architecture.md ---`).
+
+5. Pass the concatenated standards content and the current design document to the LLM with this prompt:
+
+   > You are reviewing a design document against a set of project standards. Identify every conflict between the design and the standards. For each conflict, produce: (1) a concise description of the issue, (2) the source file and line/section where the standard is defined, (3) a concrete, actionable fix to apply to the design document. Format your response as a Markdown table with columns: Issue | Source | Fix. If there are no conflicts, respond with exactly: NO_CONFLICTS
+
+6. Parse the response:
+   - If the response is exactly `NO_CONFLICTS`: announce `Standards cross-check passed — no conflicts found.` and proceed to Step 7.
+   - If the response is a valid Markdown table: continue to Report Display below.
+   - If the response cannot be parsed as either: display the raw response prefixed with `Standards cross-check (raw output — table parsing failed):` and skip auto-corrections. Proceed to Step 7.
+
+#### Report Display
+
+Print the report table as-is (display-only — do not modify the design document file):
+
+```
+Standards Cross-Check Report
+
+| Issue | Source | Fix |
+|-------|--------|-----|
+| ...   | ...    | ... |
+```
+
+#### Corrections
+
+A fix is **concrete** if it specifies a precise, actionable change to the design document (e.g., "Change X to Y in the Architecture section"). A fix is **vague** if it says things like "consider reviewing", "may need to", or "discuss with team".
+
+**Interactive mode:** After displaying the report, ask:
+
+```
+AskUserQuestion (multiSelect: true): "Which fixes should I apply to the design document?"
+Options: [one option per table row — truncated to 4 if more than 4 rows; if >4 rows, present in batches]
+```
+
+Apply each selected concrete fix via the Edit tool to the design document file. Announce each application: `Applied: [Issue summary]`
+
+**YOLO behavior:** Auto-apply all concrete fixes via the Edit tool. Skip vague fixes. Announce: `YOLO: design-document — Standards fixes → N applied, M skipped (vague)`
+
+**Express behavior:** Same as YOLO — auto-apply all concrete fixes. Announce: `Express: design-document — Standards fixes → N applied, M skipped (vague)`
+
+### Step 7: Suggest Next Steps
 
 After the document is approved:
 

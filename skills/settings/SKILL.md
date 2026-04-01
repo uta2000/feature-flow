@@ -1,6 +1,6 @@
 ---
 name: settings
-description: View and manage Feature-flow settings — YOLO stops, notifications, branches, design preferences, and more. Use when the user asks to "configure", "change settings", "update config", or "/settings".
+description: View and manage Feature-flow settings — YOLO stops, notifications, branches, design preferences, standards, and more. Use when the user asks to "configure", "change settings", "update config", or "/settings".
 tools: Read, Edit, Bash, AskUserQuestion, Glob, Grep
 ---
 
@@ -37,7 +37,7 @@ tool_selector:
 
 Then announce: "Created `.feature-flow.yml` with defaults. You can now configure your settings."
 
-**If the file exists**, read it and parse the current values for all 9 settings using the reference table below.
+**If the file exists**, read it and parse the current values for all 10 settings using the reference table below.
 
 ### Step 2: Display Dashboard
 
@@ -56,6 +56,7 @@ feature-flow v[plugin_version] — Settings
   Design
   ─────────────────────────────────────────
   Design preferences  [count of defined prefs, e.g. "3 of 5 set" or "not set"]
+  Standards           [standards file count and status, e.g. "2 files, enabled" or "disabled" or "not configured"]
 
   Advanced
   ─────────────────────────────────────────
@@ -111,6 +112,7 @@ Options:
 AskUserQuestion: "Which Design setting?"
 Options:
 - "Design preferences" with description: "Edit or reset the 5 code-style preferences (currently: [N] of 5 set)"
+- "Standards" with description: "Standards files for design cross-checks (currently: [N files, enabled/disabled/not configured])"
 - "Back" with description: "Return to category selection"
 ```
 
@@ -312,6 +314,67 @@ If a ui_pattern value: write `design_preferences.ui_pattern` with:
 Write each selected preference to `design_preferences.[key]` in `.feature-flow.yml`.
 
 **Confirmation:** `"Design preference updated: [key] = [value]"` (or `"Design preferences cleared."` for reset).
+
+---
+
+#### 5H: Standards (`standards.*`)
+
+Three-step flow: enable/disable, then file management.
+
+**Step 5H-1 — Enable/disable:**
+
+```
+AskUserQuestion: "Enable the Standards Cross-Check in the design-document skill?"
+Options:
+- "Enable" with description: "Cross-check designs against configured standards files"
+- "Disable" with description: "Skip the cross-check — standards files are preserved for later"
+```
+
+Write `standards.enabled: true` or `standards.enabled: false` to `.feature-flow.yml`.
+
+If the user selects "Disable": write `standards.enabled: false`. **Confirmation:** `"Standards cross-check disabled."` Return to Step 3.
+If the user selects "Enable": write `standards.enabled: true` and continue to Step 5H-2. After 5H-2 completes or the user selects "Back": **Confirmation:** `"Standards cross-check enabled."` Return to Step 3.
+
+**Step 5H-2 — File management:**
+
+```
+AskUserQuestion: "Manage standards files:"
+Options:
+- "Add file" with description: "Add a standards file to the cross-check list"
+- "Remove file" with description: "Remove a file from the list"
+- "Back" with description: "Return to category selection"
+```
+
+**If "Add file":**
+
+Scan `.claude/`, `docs/`, and the project root for files named `architecture.md`, `conventions.md`, `standards.md`, `coding-standards.md`, or `style-guide.md` (case-insensitive). Exclude any file named `CLAUDE.md`. Remove paths already in `standards.files`.
+
+Present discovered paths as options. Always include "Enter path manually" as a final option (using the AskUserQuestion "Other" field). Limit presented options to 3 discovered paths to stay within the 4-option limit (3 discovered + "Enter path manually").
+
+If the user selects a discovered path: append it to `standards.files` in `.feature-flow.yml`.
+
+If the user selects "Enter path manually": accept the typed path. If the file does not exist on disk, confirm with:
+
+```
+AskUserQuestion: "File not found at [path]. Add anyway?"
+Options:
+- "Yes, add it" with description: "Path will be saved; file must exist when design-document runs"
+- "No, cancel" with description: "Return to file management without saving"
+```
+
+If no files are discovered and user cancels manual entry: return to Step 5H-2 without saving.
+
+**Confirmation:** `"Standards files: [path] added"`
+
+**If "Remove file":**
+
+If `standards.files` is absent or empty: announce `"No standards files configured."` Return to category selection.
+
+Otherwise, present each current path as an option (up to 3 paths per question if more than 3; present in batches). User selects which to remove. Delete that path from the `standards.files` list.
+
+If the list becomes empty after removal: announce `"No standards files remain. Auto-discovery will trigger on the next design-document run."` Do not set `enabled: false` automatically — preserve the user's explicit `enabled` preference.
+
+**Confirmation:** `"Standards files: [path] removed"`
 
 ---
 
@@ -530,6 +593,7 @@ Do not exit the skill after a save. The user exits explicitly by selecting "Done
 | 7 | Context7 libraries | `context7.*` | _(absent = no mappings)_ |
 | 8 | CI timeout | `ci_timeout_seconds` | `900` |
 | 9 | KB limits | `knowledge_base.max_lines`, `knowledge_base.stale_days` | `150`, `14` |
+| 10 | Standards | `standards.*` | _(absent = auto-discovery on next design-document run)_ |
 
 ---
 
