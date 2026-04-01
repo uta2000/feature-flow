@@ -2,6 +2,11 @@
 
 All notable changes to the feature-flow plugin.
 
+## [Unreleased]
+
+### Added
+- **Standards Cross-Check step in design-document skill (GH206)** — New Step 6 reads project-specific standards files (architecture docs, coding conventions) and verifies design specs against them before suggesting next steps. Conflicts are reported as an Issue/Source/Fix table. In YOLO/Express mode, concrete fixes are auto-applied to the design document. First-run auto-discovery scans `.claude/`, `docs/`, and project root for common standards filenames and writes selections to `.feature-flow.yml` under the new `standards` namespace (`enabled` boolean + `files` list). `/settings` gains a "Standards" option in the Design category for adding, removing, and toggling standards files.
+
 ## [1.28.2] - 2026-03-24
 
 ### Fixed
