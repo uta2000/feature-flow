@@ -413,7 +413,7 @@ standards:
 Adds platform-aware sections:
 - Mobile → Feature Flag Strategy, Rollback Plan, API Versioning sections
 - Web → standard sections
-- **Reads** `standards.enabled` and `standards.files` to perform the Standards Cross-Check (Step 6). Triggers auto-discovery when the key is absent.
+- **Reads** `standards.enabled` and `standards.files` to perform the Standards Cross-Check step. Triggers auto-discovery when the key is absent.
 - **Writes** `standards.enabled` and `standards.files` after first-run auto-discovery selects files (or writes `standards.enabled: false` when no files are found).
 
 ### create-issue (reads)

@@ -220,7 +220,7 @@ Exclude any file named `CLAUDE.md` (these are memory/activity tracking files, no
 
 ```
 AskUserQuestion (multiSelect: true): "Standards files discovered — which should be used for design cross-checks?"
-Options: [one option per discovered file, showing its path]
+Options: [up to 4 discovered files per question; if more than 4 are found, present in batches of 4]
 ```
 
 Write the selected files to `.feature-flow.yml`:
@@ -232,7 +232,9 @@ standards:
     - [selected paths]
 ```
 
-**YOLO/Express mode:** Auto-select all discovered files. Write to `.feature-flow.yml`. Announce: `YOLO: design-document — Standards auto-discovery → N files found, all selected`
+**YOLO behavior:** Auto-select all discovered files. Write to `.feature-flow.yml`. Announce: `YOLO: design-document — Standards auto-discovery → N files found, all selected`
+
+**Express behavior:** Same as YOLO — auto-select all discovered files. Announce: `Express: design-document — Standards auto-discovery → N files found, all selected`
 
 **If no files are discovered:** Write `standards.enabled: false` to `.feature-flow.yml`. Skip the cross-check silently.
 
@@ -282,7 +284,9 @@ Options: [one option per table row — truncated to 4 if more than 4 rows; if >4
 
 Apply each selected concrete fix via the Edit tool to the design document file. Announce each application: `Applied: [Issue summary]`
 
-**YOLO/Express mode:** Auto-apply all concrete fixes via the Edit tool. Skip vague fixes. Announce: `YOLO: design-document — Standards fixes → N applied, M skipped (vague)`
+**YOLO behavior:** Auto-apply all concrete fixes via the Edit tool. Skip vague fixes. Announce: `YOLO: design-document — Standards fixes → N applied, M skipped (vague)`
+
+**Express behavior:** Same as YOLO — auto-apply all concrete fixes. Announce: `Express: design-document — Standards fixes → N applied, M skipped (vague)`
 
 ### Step 7: Suggest Next Steps
 

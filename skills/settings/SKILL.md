@@ -326,8 +326,8 @@ Options:
 
 Write `standards.enabled: true` or `standards.enabled: false` to `.feature-flow.yml`.
 
-If the user selects "Disable": write and confirm. Return to Step 3.
-If the user selects "Enable": continue to Step 5H-2.
+If the user selects "Disable": write `standards.enabled: false`. **Confirmation:** `"Standards cross-check disabled."` Return to Step 3.
+If the user selects "Enable": write `standards.enabled: true` and continue to Step 5H-2. After 5H-2 completes or the user selects "Back": **Confirmation:** `"Standards cross-check enabled."` Return to Step 3.
 
 **Step 5H-2 — File management:**
 
