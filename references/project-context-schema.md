@@ -490,6 +490,13 @@ Identifies which lifecycle step a plugin component is dispatched for.
 | `deployment` | CI/CD pipeline, release, and publish tooling |
 | `formatting` | Code formatting, style, and lint-fix tooling |
 | `type_checking` | TypeScript type checking and schema validation |
+| `brainstorming` | Brainstorming and requirements gathering (base-plugin-only) |
+| `worktree_setup` | Git worktree creation and setup (base-plugin-only) |
+| `finishing_branch` | Branch completion and PR creation (base-plugin-only) |
+| `writing_plans` | Implementation plan creation (base-plugin-only) |
+| `subagent_development` | Subagent-driven implementation (base-plugin-only) |
+
+> **Note:** The last 5 values are base-plugin-only roles assigned via hardcoded known roles — they are never matched via keyword classification. Only the first 8 values appear in the Role-Keyword Mapping table in `skills/start/references/plugin-scanning.md`.
 
 ### `StackIdentifier`
 

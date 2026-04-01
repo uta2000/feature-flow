@@ -176,9 +176,9 @@ After the reviewer audit, discover additional code review plugins from the marke
 **Process:**
 1. Run: `claude plugins search "code review"` (single CLI call)
 2. Parse results for plugins not already installed
-3. Cross-reference discovered plugins against the Reviewer Stack Affinity Table:
-   - If a discovered plugin has known stack affinity that matches the project → suggest with install command
-   - If a discovered plugin is not in the affinity table → present as "discovered — may be relevant"
+3. Cross-reference discovered plugins against the `plugin_registry` from `.feature-flow.yml` to determine stack relevance:
+   - If a discovered plugin's `stack_affinity` matches the project's `stack` → suggest with install command
+   - If a discovered plugin is not in the registry → present as "discovered — may be relevant"
 4. Display marketplace results as a separate output block after the reviewer audit:
    ```
    Marketplace suggestions (stack: [stack list]):
