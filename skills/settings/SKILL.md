@@ -64,6 +64,11 @@ feature-flow v[plugin_version] — Settings
   Context7 libraries  [count of mappings, e.g. "2 libraries" or "none"]
   CI timeout          [ci_timeout_seconds]s, or "600s (default)"
   KB limits           [knowledge_base.max_lines lines / knowledge_base.stale_days day retention, or defaults]
+
+  Plugins
+  ─────────────────────────────────────────
+  Registry            [N plugins: M base, K discovered, or "not scanned"]
+  Overrides           [count of overrides, or "none"]
 ```
 
 For multi-value settings, display a summary on one line (e.g., `"brainstorming, plan"` for YOLO stops, `"enabled / 0.70 threshold / manual launch"` for tool selector).
@@ -78,6 +83,7 @@ Options:
 - "Workflow" with description: "YOLO stops, notifications, default branch, git strategy"
 - "Design" with description: "Design preferences for code style, testing, UI patterns"
 - "Advanced" with description: "Tool selector, Context7 libraries, CI timeout, KB limits"
+- "Plugins" with description: "View, rescan, override, or exclude plugins"
 - "Done" with description: "Exit settings"
 ```
 
@@ -489,6 +495,75 @@ Options:
 Write result to `knowledge_base.stale_days` as an integer.
 
 **Confirmation:** `"CI timeout set to [value]s. Knowledge base: max [max_lines] lines, [stale_days]-day retention."`
+
+---
+
+#### Plugins Category
+
+```
+AskUserQuestion: "Which Plugins action?"
+Options:
+- "View registry" with description: "Show all discovered plugins with roles, stack affinity, and status"
+- "Rescan plugins" with description: "Force re-scan of plugin cache and update registry"
+- "Override plugin role" with description: "Assign a plugin to specific lifecycle roles"
+- "Exclude plugin" with description: "Prevent a plugin from being used"
+- "Reset overrides" with description: "Clear all manual plugin overrides"
+- "Back" with description: "Return to category selection"
+```
+
+##### View Registry
+
+Read `plugin_registry` from `.feature-flow.yml`. Display:
+
+```
+Plugin Registry (last scan: [last_scan timestamp]):
+
+  Base (required):
+    [status emoji] [plugin-name] — [roles, comma-separated] [stack_affinity]
+  Base (recommended):
+    [status emoji] [plugin-name] — [roles] [stack_affinity]
+  Discovered:
+    [confidence emoji] [plugin-name] — [roles] ([confidence]) [stack_affinity]
+
+Status: ✅ = installed, ⚠️ = missing, 🔄 = installed_not_loaded
+Confidence: 🔍 = high, ❓ = low
+```
+
+If `plugin_registry` is absent: "No plugin registry found. Run 'Rescan plugins' to scan."
+
+##### Rescan Plugins
+
+Execute the scanning process from `skills/start/references/plugin-scanning.md`:
+1. Walk `~/.claude/plugins/cache/`
+2. Classify discovered plugins via keyword matching
+3. Diff against existing registry
+4. Write updated registry to `.feature-flow.yml`
+5. Display the updated registry
+
+##### Override Plugin Role
+
+Interactive flow:
+1. List all non-base plugins from registry
+2. User selects a plugin via `AskUserQuestion`
+3. Present lifecycle roles as multi-select: `AskUserQuestion` with `multiSelect: true`
+   Options: code_review, security_review, testing, design, documentation, deployment, formatting, type_checking
+4. Optionally set stack affinity via `AskUserQuestion`
+5. Write to `plugin_overrides` in `.feature-flow.yml`
+6. Confirm: "[plugin-name] overridden: roles=[selected], stack_affinity=[selected or *]"
+
+##### Exclude Plugin
+
+1. List all plugins from registry via `AskUserQuestion`
+2. User selects a plugin
+3. Set `exclude: true` in `plugin_overrides` section of `.feature-flow.yml`
+4. Confirm: "[plugin-name] excluded. It will not be used in any lifecycle step."
+
+##### Reset Overrides
+
+1. Confirm via `AskUserQuestion`: "Remove all plugin overrides? Auto-classification will be restored."
+   Options: "Yes, reset all" / "Cancel"
+2. If confirmed: delete `plugin_overrides` section from `.feature-flow.yml`
+3. Confirm: "All plugin overrides cleared. Auto-classification restored."
 
 ---
 
