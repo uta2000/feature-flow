@@ -99,6 +99,26 @@ lsof -i :PORT
 ls -la /path/to/file
 ```
 
+## Codebase Assumptions
+
+- Function returns the expected shape (fields, types, nullability)
+- Type signature matches what the design expects to import
+- Middleware runs in the expected order
+- Config parsing produces the expected result
+- Existing helper handles the edge case the design relies on
+
+**Verification:**
+```bash
+# Check function return type or signature
+grep -n "function functionName\|export.*functionName" src/path/to/file.ts
+
+# Check type definition
+grep -n "interface TypeName\|type TypeName" src/types/*.ts
+
+# Check middleware order
+grep -n "app.use\|router.use" src/app.ts
+```
+
 ## Prior Session Assumptions
 
 - "The 403 is caused by X" → re-test the 403, check if it's resolved

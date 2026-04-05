@@ -69,7 +69,9 @@ and implicit ones embedded in the approach.
 | `data` | Test data relationships, IDs, foreign keys | "Patient X has Encounter Y" |
 | `prior-session` | Diagnoses or conclusions from previous work | "The 403 is caused by app registration" |
 
-**Dispatch 3 parallel Explore agents (model: haiku):**
+**Dispatch 3 parallel Explore agents (model: haiku).**
+Substitute `[DESIGN DOC CONTENT]` in each agent prompt with the full text of
+the document loaded in Step 1:
 
 ```
 Task(subagent_type: "Explore", model: "haiku", description: "Extract explicit assumptions", prompt: "
@@ -82,8 +84,8 @@ Task(subagent_type: "Explore", model: "haiku", description: "Extract explicit as
   - category: one of 'external-api' | 'discovery' | 'cross-service' | 'library' | 'codebase' | 'environment' | 'data' | 'prior-session'
   - assumption: string (the assumption in plain English)
   - source: string (file path and line reference if identifiable, or 'design doc')
-  - verifiable: boolean
-  - verification: { method: string, command: string, expected: string } | null
+  - verifiability: 'auto' | 'manual' | 'runtime' | 'unverifiable'
+  - verification: { method: string, command: string, expected: string } | null (required when verifiability is 'auto')
   - risk: 'critical' | 'high' | 'medium' | 'low'
   - risk_reason: string
 
@@ -106,8 +108,8 @@ Task(subagent_type: "Explore", model: "haiku", description: "Extract implicit as
   - category: one of 'external-api' | 'discovery' | 'cross-service' | 'library' | 'codebase' | 'environment' | 'data' | 'prior-session'
   - assumption: string (the assumption in plain English)
   - source: string (file path and line reference if identifiable, or 'design doc')
-  - verifiable: boolean
-  - verification: { method: string, command: string, expected: string } | null
+  - verifiability: 'auto' | 'manual' | 'runtime' | 'unverifiable'
+  - verification: { method: string, command: string, expected: string } | null (required when verifiability is 'auto')
   - risk: 'critical' | 'high' | 'medium' | 'low'
   - risk_reason: string
 
@@ -129,8 +131,8 @@ Task(subagent_type: "Explore", model: "haiku", description: "Extract dependency 
   - category: one of 'external-api' | 'discovery' | 'cross-service' | 'library' | 'codebase' | 'environment' | 'data' | 'prior-session'
   - assumption: string (the assumption in plain English)
   - source: string (file path and line reference if identifiable, or 'design doc')
-  - verifiable: boolean
-  - verification: { method: string, command: string, expected: string } | null
+  - verifiability: 'auto' | 'manual' | 'runtime' | 'unverifiable'
+  - verification: { method: string, command: string, expected: string } | null (required when verifiability is 'auto')
   - risk: 'critical' | 'high' | 'medium' | 'low'
   - risk_reason: string
 
@@ -151,7 +153,9 @@ and exit the skill.
 
 ### Step 3: Classify and Prioritize
 
-Merge results from all 3 agents. **Deduplicate** by category + source reference. When two agents surface the same assumption, keep the one with the higher risk level.
+Merge results from all 3 agents. **Deduplicate** by category + semantic similarity of assumption text (two assumptions about the same endpoint or same data relationship are duplicates even if worded differently). When duplicates are found, keep the one with the higher risk level.
+
+**Risk ordering (highest to lowest):** `critical` > `high` > `medium` > `low`
 
 **Risk Levels:**
 - `critical` — Wrong assumption blocks the entire feature (auth, endpoints, permissions)
@@ -199,9 +203,11 @@ service type.
 
 **Library verification fallback:**
 
-If `mcp__plugin_context7_context7__resolve-library-id` is not available, skip
-library verification and note in the report: "Context7 not available — library
-assumption not verified."
+If `mcp__plugin_context7_context7__resolve-library-id` is not available, attempt
+`grep` fallback on `node_modules` types as described in
+`references/assumption-patterns.md`. If that also fails, classify the assumption
+as `UNAVAILABLE` and add it to the "Blocked Assumptions" section with note:
+"Context7 not available — library assumption not verified."
 
 ### Step 5: Execute Verifications
 
@@ -319,7 +325,11 @@ file doesn't exist, create it.
 If `yolo: true` in ARGUMENTS:
 - Auto-execute all verifications without asking
 - Auto-add all gotchas for DENIED/DIFFERS findings
-- Auto-fix critical/high DENIED assumptions in the design doc
+- Auto-fix critical/high DENIED assumptions in the design doc:
+  for each DENIED assumption, locate the relevant section in the design doc
+  and replace the incorrect value (URL, endpoint, config) with the verified
+  correct value from the evidence. Add an inline annotation:
+  `> **CORRECTED:** Was [old value], verified as [new value] via [command]`
 - Announce: `YOLO: surface-assumptions — [N] assumptions verified, [M] denied → fixing plan`
 
 ## Quality Rules
