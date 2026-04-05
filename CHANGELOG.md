@@ -2,6 +2,11 @@
 
 All notable changes to the feature-flow plugin.
 
+## [Unreleased]
+
+### Added
+- **Assumption verification in design-verification — Batch 9, Category 25 (GH212)** — Design-verification now checks external assumptions alongside codebase checks. When a design references external APIs, OAuth endpoints, or cross-service patterns ("same as X"), a new Batch 9 agent fetches live discovery documents, compares against the design, and reports CONFIRMED/DENIED/DIFFERS findings. Conditionally dispatched — skipped with PASS for internal-only designs. New `assumptions-only` flag enables standalone invocation via "check my assumptions" or "what am I assuming" (skips Batches 1-8, runs only Batch 9). Includes reference files for assumption verification patterns (OAuth/OIDC, REST, cross-service, data, library, environment, prior-session, codebase) and discovery endpoints (FHIR, OAuth, REST/OpenAPI, GraphQL, gRPC, cloud services). Examples diversified across FHIR, Stripe, GitHub API, and generic REST.
+
 ## [1.29.1] - 2026-04-01
 
 ### Added
