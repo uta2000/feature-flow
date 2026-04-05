@@ -1,4 +1,4 @@
-plugin_version: 1.29.1
+plugin_version: 1.30.0
 platform: cli
 stack:
   - node-js
@@ -16,6 +16,22 @@ gotchas:
   - "Settings SKILL.md enforces max 4 options per AskUserQuestion — adding new dashboard categories requires merging with existing ones, not adding a 5th option"
 notifications:
   on_stop: bell
+standards:
+  enabled: false
 design_preferences:
   error_handling: exceptions
   testing: match_existing
+plugin_registry:
+  last_scanned: "2026-04-04"
+  base_plugins:
+    superpowers-marketplace/superpowers: {status: installed, version: "4.0.3"}
+    claude-plugins-official/context7: {status: installed}
+    claude-plugins-official/pr-review-toolkit: {status: installed}
+    claude-plugins-official/feature-dev: {status: installed}
+    claude-plugins-official/backend-api-security: {status: installed}
+  discovered_plugins:
+    claude-plugins-official/code-review: {status: installed, roles: [code_review]}
+    claude-plugins-official/code-simplifier: {status: installed, roles: [code_review]}
+    claude-plugins-official/playwright: {status: installed, roles: [testing]}
+    knowledge-work-plugins/engineering: {status: installed, roles: [code_review, design]}
+    knowledge-work-plugins/design: {status: installed, roles: [design]}

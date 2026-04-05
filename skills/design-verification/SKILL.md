@@ -1,6 +1,6 @@
 ---
 name: design-verification
-description: This skill should be used when the user asks to "verify the design", "check the design against the codebase", "validate the design doc", "check for blockers", "will this design work", or after writing a design document to catch schema conflicts, type mismatches, and pipeline assumptions before implementation.
+description: This skill should be used when the user asks to "verify the design", "check the design against the codebase", "validate the design doc", "check for blockers", "will this design work", or after writing a design document to catch schema conflicts, type mismatches, and pipeline assumptions before implementation, "check assumptions", "what am I assuming", "verify assumptions", "surface assumptions".
 tools: Read, Glob, Grep, Task, Bash, Write, Edit, WebFetch, WebSearch, AskUserQuestion
 ---
 
@@ -98,12 +98,15 @@ Dispatch parallel verification agents to check the design against the codebase. 
 | 6 | Stack/Platform/Docs | 15. Stack-Specific, 16. Platform-Specific, 17. Project Gotchas, 18. Documentation Compliance |
 | 7 | Implementation Quality | 19. Type Narrowness, 20. Error Strategy Completeness, 21. Function Complexity Forecast, 22. Edge Case Enumeration, 23. Stack Pattern Compliance |
 | 8 | Design Preferences | 24. Design Preferences Compliance |
+| 9 | External Assumptions | 25. External Assumptions |
+
+**`assumptions-only` flag:** If `assumptions-only` is present in ARGUMENTS, skip Batches 1–8 entirely and run only Batch 9. Announce: `Running assumption verification only (Batches 1-8 skipped).` Then proceed directly to Batch 9 dispatch below.
 
 **Verification depth filtering:** Before dispatching, consult the Verification Depth table below. Only dispatch batches containing at least one applicable category for the design's scope. Pass the list of applicable categories to each agent so it skips non-applicable categories within its batch.
 
 #### Dispatch
 
-Use the Task tool with `subagent_type: "Explore"` and `model: "sonnet"` for Batches 1-5 and Batch 7 (see `../../references/tool-api.md` — Task Tool for correct parameter syntax). Launch all applicable batch agents in a **single message** to run them concurrently. Announce: "Dispatching N verification agents in parallel..."
+Use the Task tool with `subagent_type: "Explore"` and `model: "sonnet"` for Batches 1-5 and Batch 7 (see `../../references/tool-api.md` — Task Tool for correct parameter syntax). Launch all applicable batch agents in a **single message** to run them concurrently. Announce: "Dispatching N verification agents in parallel..." (If `assumptions-only` is in ARGUMENTS, only Batch 9 is dispatched — see the `assumptions-only` flag above.)
 
 **Context passed to each agent:**
 
@@ -124,6 +127,7 @@ In addition to the universal context above, each batch receives the following do
 | 5 — Structure & Layout | `ui` |
 | 6 — Stack/Platform/Docs | *(see Batch 6 section below)* |
 | 7 — Implementation Quality | `schema` + `patterns` |
+| 9 — External Assumptions | *(no `exploration_results` sections — Batch 9 uses live fetching via WebFetch/WebSearch)* |
 
 **Expected return format per agent:**
 
@@ -204,6 +208,46 @@ Batch 8 (Design Preferences) is only dispatched if `.feature-flow.yml` exists an
 - The check instructions for category 24 (from `references/checklist.md` — look for the `<!-- batch: 8 -->` marker)
 - The codebase exploration results from Step 3
 - The `.feature-flow.yml` content (specifically the `design_preferences` field values)
+
+#### Batch 9 — Conditional Dispatch (External Assumptions)
+
+Batch 9 (External Assumptions) is conditionally dispatched based on the content of the design document. Before dispatching, scan the design document text for any of the following signals:
+
+- **URLs:** Any string matching `https://` (external service references)
+- **OAuth keywords:** Any of `oauth`, `oidc`, `smart`, `.well-known` (case-insensitive)
+- **Cross-service phrases:** Any of `same as`, `like we did for`, `reuse the` (case-insensitive)
+- **API endpoint patterns:** Any of `/api/`, `/v1/`, `/v2/`, `/v3/` (REST endpoint path fragments)
+
+**If no signals are detected:** Skip Batch 9 entirely. Add Category 25 to the results as:
+```json
+{ "category": "25. External Assumptions", "status": "PASS", "finding": "No external service references detected — assumption verification not required." }
+```
+Do not log a warning — this is the expected path for internal-only designs. If `assumptions-only` is active and no signals are detected, present a brief report with only the Category 25 PASS result: "No external assumptions found to verify." Skip the full report template.
+
+**If signals are detected:** Dispatch a single Batch 9 agent using the Task tool with `subagent_type: "Explore"` and `model: "sonnet"`. In the normal flow, include it in the same single-message launch as Batches 1-8 so all agents run concurrently. If `assumptions-only` is active, dispatch Batch 9 as a standalone single-agent message (no other batches to co-dispatch).
+
+**Context passed to the Batch 9 agent:**
+- The full design document content
+- The check instructions for Category 25 (from `references/checklist.md` — look for the `<!-- batch: 9 -->` marker)
+- The full content of `references/assumption-patterns.md`
+- The full content of `references/discovery-endpoints.md`
+- The `.feature-flow.yml` content (for project context)
+- The list of detected signals (URLs, OAuth keywords, cross-service phrases, API patterns found in the design)
+
+**Agent behavior:**
+The Batch 9 agent has access to WebFetch and WebSearch. It should:
+1. For each detected signal, identify which assumption pattern(s) from `assumption-patterns.md` apply
+2. Fetch live discovery documents or API specs where applicable (using endpoints from `discovery-endpoints.md`)
+3. Compare the fetched facts against the design's stated assumptions
+4. Return results in the standard format:
+
+```json
+[{ "category": "25. External Assumptions", "status": "PASS" | "FAIL" | "WARNING", "finding": "string" }]
+```
+
+If multiple distinct assumptions are verified, return one result object per assumption checked (each with `category: "25. External Assumptions"`). The orchestrator merges all into the unified report.
+
+*(No `exploration_results` sections are passed to Batch 9 — it operates on live-fetched API contracts, not codebase exploration results.)*
 
 #### Failure Handling
 
@@ -303,6 +347,8 @@ Adjust depth based on the design's scope:
 | UI-only change, no schema changes | Categories 4-6, 9-10, 12-14, 19-23 + platform/gotchas + Category 24 if design_preferences present |
 | Configuration or env change | Categories 7, 10-12, 14, 19-23 + stack/gotchas + Category 24 if design_preferences present |
 
+**Note:** Category 25 (External Assumptions) is scope-independent — it is triggered by content signals in the design document, not by design scope. Always evaluated if signals are present, regardless of which row above applies.
+
 ## Quality Rules
 
 - **Evidence-based:** Every FAIL must include the exact file path, line number, and current value that conflicts with the design
@@ -316,6 +362,8 @@ Adjust depth based on the design's scope:
 
 For the full detailed verification checklist with specific checks per category:
 - **`references/checklist.md`** — Base verification checklist with 14 categories (Batches 1-5) plus Category 24 as Batch 8. Batches 6 (categories 15-18) and 7 (categories 19-23) are defined inline in this SKILL.md.
+- **`references/assumption-patterns.md`** — Verification patterns for Batch 9 (OAuth/OIDC, REST APIs, cross-service equivalence, data relationships, library APIs, environment, prior session, codebase)
+- **`references/discovery-endpoints.md`** — Known discovery endpoints for FHIR, OAuth/OIDC, REST (OpenAPI), GraphQL, gRPC, and cloud services (AWS, GCP, Azure, Vercel, Supabase)
 
 For project context and stack/platform-specific checks:
 - **`../../references/project-context-schema.md`** — Schema for `.feature-flow.yml`
