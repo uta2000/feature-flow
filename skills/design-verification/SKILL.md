@@ -222,9 +222,9 @@ Batch 9 (External Assumptions) is conditionally dispatched based on the content 
 ```json
 { "category": "25. External Assumptions", "status": "PASS", "finding": "No external service references detected — assumption verification not required." }
 ```
-Do not log a warning — this is the expected path for internal-only designs.
+Do not log a warning — this is the expected path for internal-only designs. If `assumptions-only` is active and no signals are detected, present a brief report with only the Category 25 PASS result: "No external assumptions found to verify." Skip the full report template.
 
-**If signals are detected:** Dispatch a single Batch 9 agent using the Task tool with `subagent_type: "Explore"` and `model: "sonnet"`. Include it in the same single-message launch as Batches 1-8 so all agents run concurrently.
+**If signals are detected:** Dispatch a single Batch 9 agent using the Task tool with `subagent_type: "Explore"` and `model: "sonnet"`. In the normal flow, include it in the same single-message launch as Batches 1-8 so all agents run concurrently. If `assumptions-only` is active, dispatch Batch 9 as a standalone single-agent message (no other batches to co-dispatch).
 
 **Context passed to the Batch 9 agent:**
 - The full design document content
@@ -346,6 +346,8 @@ Adjust depth based on the design's scope:
 | New API route, existing data model | Categories 1-3, 5, 7-8, 10-12, 14, 18-23 + stack/platform/gotchas + Category 24 if design_preferences present |
 | UI-only change, no schema changes | Categories 4-6, 9-10, 12-14, 19-23 + platform/gotchas + Category 24 if design_preferences present |
 | Configuration or env change | Categories 7, 10-12, 14, 19-23 + stack/gotchas + Category 24 if design_preferences present |
+
+**Note:** Category 25 (External Assumptions) is scope-independent — it is triggered by content signals in the design document, not by design scope. Always evaluated if signals are present, regardless of which row above applies.
 
 ## Quality Rules
 

@@ -305,7 +305,7 @@ Free-text values are identified when the stored value does not match any of the 
 <!-- batch: 9 -->
 ## 25. External Assumptions
 
-*This category is skipped entirely if the design document contains no external service references. External references are detected by: URLs matching `https://`, OAuth keywords (`oauth`, `oidc`, `smart`, `.well-known`), cross-service phrases (`same as`, `like we did for`, `reuse the`), or API endpoint mentions (`/api/`, `/v1/`, `/v2/`).*
+*This category is skipped entirely if the design document contains no external service references. External references are detected by: URLs matching `https://`, OAuth keywords (`oauth`, `oidc`, `smart`, `.well-known`), cross-service phrases (`same as`, `like we did for`, `reuse the`), or API endpoint mentions (`/api/`, `/v1/`, `/v2/`, `/v3/`).*
 
 For each external service, OAuth provider, or cross-service equivalence claim in the design:
 
@@ -315,6 +315,7 @@ For each external service, OAuth provider, or cross-service equivalence claim in
 - [ ] **Prior-session diagnosis re-verification:** When the design references a conclusion from a previous session (e.g., "as we determined", "we found that", "the root cause is"), re-run the diagnostic — grep for the code pattern, read the file, re-check the assumption. Do not treat a prior conclusion as current fact.
 - [ ] **Library API assumption checks:** For every library method the design calls, verify the method exists and the signature matches in the installed version. Use Context7 as primary source; fall back to `Grep` on `node_modules/{library}/*.d.ts` or the package's changelog.
 - [ ] **Environment assumption checks:** For every environment variable, service port, or infrastructure component the design assumes, verify it exists in `.env.example`, `docker-compose.yml`, or equivalent config files.
+- [ ] **Codebase assumption checks:** For every function, utility, or module the design says it will reuse, verify it exists (grep for the name), is exported from the expected path, and has the expected signature and return type.
 
 **Where to look:**
 - `references/assumption-patterns.md` — per-category verification patterns with examples
