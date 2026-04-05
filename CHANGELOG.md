@@ -2,6 +2,11 @@
 
 All notable changes to the feature-flow plugin.
 
+## [Unreleased]
+
+### Added
+- **Surface Assumptions skill — Phase 1 MVP (GH210)** — New `surface-assumptions` skill that extracts implicit and explicit assumptions from design documents before implementation. Dispatches 3 parallel Explore/haiku agents for extraction across 8 categories (external-api, discovery, cross-service, library, codebase, environment, data, prior-session) and up to 5 parallel general-purpose/haiku agents for automated verification. Reports CONFIRMED/DENIED/DIFFERS/UNAVAILABLE verdicts with evidence. Critical rule: cross-service assumptions ("same as X") always fetch discovery docs for BOTH services. Prior-session diagnoses are treated as assumptions, not facts. Auto-generates gotchas for denied findings. YOLO mode auto-verifies, auto-fixes, and auto-adds gotchas. Includes reference files for assumption patterns and discovery endpoints by service type. Phase 1 is standalone invocation only — lifecycle integration deferred to Phase 2.
+
 ## [1.29.1] - 2026-04-01
 
 ### Added
