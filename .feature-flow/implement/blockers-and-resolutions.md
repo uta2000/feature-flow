@@ -1,3 +1,7 @@
 # Blockers and Resolutions
 
-## [To be populated during implementation]
+## Blockers Encountered
+<!-- Populated during implementation -->
+
+## Resolutions Applied
+<!-- Populated during implementation -->
