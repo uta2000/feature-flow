@@ -346,7 +346,7 @@ git commit -m "feat: add discovery-endpoints reference for surface-assumptions s
 - [ ] File contains `### Step 1: Load Context` that loads user-specified path or most recent `.md` in `docs/plans/` via `Glob: docs/plans/*.md`, plus `.feature-flow.yml`
 - [ ] File contains `### Step 2: Extract Assumptions` that dispatches exactly 3 parallel Explore/haiku agents (explicit, implicit, dependency)
 - [ ] The Step 2 agent dispatch uses correct Task tool syntax: `Task(subagent_type: "Explore", model: "haiku", ...)`
-- [ ] Each extraction agent returns the JSON schema with fields: `id`, `category`, `assumption`, `source`, `verifiable`, `verification` (with `method`, `command`, `expected`), `risk`, `risk_reason`
+- [ ] Each extraction agent returns the JSON schema with fields: `id`, `category`, `assumption`, `source`, `verifiability` (auto/manual/runtime/unverifiable), `verification` (with `method`, `command`, `expected`), `risk`, `risk_reason`
 - [ ] The 8 assumption categories are documented: `external-api`, `discovery`, `cross-service`, `library`, `codebase`, `environment`, `data`, `prior-session`
 - [ ] File contains empty-result early-exit: "No assumptions detected in this design — nothing to verify." when all three agents return zero assumptions
 - [ ] File contains `### Step 3: Classify and Prioritize` with deduplication rule (category + source reference; higher risk wins)
