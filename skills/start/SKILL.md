@@ -565,6 +565,7 @@ For inline steps (CHANGELOG generation, self-review, code review, study existing
 | `design_doc` | After design document step (the absolute path returned by the skill) |
 | `plan_file` | After implementation plan step (the absolute path of the saved plan file) |
 | `worktree` | After worktree setup (the absolute path to the created worktree) |
+| `pr` | After "Commit and PR" step (the PR number extracted from the `superpowers:finishing-a-development-branch` output) |
 
 Include only paths that are known at the time of each invocation — do not include paths for artifacts that haven't been created yet. Example invocations showing progressive accumulation:
 
@@ -616,6 +617,7 @@ Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/p
 | Beta testing | No skill — manual step | TestFlight / Play Console build tested by internal tester |
 | App store review | No skill — manual step | Submission accepted |
 | Comment and close issue | No skill — inline step (see below) | Issue commented with implementation summary + closed |
+| Ship (merge related PRs) | `feature-flow:merge-prs` | All discoverable PRs merged or skipped; Ship Phase Summary printed |
 
 ### Orchestration Overrides
 
@@ -639,6 +641,7 @@ Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/p
 | `plan` | Implementation plan | After `superpowers:writing-plans` returns |
 | `implementation` | Implement | Before `superpowers:subagent-driven-development` is invoked |
 | `pr` | Commit and PR | Before `superpowers:finishing-a-development-branch` is invoked |
+| `ship` | Ship (merge related PRs) | Before `feature-flow:merge-prs` is invoked |
 
 **Checkpoint behavior:** In the Step 3 execution loop, after a YOLO-eligible phase completes (between sub-steps 4 "Confirm completion" and 5 "Mark complete"), check if the completed phase name is in the loaded `stop_after` list:
 
@@ -690,6 +693,37 @@ if yolo_mode AND current_phase_name in config.yolo.stop_after:
 ### Comment and Close Issue Step (inline — no separate skill)
 
 **Read `references/inline-steps.md` — "Comment and Close Issue Step" section** when reaching this step.
+
+### Ship Step (lifecycle — feature and major feature scopes only)
+
+After "Comment and close issue" completes, execute the Ship phase if the current scope is Feature or Major feature:
+
+**Step 1: Check for discoverable PRs**
+```bash
+gh pr list --label feature-flow --base <base_branch> --state open --json number,title,headRefName --jq 'length'
+```
+- If result is `0`: announce "Ship: no feature-flow PRs found — lifecycle complete." Skip this step.
+- If result is `1+`: continue.
+
+**Step 2: YOLO stop_after check**
+Before invoking `feature-flow:merge-prs`, check if `ship` is in `yolo.stop_after`:
+```
+if yolo_mode AND "ship" in config.yolo.stop_after:
+    AskUserQuestion: "YOLO checkpoint: Ship phase ready. [N] PRs discovered. Continue?"
+    - "Continue YOLO"
+    - "Switch to Interactive"
+    Announce: "YOLO: checkpoint — ship → paused for review"
+```
+
+**Step 3: Invoke merge-prs**
+```
+Skill(skill: "feature-flow:merge-prs", args: "[mode_flag] base_branch: <base_branch>. pr: <pr_number>. [design_doc: <path> if available]")
+```
+
+Where `[mode_flag]` is:
+- `yolo: true.` in YOLO mode
+- `express: true.` in Express mode
+- (nothing) in Interactive mode
 
 ### Documentation Lookup Step (inline — no separate skill)
 
