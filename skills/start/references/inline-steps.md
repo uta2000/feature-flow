@@ -700,3 +700,58 @@ When a subagent surfaces a blocker (a problem that halts a task, requires rethin
 ```
 
 Update the entry once the blocker is resolved, replacing `pending` with the actual resolution and commit SHA.
+
+---
+
+## Commit and PR Step
+
+This step delegates PR creation to `superpowers:finishing-a-development-branch` via the Skill tool. After the skill returns, the orchestrator performs post-creation housekeeping.
+
+### Post-PR-Creation: Apply feature-flow Label and Body Markers
+
+After `superpowers:finishing-a-development-branch` returns, extract the PR number from its output (look for a GitHub PR URL pattern: `https://github.com/.*/pull/(\d+)`).
+
+Store the extracted number as the `pr` context key for subsequent skill invocations.
+
+Then run the following in sequence:
+
+**1. Ensure the `feature-flow` label exists (idempotent):**
+```bash
+gh label create feature-flow \
+  --description "Managed by feature-flow lifecycle" \
+  --color 0E8A16 \
+  --force 2>/dev/null || true
+```
+
+**2. Apply the label to the PR:**
+```bash
+gh pr edit <pr_number> --add-label feature-flow
+```
+
+**3. Append body markers:**
+```bash
+# Get current PR body
+CURRENT_BODY=$(gh pr view <pr_number> --json body --jq '.body')
+
+# Build markers block
+MARKERS="<!-- feature-flow-session -->"
+if [ -n "<design_doc_path>" ]; then
+  MARKERS="${MARKERS}
+<!-- feature-flow-design-doc: <design_doc_path> -->"
+fi
+
+# Append to body (only if marker not already present)
+if ! echo "$CURRENT_BODY" | grep -q "feature-flow-session"; then
+  gh pr edit <pr_number> --body "${CURRENT_BODY}
+
+${MARKERS}"
+fi
+```
+
+Where `<design_doc_path>` is the `design_doc` value from the lifecycle context object (may be absent for quick fix / small enhancement scopes).
+
+**YOLO behavior:** Run silently. Announce: `YOLO: start — PR #<number> labeled feature-flow + body markers applied`
+**Express behavior:** Same as YOLO — run silently, announce.
+**Interactive behavior:** Run silently (no prompt needed — this is automatic housekeeping).
+
+**Error handling:** If any of these steps fail (label creation, label application, body edit), log the failure and continue. These steps are housekeeping — failure must never block the lifecycle. Announce: `Warning: feature-flow label/marker apply failed for PR #<number> — Ship phase auto-discovery may not work. Run manually: gh pr edit <number> --add-label feature-flow`
