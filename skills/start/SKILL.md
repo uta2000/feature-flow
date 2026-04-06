@@ -437,8 +437,8 @@ Determine the recommended mode using three signals:
 |-------|-------------|---------|------|
 | Quick fix (7 steps) | Low | Low | Low |
 | Small enhancement (14-17 steps) | Medium | Low | Low |
-| Feature (18 steps) | High | Medium | Medium |
-| Major feature (19 steps) | Very High | High | High |
+| Feature (21 steps) | High | Medium | Medium |
+| Major feature (22 steps) | Very High | High | High |
 
 **Combined scope + mode prompt:**
 

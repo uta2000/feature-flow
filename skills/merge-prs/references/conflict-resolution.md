@@ -43,8 +43,10 @@ keywords = ["if ", "else", "for ", "while ", "return ", "throw ", "switch", "cas
 if any keyword appears in the conflict marker region → classify as behavioral
 ```
 
-**Announce format (all modes):**
-`YOLO: ship — Behavioral conflict in PR #N ([file]:[location]) → paused`
+**Announce format (mode-aware):**
+- YOLO: `YOLO: ship — Behavioral conflict in PR #N ([file]:[location]) → paused`
+- Express: `Express: ship — Behavioral conflict in PR #N ([file]:[location]) → paused`
+- Interactive: `Ship: Behavioral conflict in PR #N ([file]:[location]) — review required`
 
 Then use `AskUserQuestion`:
 - Show the conflict diff (trimmed to 40 lines if longer)

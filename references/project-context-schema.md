@@ -331,7 +331,7 @@ Optional configuration for YOLO mode stopping points. When YOLO mode runs the fu
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `stop_after` | list of strings | `[]` (empty) | Phases after which YOLO pauses for user review. Valid values: `brainstorming`, `design`, `verification`, `plan`. |
+| `stop_after` | list of strings | `[]` (empty) | Phases after which YOLO pauses for user review. Valid values: `brainstorming`, `design`, `verification`, `plan`, `implementation`, `pr`, `ship`. |
 
 **Valid `stop_after` values:**
 
@@ -343,6 +343,7 @@ Optional configuration for YOLO mode stopping points. When YOLO mode runs the fu
 | `plan` | Planning phase — review the task breakdown before implementation |
 | `implementation` | Before implementation starts — last chance to review before subagents code |
 | `pr` | Before PR creation — review the final diff before it goes public |
+| `ship` | Before Ship phase — review before batch merging feature-flow PRs |
 
 **Format:**
 
@@ -358,7 +359,7 @@ yolo:
 
 **When `stop_after` is an empty list:** Same as absent — YOLO runs all phases without stopping.
 
-**Invalid values:** Unrecognized phase names in `stop_after` are silently ignored. Only the 6 valid values listed above trigger checkpoints.
+**Invalid values:** Unrecognized phase names in `stop_after` are silently ignored. Only the 7 valid values listed above trigger checkpoints.
 
 **Checkpoint behavior:** At each listed stopping point, the `start` skill orchestrator pauses and presents the phase output via `AskUserQuestion` with two options: "Continue YOLO" (resume unattended execution) or "Switch to Interactive" (disable YOLO for remaining phases).
 
