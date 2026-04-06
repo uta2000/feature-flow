@@ -1,3 +1,3 @@
 # Patterns Found
-## How to Code This
-## Key Files to Reference
+
+## [Pending: Study Existing Patterns step]

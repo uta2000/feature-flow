@@ -1,3 +1,3 @@
 # Blockers and Resolutions
-## Blockers Encountered
-## Resolutions Applied
+
+## [No blockers yet — implementation not started]
