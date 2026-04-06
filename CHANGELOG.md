@@ -2,6 +2,11 @@
 
 All notable changes to the feature-flow plugin.
 
+## [Unreleased]
+
+### Added
+- **Merge-PRs Ship phase integration (GH214)** — New `feature-flow:merge-prs` skill integrates the standalone merge-prs orchestration into the feature-flow lifecycle as an optional "Ship" phase. Discovers open PRs via GitHub `feature-flow` label (applied automatically during PR creation), orders them optimally (independent first, foundation before dependents, passing CI first), and merges sequentially with conflict detection. Trivial conflicts (imports, whitespace, lock files, CHANGELOG) auto-resolve; behavioral conflicts (function bodies, conditionals, API contracts, schemas) always pause for human confirmation — even in YOLO mode. Three invocation modes: lifecycle (auto from start), standalone (`merge-prs 185 186`), cross-session (`merge-prs feature-flow`). Ship phase added to Feature (step 21) and Major feature (step 22) step lists. New optional `.feature-flow.yml` `merge:` config section (strategy, delete_branch, require_ci, require_review, auto_discover). PR body markers (`<!-- feature-flow-session -->`, `<!-- feature-flow-design-doc: path -->`) enable design-doc-aware conflict resolution. Continue-on-failure error recovery — skips problematic PRs, reports at end. `pr` added to Lifecycle Context Object. `ship` added to YOLO `stop_after` valid values.
+
 ## [1.30.0] - 2026-04-04
 
 ### Added
