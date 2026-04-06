@@ -94,6 +94,7 @@ If the small enhancement qualifies for fast-track (issue richness 3+ or equivale
 - [ ] 18. Commit and PR
 - [ ] 19. Wait for CI and address reviews
 - [ ] 20. Comment and close issue
+- [ ] 21. Ship (merge related PRs)
 ```
 
 ### Major feature
@@ -120,6 +121,7 @@ If the small enhancement qualifies for fast-track (issue richness 3+ or equivale
 - [ ] 19. Commit and PR
 - [ ] 20. Wait for CI and address reviews
 - [ ] 21. Comment and close issue
+- [ ] 22. Ship (merge related PRs)
 ```
 
 ### Mobile platform adjustments (ios, android, cross-platform)

@@ -21,6 +21,12 @@ standards:
 design_preferences:
   error_handling: exceptions
   testing: match_existing
+# merge:                       # Optional: Ship phase merge configuration (all fields have defaults)
+# strategy: squash             # squash | merge | rebase (default: squash)
+# delete_branch: true          # delete branch after merge (default: true)
+# require_ci: true             # require CI green before merge (default: true)
+# require_review: true         # require approved review before merge (default: true)
+# auto_discover: label         # label | body_marker | both (default: label)
 plugin_registry:
   last_scanned: "2026-04-04"
   base_plugins:

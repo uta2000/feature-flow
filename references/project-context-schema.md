@@ -331,7 +331,7 @@ Optional configuration for YOLO mode stopping points. When YOLO mode runs the fu
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `stop_after` | list of strings | `[]` (empty) | Phases after which YOLO pauses for user review. Valid values: `brainstorming`, `design`, `verification`, `plan`. |
+| `stop_after` | list of strings | `[]` (empty) | Phases after which YOLO pauses for user review. Valid values: `brainstorming`, `design`, `verification`, `plan`, `implementation`, `pr`, `ship`. |
 
 **Valid `stop_after` values:**
 
@@ -343,6 +343,7 @@ Optional configuration for YOLO mode stopping points. When YOLO mode runs the fu
 | `plan` | Planning phase — review the task breakdown before implementation |
 | `implementation` | Before implementation starts — last chance to review before subagents code |
 | `pr` | Before PR creation — review the final diff before it goes public |
+| `ship` | Before Ship phase — review before batch merging feature-flow PRs |
 
 **Format:**
 
@@ -358,7 +359,7 @@ yolo:
 
 **When `stop_after` is an empty list:** Same as absent — YOLO runs all phases without stopping.
 
-**Invalid values:** Unrecognized phase names in `stop_after` are silently ignored. Only the 6 valid values listed above trigger checkpoints.
+**Invalid values:** Unrecognized phase names in `stop_after` are silently ignored. Only the 7 valid values listed above trigger checkpoints.
 
 **Checkpoint behavior:** At each listed stopping point, the `start` skill orchestrator pauses and presents the phase output via `AskUserQuestion` with two options: "Continue YOLO" (resume unattended execution) or "Switch to Interactive" (disable YOLO for remaining phases).
 
@@ -504,6 +505,38 @@ plugin_overrides:
 
 **When absent:** All plugins use their auto-classified roles and inferred stack affinity from the `plugin_registry`. The field is never auto-written; it is only added via the `/settings` Plugins submenu or manually.
 
+### `merge`
+
+**Type:** Object (optional)
+**Default:** All sub-fields use their defaults (see below)
+**Auto-managed:** No — user-configured
+**Committed to git:** Yes
+
+Controls merge behavior for the Ship phase and standalone `merge-prs` invocations.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `strategy` | `"squash"` \| `"merge"` \| `"rebase"` | `"squash"` | Git merge strategy |
+| `delete_branch` | boolean | `true` | Delete branch after merge |
+| `require_ci` | boolean | `true` | Require CI green before merge |
+| `require_review` | boolean | `true` | Require approved review before merge |
+| `auto_discover` | `"label"` \| `"body_marker"` \| `"both"` | `"label"` | PR auto-discovery mechanism |
+
+**Format:**
+
+```yaml
+merge:
+  strategy: squash          # squash | merge | rebase (default: squash)
+  delete_branch: true       # delete branch after merge (default: true)
+  require_ci: true          # require CI green before merge (default: true)
+  require_review: true      # require approved review before merge (default: true)
+  auto_discover: label      # label | body_marker | both (default: label)
+```
+
+**When needed:** Only when you want to override Ship phase merge defaults. Most projects can omit this section and rely on the defaults.
+
+**When absent:** Ship phase uses: squash merge, delete branch, require CI green, require approved review, label-based auto-discovery.
+
 ## Enums
 
 The following string enums are used throughout `plugin_registry` and `plugin_overrides`.
@@ -635,3 +668,10 @@ Includes platform-relevant sections in the issue template.
 ### settings (reads + writes)
 - **Reads** any field in `.feature-flow.yml` to display the current configuration to the user.
 - **Writes** updated field values to `.feature-flow.yml` when the user changes a setting (e.g., `tool_selector`, `notifications`, `knowledge_base`, `design_preferences`).
+
+### merge-prs (reads)
+- **Reads** `merge.strategy` to determine the `gh pr merge` flag (`--squash`, `--merge`, or `--rebase`). Defaults to `--squash` if absent.
+- **Reads** `merge.delete_branch` to determine whether to pass `--delete-branch` to `gh pr merge`. Defaults to `true`.
+- **Reads** `merge.require_ci` to determine whether to skip PRs with failing CI. Defaults to `true`.
+- **Reads** `merge.require_review` to determine whether to skip PRs with pending/rejected reviews. Defaults to `true`.
+- **Reads** `merge.auto_discover` to determine which PR discovery mechanism to use (`label`, `body_marker`, or `both`). Defaults to `label`.
