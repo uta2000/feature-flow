@@ -112,7 +112,7 @@ yolo:
     - plan          # Pause after implementation plan
 ```
 
-Available stop points: `brainstorming`, `design`, `verification`, `plan`, `implementation`, `pr`. At each checkpoint, you can continue YOLO or switch to Interactive for the remaining phases. Express mode does not honor `stop_after` — it has its own design approval checkpoint.
+Available stop points: `brainstorming`, `design`, `verification`, `plan`, `implementation`, `pr`, `ship`. At each checkpoint, you can continue YOLO or switch to Interactive for the remaining phases. Express mode does not honor `stop_after` — it has its own design approval checkpoint.
 
 Use `/settings` to configure stop points interactively with a multi-select UI.
 
@@ -143,6 +143,7 @@ feature-flow owns the design and verification phases. superpowers owns implement
 | Commit and PR | superpowers | `finishing-a-development-branch` |
 | Wait for CI & reviews | **feature-flow** (inline) | Polls CI checks, detects review bots, addresses inline comments |
 | Comment and close issue | **feature-flow** (inline) | Posts implementation summary, closes linked issue |
+| Ship (merge PRs) | **feature-flow** | `merge-prs` (optional — discovers and batch-merges feature-flow PRs) |
 
 ## Skills
 
@@ -168,6 +169,7 @@ feature-flow owns the design and verification phases. superpowers owns implement
 |-------|------|---------|
 | `verify-plan-criteria` | 8 | Validate every task has machine-verifiable acceptance criteria, auto-draft missing ones |
 | `verify-acceptance-criteria` | 12 | Mechanically check each criterion against the codebase before claiming work is done |
+| `merge-prs` | 21/22 | Discover, order, and merge feature-flow PRs — lifecycle Ship phase or standalone batch merge |
 | `session-report` | — | Analyze completed Claude Code session JSON files for token usage, cost, test progression, thrashing, and optimization recommendations |
 
 ### Agent
@@ -218,7 +220,8 @@ Skills that need project context (`design-verification`, `spike`) will auto-crea
 21. Wait for CI & Address Reviews  ← inline (polls CI checks, detects review bots, addresses comments)
 21b. App Store Review              ← mobile only
 22. Comment and Close Issue        ← inline (implementation summary + close)
-23. Deploy
+23. Ship (merge related PRs)       ← merge-prs (optional — Feature/Major only, skips if no PRs)
+24. Deploy
 ```
 
 ## Hooks
@@ -266,9 +269,15 @@ design_preferences:      # Project-wide design preferences (captured during firs
 knowledge_base:          # Per-feature context file settings
   max_lines: 150         # Archive oldest decisions when file exceeds this
   stale_days: 14         # Archive decisions older than this many days
+merge:                   # Ship phase merge configuration (all fields optional with defaults)
+  strategy: squash       # squash | merge | rebase
+  delete_branch: true    # delete branch after merge
+  require_ci: true       # require CI green before merge
+  require_review: true   # require approved review before merge
+  auto_discover: label   # label | body_marker | both
 yolo:                    # YOLO mode stopping points (empty = no pauses)
   stop_after:
-    - design             # brainstorming | design | verification | plan | implementation | pr
+    - design             # brainstorming | design | verification | plan | implementation | pr | ship
     - plan
 ```
 
@@ -284,6 +293,7 @@ yolo:                    # YOLO mode stopping points (empty = no pauses)
 - `design_preferences` stores 5 project-wide design choices (error handling, API style, state management, testing, UI pattern) captured during the first Feature-scope brainstorming — loaded silently on subsequent runs
 - `knowledge_base` controls per-feature `FEATURE_CONTEXT.md` archival (line count, staleness)
 - `ci_timeout_seconds` controls how long the post-PR step waits for CI checks to complete
+- `merge` controls Ship phase merge behavior — strategy (squash/merge/rebase), CI/review requirements, and PR auto-discovery mechanism
 - `yolo.stop_after` adds review checkpoints at specific lifecycle phases during YOLO mode (see YOLO Stops below)
 
 **Auto-discovery:** On first run, `start` scans your project files, detects the stack, and resolves Context7 library IDs for each detected technology. It presents the full context for confirmation. On subsequent runs, it cross-checks for new dependencies and suggests additions.
