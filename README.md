@@ -279,6 +279,10 @@ yolo:                    # YOLO mode stopping points (empty = no pauses)
   stop_after:
     - design             # brainstorming | design | verification | plan | implementation | pr | ship
     - plan
+quality_gates:           # Post-task quality gate configuration (all fields optional with defaults)
+  after_task: true       # run gate after each task's commits (default: true)
+  scope_lint: true       # scope lint to changed files — faster (default: true)
+  skip_tests: false      # skip test runner per task — for slow suites (default: false)
 ```
 
 **Should you commit this file?** Yes — `.feature-flow.yml` should be committed to your repo. It captures project-specific knowledge (especially gotchas) that benefits the whole team. It's not sensitive data and evolves with the project.
@@ -295,6 +299,7 @@ yolo:                    # YOLO mode stopping points (empty = no pauses)
 - `ci_timeout_seconds` controls how long the post-PR step waits for CI checks to complete
 - `merge` controls Ship phase merge behavior — strategy (squash/merge/rebase), CI/review requirements, and PR auto-discovery mechanism
 - `yolo.stop_after` adds review checkpoints at specific lifecycle phases during YOLO mode (see YOLO Stops below)
+- `quality_gates` controls the Post-Task Quality Gate that runs after each implementation task's commits — `after_task: false` disables it, `skip_tests: true` skips tests per task for slow test suites
 
 **Auto-discovery:** On first run, `start` scans your project files, detects the stack, and resolves Context7 library IDs for each detected technology. It presents the full context for confirmation. On subsequent runs, it cross-checks for new dependencies and suggests additions.
 

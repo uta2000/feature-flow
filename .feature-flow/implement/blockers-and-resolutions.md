@@ -1,3 +1,3 @@
 # Blockers and Resolutions
 
-## [No blockers yet — implementation not started]
+<!-- Updated during implementation when blockers are encountered -->
