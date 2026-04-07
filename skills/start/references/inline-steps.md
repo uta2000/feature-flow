@@ -361,7 +361,7 @@ After writing, announce: "CHANGELOG.md updated with N entries across M categorie
 
 ## Sync with Base Branch Step
 
-This step runs after final verification and before commit and PR. It fetches the latest from origin and merges the base branch into the feature branch, ensuring no divergence has accumulated from parallel feature work. Uses `git merge` instead of `git rebase` — merge produces a single conflict resolution pass regardless of commit count, while rebase replays each commit individually (N commits = up to N separate conflict rounds). This is especially important for feature-flow branches that touch context tracking files (`.feature-flow/*`, `FEATURE_CONTEXT.md`, `CHANGELOG.md`), which are guaranteed conflict targets.
+This step runs after final verification and before commit and PR. It fetches the latest from origin and merges the base branch into the feature branch, ensuring no divergence has accumulated from parallel feature work. Uses `git merge` instead of `git rebase` — merge produces a single conflict resolution pass regardless of commit count, while rebase replays each commit individually (N commits = up to N separate conflict rounds).
 
 **Configuration:** The merge strategy is the default. Projects requiring linear history can set `git_strategy: rebase` in `.feature-flow.yml` to use the old rebase behavior.
 
@@ -393,15 +393,8 @@ This step runs after final verification and before commit and PR. It fetches the
       ```bash
       git diff --name-only --diff-filter=U
       ```
-   b. **For `CHANGELOG.md` conflicts (auto-resolved):**
-      - Read the conflicted file
-      - Extract HEAD's Unreleased entries: lines between `<<<<<<< HEAD` and `=======`
-      - Extract incoming Unreleased entries: lines between `=======` and `>>>>>>> <hash>`
-      - Merge strategy: start with HEAD's full Unreleased block, then append any category entries from the incoming block that aren't already present (case-insensitive dedup per entry)
-      - Write the resolved file (no conflict markers)
-      - Stage the file: `git add CHANGELOG.md`
-   c. **For other conflicted files:**
-      - Announce: "Non-CHANGELOG conflicts detected in: [files]. Pausing for manual resolution."
+   b. **For conflicted files:**
+      - Announce: "Conflicts detected in: [files]. Pausing for manual resolution."
       - Show the user exactly what to do:
         ```
         1. Resolve conflicts in: [file list]
@@ -410,13 +403,10 @@ This step runs after final verification and before commit and PR. It fetches the
         4. Type 'continue' to resume the lifecycle
         ```
       - Wait for the user to resolve and respond before proceeding.
-   d. If only CHANGELOG.md was conflicted (now auto-resolved and staged):
-      - For merge: `git commit --no-edit` (completes the merge commit)
-      - For rebase: `git rebase --continue` (may trigger further conflicts on subsequent commits — repeat step 4b)
 
 5. Announce: "Synced with origin/<base-branch>. Ready to push and create PR."
 
-**YOLO behavior:** Run silently. If non-CHANGELOG conflicts are detected, pause and announce the conflict files — YOLO cannot resolve arbitrary conflicts automatically. Announce: `YOLO: start — Sync with base branch → [up to date | merged N commits | conflicts in: files (paused)]`
+**YOLO behavior:** Run silently. If conflicts are detected, pause and announce the conflict files — YOLO cannot resolve arbitrary conflicts automatically. Announce: `YOLO: start — Sync with base branch → [up to date | merged N commits | conflicts in: files (paused)]`
 
 ---
 
