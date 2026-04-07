@@ -548,8 +548,8 @@ Controls whether and how the Post-Task Quality Gate runs during the Implement st
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `after_task` | boolean | `true` | Run the quality gate after each task's commits. Set to `false` to revert to the pre-v1.32.0 behavior (gates only at Final Verification and Stop hook). |
-| `scope_lint` | boolean | `true` | Scope lint to changed files (faster). When `true`, ESLint/Biome/Ruff receive only the files changed in the current task. When `false`, lint runs on the full project. Has no effect when `npm run lint` is used (custom scripts manage their own scope). |
+| `after_task` | boolean | `true` | Run the quality gate after each task's commits. Set to `false` to disable per-task gates (gates only at Final Verification and Stop hook). |
+| `scope_lint` | boolean | `true` | Scope lint to changed files (faster). When `true`, ESLint/Biome receive only the files changed in the current task. When `false`, lint runs on the full project. Has no effect when `npm run lint` is used (custom scripts manage their own scope). |
 | `skip_tests` | boolean | `false` | Skip the test runner in the post-task gate. Useful for projects with slow test suites (> 60s). When `true`, only typecheck and lint run per task; tests run at Final Verification as usual. |
 
 **Format:**

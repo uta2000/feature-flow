@@ -227,18 +227,23 @@ After all acceptance criterion commits for a task are complete, run a lightweigh
    Full project check — incremental tsc is already fast and needs cross-file context.
 
 4. **Run lint check** (scoped to changed files when `quality_gates.scope_lint` is `true`, default `true`):
+   Use the same linter detection as `hooks/scripts/quality-gate.js` `checkLint()`:
    - If `package.json` has a `lint` script: run `npm run lint` (unscoped — custom scripts may have their own scope)
    - Else if `node_modules/.bin/eslint` exists and ESLint config present: `npx eslint <CHANGED_FILES>`
    - Else if `node_modules/.bin/biome` exists and Biome config present: `npx biome check <CHANGED_FILES>`
-   - Else if `ruff` available (check `pyproject.toml` or `ruff.toml` present): `ruff check <CHANGED_FILES>`
    - Else: skip lint (no supported linter detected)
 
    When `quality_gates.scope_lint` is `false`, run all linters on the full project (pass `.` instead of `<CHANGED_FILES>`).
 
 5. **Run tests** (only if TypeScript check passed; skip if `quality_gates.skip_tests: true`):
-   Use the same test command detection as `hooks/scripts/quality-gate.js`:
-   - `package.json` has `test` script → `npm test`
-   - `pytest` available (check `pyproject.toml`) → `pytest`
+   Use the same test command detection as `hooks/scripts/quality-gate.js` `detectTestCommand()`:
+   - `package.json` has `test` script (and not "no test specified") → `npm test`
+   - `Cargo.toml` exists → `cargo test`
+   - `go.mod` exists → `go test ./...`
+   - `mix.exs` exists → `mix test`
+   - `pyproject.toml`, `pytest.ini`, `setup.cfg`, or `tox.ini` exists → `python -m pytest`
+   - `deno.json` or `deno.jsonc` exists → `deno test`
+   - `bun.lockb`, `bun.lock`, or `bunfig.toml` exists → `bun test`
    - Else: skip tests (no test runner detected)
 
 6. **On success:** Write the verification marker:
