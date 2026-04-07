@@ -152,3 +152,59 @@ Conflicting file: `package-lock.json`
 
 Classification: **trivial** — auto-generated lock file.
 Resolution: delete, run `npm install` to regenerate.
+
+### Example 4: Additive-only — reclassified from behavioral to trivial
+
+```
+<<<<<<< HEAD
++function newHelper() {
++  return computeValue();
++}
+=======
++function otherHelper() {
++  if (condition) return fallback;
++}
+>>>>>>> feature-branch
+```
+
+**Old classification:** `return` and `if` detected → behavioral → pause for review.
+**New classification:** Both sides add new lines, no shared lines modified → **trivial** (one-sided/additive) → auto-resolve (take both).
+
+**Why reclassified:** Structure classification (Step 1) identifies this as adjacent additions — both blocks contain only new lines. The keyword check (Step 2) is never reached.
+
+### Example 5: Context-only keywords — reclassified from behavioral to trivial
+
+```
+function existingCode() {
+  if (x) return y;  // ← context line, NOT between conflict markers
+<<<<<<< HEAD
++  logMetric('a');
+=======
++  logMetric('b');
+>>>>>>> feature-branch
+}
+```
+
+**Old classification:** `if` and `return` found in the conflict region → behavioral → pause for review.
+**New classification:** Keywords only appear in surrounding context lines (outside `<<<<<<<`/`=======`/`>>>>>>>` markers) → **trivial** → keywords are ignored, classify based on conflict content only.
+
+**Why reclassified:** Context-only keywords are not part of the conflict. The actual conflicting lines (`logMetric('a')` vs `logMetric('b')`) contain no behavioral keywords.
+
+### Example 6: True both-sided modification — still behavioral
+
+```
+<<<<<<< HEAD
+  if (user.isAdmin) {
+    return adminDashboard();
+  }
+=======
+  if (user.role === 'superadmin') {
+    return superAdminView();
+  }
+>>>>>>> feature-branch
+```
+
+**Old classification:** behavioral (correct).
+**New classification:** Both sides modify the same existing `if` condition and return statement → **behavioral** → pause for review (unchanged).
+
+**Why still behavioral:** Structure classification (Step 1) identifies this as a both-sided modification — both sides change the same existing lines. The keyword check (Step 2) confirms `if` and `return` are present → behavioral. This is the only scenario where semantic conflicts are possible.
