@@ -14,3 +14,5 @@ dispatcher.db
 .feature-flow/
 FEATURE_CONTEXT.md
 DECISIONS_ARCHIVE.md
+FEATURE_CONTEXT.md
+.feature-flow/
