@@ -2,10 +2,22 @@
 
 All notable changes to the feature-flow plugin.
 
-## [Unreleased]
+## [1.32.0] - 2026-04-07
 
 ### Added
+- **Eliminate metadata file merge conflicts from parallel worktrees (GH217)** — `.feature-flow/` and `FEATURE_CONTEXT.md` are now session-local (not committed to feature branches), eliminating 80%+ of merge conflicts in parallel worktree workflows. New changelog fragment system writes per-PR entries to `.changelogs/<id>.md` instead of appending to `CHANGELOG.md` directly — fragments are consolidated into `CHANGELOG.md` by the Ship phase's new Step 6 (Changelog Consolidation). Worktree setup gains a gitignore safety check that auto-adds `.feature-flow/`, `FEATURE_CONTEXT.md`, and `DECISIONS_ARCHIVE.md` to `.gitignore` on first run. Sync with Base Branch no longer needs CHANGELOG auto-resolution logic. New optional `changelog.fragments_dir` config field in `.feature-flow.yml`.
 - **Incremental quality gates after each implementation task (GH216)** — A new Post-Task Quality Gate runs typecheck, lint, and tests after each task's commits during the Implement step, catching errors when context is fresh instead of batching them at Final Verification. Uses the same linter/test-runner detection as the Stop hook quality gate (`quality-gate.js`) — no new config required for most projects. Lint is scoped to changed files for speed (ESLint, Biome). Tests run after typecheck passes (same sequencing as Stop hook). Gate failures pause YOLO and fix inline before proceeding to the next task. The `feature-flow-verified` marker is written on success, so Final Verification and the Stop hook skip redundant re-runs. Final Verification's skip logic extended to recognize post-task gate marker at HEAD with clean working tree. New optional `quality_gates:` config section in `.feature-flow.yml`: `after_task` (default: `true`), `scope_lint` (default: `true`), `skip_tests` (default: `false` — set to `true` for slow test suites).
+
+### Changed
+- `.feature-flow/` and `FEATURE_CONTEXT.md` are now session-local — not committed to feature branches
+- Sync with Base Branch step simplified — no CHANGELOG-specific auto-resolution (fragments eliminate this conflict source)
+- Archive phase context step simplified — `.feature-flow/` files no longer archived to session directory
+- Knowledge base archival no longer commits `FEATURE_CONTEXT.md` and `DECISIONS_ARCHIVE.md` to git
+
+### Removed
+- CHANGELOG.md row from merge-prs trivial conflict resolution table
+- CHANGELOG.md auto-resolution logic from Sync with Base Branch step
+- Deferred-write caveats from Design document and Design verification skill mapping entries
 
 ## [1.31.0] - 2026-04-06
 
