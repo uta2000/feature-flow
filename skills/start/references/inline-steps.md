@@ -306,53 +306,60 @@ Category order: Added, Fixed, Changed, Documentation, Testing, Maintenance, Chan
 
 Present the generated entry to the user via `AskUserQuestion`:
 
-- **Option 1:** "Looks good — write it" with description: "*Recommended — writes the entry to CHANGELOG.md under the appropriate version heading*"
+- **Option 1:** "Looks good — write it" with description: "*Recommended — writes the entry to a changelog fragment file*"
 - **Option 2:** "Let me edit" with description: "Provide corrections in freeform text — the entry will be revised before writing"
 - **Option 3:** "Skip CHANGELOG" with description: "Omit the entry — note: missing CHANGELOG entries complicate release note generation"
 
 **YOLO behavior:** If YOLO mode is active, skip this question. Auto-select "Looks good — write it" and announce: `YOLO: start — CHANGELOG entry → Accepted`
 
-#### Phase 6: Write to CHANGELOG.md
+#### Phase 6: Write changelog fragment
 
-**If CHANGELOG.md exists with an `[Unreleased]` section:**
-1. Parse existing categories under `[Unreleased]`
-2. For each generated category:
-   - If the category exists in the file, append new entries at the end of that category's list
-   - If the category doesn't exist, add it after the last existing category under `[Unreleased]`
-3. Deduplicate: skip any generated entry that matches an existing entry (case-insensitive)
-4. Preserve all existing entries — never remove or reorder them
+Instead of writing directly to `CHANGELOG.md`, write the entry to a per-PR fragment file. This prevents merge conflicts when multiple PRs are created concurrently — each PR writes a unique file.
 
-**If CHANGELOG.md exists without `[Unreleased]`:**
-1. Find the first `## [` heading (the latest version section)
-2. Insert the new `## [Unreleased]` section before it
+**Fragment filename:**
+- If a GitHub issue is linked: `.changelogs/<issue-number>.md` (e.g., `.changelogs/195.md`)
+- If no issue is linked: `.changelogs/<branch-name>.md` (e.g., `.changelogs/feat-csv-export.md`)
 
-**If no CHANGELOG.md exists:**
-1. Create the file with the Keep a Changelog header:
-
+**Fragment format:**
 ```markdown
-# Changelog
+---
+date: YYYY-MM-DD
+pr: <pr-number or "pending">
+scope: <lifecycle scope>
+---
 
-All notable changes to this project will be documented in this file.
+### Added
+- Entry from feat: commit
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/),
-and this project adheres to [Semantic Versioning](https://semver.org/).
+### Fixed
+- Entry from fix: commit
 
-## [Unreleased]
-
-[generated categories and entries]
+### Changed
+- Entry from refactor: commit
 ```
 
-After writing, announce: "CHANGELOG.md updated with N entries across M categories."
+**Process:**
+1. Create `.changelogs/` directory if it doesn't exist: `mkdir -p .changelogs`
+2. Write the fragment file with frontmatter metadata and categorized entries
+3. Stage the fragment: `git add .changelogs/<filename>.md`
+4. Do NOT modify `CHANGELOG.md` — consolidation happens at merge time via the Ship phase
+
+After writing, announce: "Changelog fragment written to `.changelogs/<filename>.md` with N entries across M categories."
+
+**Existing CHANGELOG.md:** Do not read, parse, merge into, or deduplicate against `CHANGELOG.md` during this step. The fragment is self-contained.
+
+**`.changelogs/` in `.gitignore`:** This directory MUST be committed (unlike `.feature-flow/`). Do not add it to `.gitignore`. Each PR carries its own fragment file.
 
 **Output format:**
 ```
 ## CHANGELOG Generation Results
 
+**Fragment file:** `.changelogs/<filename>.md`
 **Version heading:** [Unreleased] (or [X.Y.Z] - YYYY-MM-DD)
 **Commits parsed:** N
 **Entries generated:** M (after dedup)
 **Categories:** [list]
-**Action:** Written to CHANGELOG.md / Skipped by user
+**Action:** Written to `.changelogs/<filename>.md` / Skipped by user
 ```
 
 *(Turn Bridge Rule applies — call `TaskUpdate` immediately after outputting CHANGELOG results.)*
@@ -361,7 +368,7 @@ After writing, announce: "CHANGELOG.md updated with N entries across M categorie
 
 ## Sync with Base Branch Step
 
-This step runs after final verification and before commit and PR. It fetches the latest from origin and merges the base branch into the feature branch, ensuring no divergence has accumulated from parallel feature work. Uses `git merge` instead of `git rebase` — merge produces a single conflict resolution pass regardless of commit count, while rebase replays each commit individually (N commits = up to N separate conflict rounds). This is especially important for feature-flow branches that touch context tracking files (`.feature-flow/*`, `FEATURE_CONTEXT.md`, `CHANGELOG.md`), which are guaranteed conflict targets.
+This step runs after final verification and before commit and PR. It fetches the latest from origin and merges the base branch into the feature branch, ensuring no divergence has accumulated from parallel feature work. Uses `git merge` instead of `git rebase` — merge produces a single conflict resolution pass regardless of commit count, while rebase replays each commit individually (N commits = up to N separate conflict rounds).
 
 **Configuration:** The merge strategy is the default. Projects requiring linear history can set `git_strategy: rebase` in `.feature-flow.yml` to use the old rebase behavior.
 
@@ -393,15 +400,8 @@ This step runs after final verification and before commit and PR. It fetches the
       ```bash
       git diff --name-only --diff-filter=U
       ```
-   b. **For `CHANGELOG.md` conflicts (auto-resolved):**
-      - Read the conflicted file
-      - Extract HEAD's Unreleased entries: lines between `<<<<<<< HEAD` and `=======`
-      - Extract incoming Unreleased entries: lines between `=======` and `>>>>>>> <hash>`
-      - Merge strategy: start with HEAD's full Unreleased block, then append any category entries from the incoming block that aren't already present (case-insensitive dedup per entry)
-      - Write the resolved file (no conflict markers)
-      - Stage the file: `git add CHANGELOG.md`
-   c. **For other conflicted files:**
-      - Announce: "Non-CHANGELOG conflicts detected in: [files]. Pausing for manual resolution."
+   b. **For conflicted files:**
+      - Announce: "Conflicts detected in: [files]. Pausing for manual resolution."
       - Show the user exactly what to do:
         ```
         1. Resolve conflicts in: [file list]
@@ -410,13 +410,10 @@ This step runs after final verification and before commit and PR. It fetches the
         4. Type 'continue' to resume the lifecycle
         ```
       - Wait for the user to resolve and respond before proceeding.
-   d. If only CHANGELOG.md was conflicted (now auto-resolved and staged):
-      - For merge: `git commit --no-edit` (completes the merge commit)
-      - For rebase: `git rebase --continue` (may trigger further conflicts on subsequent commits — repeat step 4b)
 
 5. Announce: "Synced with origin/<base-branch>. Ready to push and create PR."
 
-**YOLO behavior:** Run silently. If non-CHANGELOG conflicts are detected, pause and announce the conflict files — YOLO cannot resolve arbitrary conflicts automatically. Announce: `YOLO: start — Sync with base branch → [up to date | merged N commits | conflicts in: files (paused)]`
+**YOLO behavior:** Run silently. If conflicts are detected, pause and announce the conflict files — YOLO cannot resolve arbitrary conflicts automatically. Announce: `YOLO: start — Sync with base branch → [up to date | merged N commits | conflicts in: files (paused)]`
 
 ---
 
