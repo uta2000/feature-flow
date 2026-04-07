@@ -537,6 +537,42 @@ merge:
 
 **When absent:** Ship phase uses: squash merge, delete branch, require CI green, require approved review, label-based auto-discovery.
 
+### `quality_gates`
+
+**Type:** Object (optional)
+**Default:** All sub-fields use their defaults (see below)
+**Auto-managed:** No — user-configured
+**Committed to git:** Yes
+
+Controls whether and how the Post-Task Quality Gate runs during the Implement step. The gate runs typecheck, lint, and optionally tests after each task's commits.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `after_task` | boolean | `true` | Run the quality gate after each task's commits. Set to `false` to revert to the pre-v1.32.0 behavior (gates only at Final Verification and Stop hook). |
+| `scope_lint` | boolean | `true` | Scope lint to changed files (faster). When `true`, ESLint/Biome/Ruff receive only the files changed in the current task. When `false`, lint runs on the full project. Has no effect when `npm run lint` is used (custom scripts manage their own scope). |
+| `skip_tests` | boolean | `false` | Skip the test runner in the post-task gate. Useful for projects with slow test suites (> 60s). When `true`, only typecheck and lint run per task; tests run at Final Verification as usual. |
+
+**Format:**
+
+```yaml
+quality_gates:
+  after_task: true    # default: true — set to false to disable per-task gates
+  scope_lint: true    # default: true — scope lint to changed files (faster)
+  skip_tests: false   # default: false — set to true for slow test suites (>60s)
+```
+
+**When needed:** Only when you want to change post-task gate behavior from its defaults. The defaults (`after_task: true`, `scope_lint: true`, `skip_tests: false`) are correct for most projects.
+
+**When absent:** All three fields use their defaults silently — the gate runs after each task, lint is scoped to changed files, and tests run in the gate. The field is never auto-written; add it manually only if you need non-default behavior.
+
+**Common overrides:**
+
+| Scenario | Config |
+|----------|--------|
+| Slow test suite (Jest, Playwright) | `skip_tests: true` |
+| Custom lint scope in `npm run lint` | No config needed — `npm run lint` is used as-is |
+| Disable gates entirely | `after_task: false` |
+
 ## Enums
 
 The following string enums are used throughout `plugin_registry` and `plugin_overrides`.
@@ -624,6 +660,7 @@ Classification confidence for dynamically discovered plugin roles.
 
 ### start (reads + writes)
 - **Reads** context at lifecycle start. Adjusts step list based on platform and stack.
+- **Reads** `quality_gates.after_task`, `quality_gates.scope_lint`, and `quality_gates.skip_tests` during the Implement step to control Post-Task Quality Gate behavior. All fields default silently when absent.
 - **Reads** `plugin_version` field to detect version drift and display upgrade notices.
 - **Creates** `.feature-flow.yml` via auto-detection if it doesn't exist (includes `plugin_version`).
 - **Updates** stack list if new dependencies are detected that aren't declared.
