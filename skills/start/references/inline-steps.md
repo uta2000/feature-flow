@@ -198,6 +198,87 @@ This step runs after copy env files and before implementation. It forces reading
 
 ---
 
+## Post-Task Quality Gate
+
+After all acceptance criterion commits for a task are complete, run a lightweight quality gate before proceeding to the next task.
+
+**When to run:** Once per task, after the last criterion commit for that task. Not after every individual criterion commit — only after the task boundary.
+
+**Skip condition:** Read `quality_gates.after_task` from `.feature-flow.yml`. If explicitly set to `false`, skip this gate silently for all tasks and announce once at the start of the Implement step: "Post-task quality gate disabled via `quality_gates.after_task: false`."
+
+**Process:**
+
+1. **Announce start:**
+   ```
+   Post-task quality gate — Task N: [task title]
+   ```
+
+2. **Detect changed files for this task** (to scope lint):
+   ```bash
+   # Count commits since the previous task gate (or branch start for Task 1)
+   git diff --name-only HEAD~<N>..HEAD
+   ```
+   where `<N>` = number of criterion commits in the current task (tracked from the atomic commit workflow). Store the resulting file paths as `CHANGED_FILES`.
+
+3. **Run TypeScript check** (if `tsconfig.json`, `tsconfig.app.json`, or `tsconfig.build.json` exists and `node_modules/.bin/tsc` exists):
+   ```bash
+   npx tsc --noEmit --project <tsconfig>
+   ```
+   Full project check — incremental tsc is already fast and needs cross-file context.
+
+4. **Run lint check** (scoped to changed files when `quality_gates.scope_lint` is `true`, default `true`):
+   - If `package.json` has a `lint` script: run `npm run lint` (unscoped — custom scripts may have their own scope)
+   - Else if `node_modules/.bin/eslint` exists and ESLint config present: `npx eslint <CHANGED_FILES>`
+   - Else if `node_modules/.bin/biome` exists and Biome config present: `npx biome check <CHANGED_FILES>`
+   - Else if `ruff` available (check `pyproject.toml` or `ruff.toml` present): `ruff check <CHANGED_FILES>`
+   - Else: skip lint (no supported linter detected)
+
+   When `quality_gates.scope_lint` is `false`, run all linters on the full project (pass `.` instead of `<CHANGED_FILES>`).
+
+5. **Run tests** (only if TypeScript check passed; skip if `quality_gates.skip_tests: true`):
+   Use the same test command detection as `hooks/scripts/quality-gate.js`:
+   - `package.json` has `test` script → `npm test`
+   - `pytest` available (check `pyproject.toml`) → `pytest`
+   - Else: skip tests (no test runner detected)
+
+6. **On success:** Write the verification marker:
+   ```bash
+   git rev-parse HEAD > "$(git rev-parse --git-dir)/feature-flow-verified"
+   ```
+   Announce:
+   ```
+   Post-task gate ✓ — Task N passed. Proceeding to Task N+1.
+   ```
+
+7. **On failure:** Announce clearly:
+   ```
+   Post-task quality gate FAILED after Task N. Fix before proceeding.
+   [TSC] 2 type errors
+     src/foo.ts:12:4 — Cannot find name 'Bar'
+   [LINT] ESLint errors
+     src/foo.ts:8:1 — 'unused' is defined but never used
+   ```
+   Then:
+   a. Fix the errors immediately (same task context is still active — do not defer)
+   b. Commit the fix: either amend the last criterion commit or add a new `fix: ...` commit
+   c. Re-run the gate from step 2
+   d. Do not advance to the next task until the gate passes
+
+**YOLO behavior:** Run silently. Gate failures pause YOLO automatically — announce:
+```
+YOLO: start — Post-task gate FAILED after Task N → fixing inline
+```
+After fix: `YOLO: start — Post-task gate re-run → PASSED. Resuming YOLO.`
+
+**Performance budget:** The gate adds < 60 seconds per task for most projects:
+- `tsc --noEmit` (incremental): 2–10s
+- Scoped lint (changed files only): 1–5s
+- `npm test` / `pytest`: varies
+
+For slow test suites (> 60s), set `quality_gates.skip_tests: true` to run only typecheck + lint per task. Tests then run at Final Verification as usual.
+
+---
+
 ## Self-Review Step
 
 This step runs after implementation and before formal code review. It catches "it works but it's sloppy" problems before a reviewer sees them.
@@ -426,9 +507,17 @@ This step runs after CHANGELOG generation and before commit and PR. It verifies 
 
 **Process:**
 
-1. **Check for redundant quality gates:** Before running `verification-before-completion` (which runs typecheck, lint, build), check if the Code Review Pipeline's Phase 4 already passed these checks in this lifecycle. If it did, check `git status --porcelain`:
-   - If output is empty (no modifications since Phase 4): Skip `verification-before-completion`. Announce: "Quality gates already passed in code review Phase 4 — no changes since. Skipping redundant checks."
-   - If output is non-empty: Run `verification-before-completion` normally (files changed since Phase 4).
+1. **Check for redundant quality gates:** Before running `verification-before-completion` (which runs typecheck, lint, build), check whether quality gates have already been validated at HEAD without subsequent changes. Two sources qualify:
+   - **Code Review Pipeline Phase 4** passed quality checks in this lifecycle, OR
+   - **Post-task quality gate** ran at HEAD and wrote the verification marker
+
+   In either case, check `git status --porcelain` and the verification marker:
+   ```bash
+   CURRENT_HEAD=$(git rev-parse HEAD)
+   SAVED_HEAD=$(cat "$(git rev-parse --git-dir)/feature-flow-verified" 2>/dev/null)
+   ```
+   - If marker matches HEAD (`$CURRENT_HEAD` = `$SAVED_HEAD`) **and** `git status --porcelain` is empty: Skip `verification-before-completion`. Announce: "Quality gates already passed (verified at HEAD, working tree clean) — skipping redundant checks."
+   - If marker does not match HEAD **or** working tree is dirty: Run `verification-before-completion` normally.
 
 2. **Always run `verify-acceptance-criteria`:** This checks plan-specific criteria and must always run regardless of quality gate skip.
 
