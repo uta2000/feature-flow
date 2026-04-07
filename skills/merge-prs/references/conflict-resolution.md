@@ -23,6 +23,26 @@ Auto-resolve without user confirmation. Announce each resolution.
 **Announce format (YOLO/Express):**
 `YOLO: ship — Trivial conflict in PR #N ([type]) → auto-resolved`
 
+### Structure Classification (pre-filter)
+
+Before checking for behavioral keywords, classify the conflict's *structure*. This determines whether keywords are relevant at all.
+
+| Structure | Description | Classification |
+|-----------|-------------|----------------|
+| **One-sided modification** | Only one side has changes; the other side of the conflict markers is identical to the merge base (or empty) | Trivial (additive) — auto-resolve by taking the modified side |
+| **Adjacent additions** | Both sides add NEW lines without modifying any shared existing lines | Trivial — auto-resolve by taking both sides |
+| **Context-only keywords** | Behavioral keywords (`if`, `return`, etc.) appear in surrounding code but NOT between `<<<<<<<`/`=======`/`>>>>>>>` markers | Ignore keywords — classify based on the actual conflict content only |
+| **Both-sided modification** | Both sides modify the SAME existing lines (lines present in the merge base are changed differently by each side) | Proceed to behavioral keyword check below |
+
+**How to apply:**
+1. Parse the conflict region between `<<<<<<<` and `>>>>>>>` markers
+2. Identify the "ours" block (`<<<<<<<` to `=======`) and "theirs" block (`=======` to `>>>>>>>`)
+3. If one block is empty or contains only lines NOT present in the merge base → **one-sided modification** → trivial
+4. If both blocks contain only NEW lines (additions, not modifications of existing lines) → **adjacent additions** → trivial
+5. If both blocks modify lines that existed in the merge base, check whether behavioral keywords appear only in surrounding context (outside the `<<<<<<<`/`=======`/`>>>>>>>` markers) — if so → **context-only keywords** → ignore keywords and classify based on conflict content only
+6. If both blocks modify lines that existed in the merge base and keywords appear within the markers → **both-sided modification** → proceed to behavioral keyword check
+7. If structure cannot be determined (malformed markers, unusual format) → default to **behavioral** (conservative)
+
 ### Behavioral Conflicts (require confirmation)
 
 **Never auto-resolve.** Always pause and present to the user, regardless of mode (YOLO, Express, or Interactive).
@@ -36,10 +56,19 @@ Auto-resolve without user confirmation. Announce each resolution.
 | Test assertion change | Conflicting region contains `expect(`, `assert`, `toBe(`, `toEqual(`, or similar |
 | Config value change | Conflicting region changes env var defaults, feature flag values, or numeric thresholds |
 
-**Detection heuristic — behavioral check:**
+**Detection heuristic — two-step behavioral check:**
 ```
-keywords = ["if ", "else", "for ", "while ", "return ", "throw ", "switch", "case ", "expect(", "assert", "toBe(", "toEqual("]
-if any keyword appears in the conflict marker region → classify as behavioral
+Step 1: Classify conflict structure (see Structure Classification above)
+  - one-sided modification → TRIVIAL (skip keyword check entirely)
+  - adjacent additions → TRIVIAL (skip keyword check entirely)
+  - context-only keywords → IGNORE keywords (classify based on conflict content only)
+  - both-sided modification → proceed to Step 2
+  - unknown structure → BEHAVIORAL (conservative default)
+
+Step 2: Keyword check (ONLY for both-sided modifications)
+  keywords = ["if ", "else", "for ", "while ", "return ", "throw ", "switch", "case ", "expect(", "assert", "toBe(", "toEqual("]
+  Scan ONLY the lines between <<<<<<< and >>>>>>> markers (not surrounding context)
+  if any keyword appears in the conflict marker region → classify as behavioral
 ```
 
 **Announce format (mode-aware):**
@@ -124,3 +153,59 @@ Conflicting file: `package-lock.json`
 
 Classification: **trivial** — auto-generated lock file.
 Resolution: delete, run `npm install` to regenerate.
+
+### Example 4: Additive-only — reclassified from behavioral to trivial
+
+```
+<<<<<<< HEAD
++function newHelper() {
++  return computeValue();
++}
+=======
++function otherHelper() {
++  if (condition) return fallback;
++}
+>>>>>>> feature-branch
+```
+
+**Old classification:** `return` and `if` detected → behavioral → pause for review.
+**New classification:** Both sides add new lines, no shared lines modified → **trivial** (adjacent additions) → auto-resolve (take both).
+
+**Why reclassified:** Structure classification (Step 1) identifies this as adjacent additions — both blocks contain only new lines. The keyword check (Step 2) is never reached.
+
+### Example 5: Context-only keywords — reclassified from behavioral to trivial
+
+```
+function existingCode() {
+  if (x) return y;  // ← context line, NOT between conflict markers
+<<<<<<< HEAD
++  logMetric('a');
+=======
++  logMetric('b');
+>>>>>>> feature-branch
+}
+```
+
+**Old classification:** `if` and `return` found in the conflict region → behavioral → pause for review.
+**New classification:** Keywords only appear in surrounding context lines (outside `<<<<<<<`/`=======`/`>>>>>>>` markers) → keywords are ignored. The actual conflicting lines (`logMetric('a')` vs `logMetric('b')`) contain no behavioral keywords → not a behavioral conflict. Resolution: these are competing alternatives (not additive), so present to the user to pick one — but without the behavioral escalation.
+
+**Why reclassified:** Context-only keywords are not part of the conflict. The conflict itself is a simple value choice, not a semantic logic change. The user still resolves it, but it's not flagged as a behavioral safety concern.
+
+### Example 6: True both-sided modification — still behavioral
+
+```
+<<<<<<< HEAD
+  if (user.isAdmin) {
+    return adminDashboard();
+  }
+=======
+  if (user.role === 'superadmin') {
+    return superAdminView();
+  }
+>>>>>>> feature-branch
+```
+
+**Old classification:** behavioral (correct).
+**New classification:** Both sides modify the same existing `if` condition and return statement → **behavioral** → pause for review (unchanged).
+
+**Why still behavioral:** Structure classification (Step 1) identifies this as a both-sided modification — both sides change the same existing lines. The keyword check (Step 2) confirms `if` and `return` are present → behavioral. This is the only scenario where semantic conflicts are possible.
