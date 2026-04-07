@@ -201,7 +201,9 @@ For `epic N`:
 gh pr list --state open --json number,title,body --jq "[.[] | select(.body | test(\"#N\"))]"
 ```
 
-Then execute Step 4 (sequential merge) and Step 5 (summary) from Lifecycle Mode above.
+For `all open` and `epic N`: execute Step 3 (dependency analysis + merge order), then Step 4 (sequential merge) and Step 5 (summary) from Lifecycle Mode above.
+
+For explicit PR numbers (e.g. `185 186`): skip Step 3 — the user specified the order. Execute Step 4 and Step 5 directly.
 
 ---
 

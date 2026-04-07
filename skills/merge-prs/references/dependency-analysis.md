@@ -31,9 +31,9 @@ pr_files[<number>] = ["src/utils.ts", "src/api/handler.ts", ...]
 
 ## Step 2: Extract Imports from Changed Files
 
-For each changed file in each PR, extract import/require statements from the **diff content** (lines prefixed with `+` or unchanged context). Use `gh pr diff <number>` to get full diff content, then scan for import patterns.
+For each changed file in each PR, extract import/require statements from the **diff content** (lines added by the PR). Use `gh pr diff <number>` to get full diff content, then scan for import patterns.
 
-Only scan lines that are added (`+`) or context lines (no prefix) — ignore removed lines (`-`).
+Only scan lines that are **added** (`+` prefix). Ignore context lines (no prefix) and removed lines (`-`) — context lines represent pre-existing code, not changes introduced by the PR, and would create false dependency edges.
 
 ### Import Patterns by Language
 
@@ -50,7 +50,6 @@ Regex (applied per line):
 ```
 /(?:import|export)\s+.*?\s+from\s+['"]([^'"]+)['"]/
 /(?:import|require)\s*\(\s*['"]([^'"]+)['"]\s*\)/
-/require\s*\(\s*['"]([^'"]+)['"]\s*\)/
 ```
 
 #### Python
@@ -149,7 +148,9 @@ Present this warning to the user in all modes (YOLO, Express, and Interactive) b
 
 ## Path Matching Strategy
 
-Import paths are rarely identical to repository file paths. Use this two-tier matching strategy:
+Import paths are rarely identical to repository file paths. Use this two-tier matching strategy.
+
+**Relative path resolution:** Before applying either tier, resolve relative imports (`./`, `../`) against the importing file's directory. For example, if `src/api/handler.ts` contains `import from '../utils'`, resolve to `src/utils` before matching.
 
 ### Tier 1: Exact suffix match
 
@@ -243,7 +244,7 @@ Diff of `handler.ts` in PR #102 contains:
 import { formatDate } from '../utils'
 ```
 
-Normalized: `utils.ts` (try `../utils.ts` → suffix match against `src/utils.ts` → **match**).
+Normalized: resolve `../utils` relative to `src/api/` → `src/utils` → try `.ts` extension → `src/utils.ts` → suffix match against `src/utils.ts` in `pr_files[#101]` → **match**.
 
 Result: Edge **#101 → #102**. Merge order: `#101 → #102`.
 
@@ -297,8 +298,16 @@ Topological sort: `#107 → #108 → #109`.
 
 ## Announce Format
 
-After dependency analysis completes, announce in all modes:
+After dependency analysis completes, announce with mode-aware prefixes (matching SKILL.md conventions):
 
-- If edges found: `Dependency analysis: #[A] → #[B] (import constraint) — applying before heuristics`
-- If no edges found: `Dependency analysis: no cross-PR imports detected — applying heuristics`
-- If cycle detected: `Dependency analysis: circular dependency in [#N1, #N2] — falling back to heuristics`
+**YOLO mode:**
+- If edges found: `YOLO: ship — Dependency analysis: #[A] → #[B] (import constraint); remaining PRs ordered by heuristics`
+- If no edges found: `YOLO: ship — Dependency analysis: no cross-PR imports detected — applying heuristics`
+- If cycle detected: `YOLO: ship — Dependency analysis: circular dependency in [#N1, #N2] — falling back to heuristics`
+
+**Express mode:** Same format, substitute `Express:` for `YOLO:`.
+
+**Interactive mode:**
+- If edges found: `Ship: Dependency analysis found import constraints: #[A] → #[B]. Remaining PRs ordered by heuristics.`
+- If no edges found: `Ship: No cross-PR import dependencies detected — ordering by heuristics.`
+- If cycle detected: `Ship: Circular import dependency detected among [#N1, #N2] — falling back to heuristic ordering.`
