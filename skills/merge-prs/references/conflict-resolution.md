@@ -23,6 +23,25 @@ Auto-resolve without user confirmation. Announce each resolution.
 **Announce format (YOLO/Express):**
 `YOLO: ship — Trivial conflict in PR #N ([type]) → auto-resolved`
 
+### Structure Classification (pre-filter)
+
+Before checking for behavioral keywords, classify the conflict's *structure*. This determines whether keywords are relevant at all.
+
+| Structure | Description | Classification |
+|-----------|-------------|----------------|
+| **One-sided modification** | Only one side has changes; the other side of the conflict markers is identical to the merge base (or empty) | Trivial (additive) — auto-resolve by taking the modified side |
+| **Adjacent additions** | Both sides add NEW lines without modifying any shared existing lines | Trivial (already handled above) |
+| **Context-only keywords** | Behavioral keywords (`if`, `return`, etc.) appear in surrounding code but NOT between `<<<<<<<`/`=======`/`>>>>>>>` markers | Ignore keywords — classify based on the actual conflict content only |
+| **Both-sided modification** | Both sides modify the SAME existing lines (lines present in the merge base are changed differently by each side) | Proceed to behavioral keyword check below |
+
+**How to apply:**
+1. Parse the conflict region between `<<<<<<<` and `>>>>>>>` markers
+2. Identify the "ours" block (`<<<<<<<` to `=======`) and "theirs" block (`=======` to `>>>>>>>`)
+3. If one block is empty or contains only lines NOT present in the merge base → **one-sided modification** → trivial
+4. If both blocks contain only NEW lines (additions, not modifications of existing lines) → **adjacent additions** → trivial
+5. If both blocks modify lines that existed in the merge base → **both-sided modification** → proceed to behavioral keyword check
+6. If structure cannot be determined (malformed markers, unusual format) → default to **behavioral** (conservative)
+
 ### Behavioral Conflicts (require confirmation)
 
 **Never auto-resolve.** Always pause and present to the user, regardless of mode (YOLO, Express, or Interactive).
@@ -36,10 +55,19 @@ Auto-resolve without user confirmation. Announce each resolution.
 | Test assertion change | Conflicting region contains `expect(`, `assert`, `toBe(`, `toEqual(`, or similar |
 | Config value change | Conflicting region changes env var defaults, feature flag values, or numeric thresholds |
 
-**Detection heuristic — behavioral check:**
+**Detection heuristic — two-step behavioral check:**
 ```
-keywords = ["if ", "else", "for ", "while ", "return ", "throw ", "switch", "case ", "expect(", "assert", "toBe(", "toEqual("]
-if any keyword appears in the conflict marker region → classify as behavioral
+Step 1: Classify conflict structure (see Structure Classification above)
+  - one-sided modification → TRIVIAL (skip keyword check entirely)
+  - adjacent additions → TRIVIAL (skip keyword check entirely)
+  - context-only keywords → IGNORE keywords (classify based on conflict content only)
+  - both-sided modification → proceed to Step 2
+  - unknown structure → BEHAVIORAL (conservative default)
+
+Step 2: Keyword check (ONLY for both-sided modifications)
+  keywords = ["if ", "else", "for ", "while ", "return ", "throw ", "switch", "case ", "expect(", "assert", "toBe(", "toEqual("]
+  Scan ONLY the lines between <<<<<<< and >>>>>>> markers (not surrounding context)
+  if any keyword appears in the conflict marker region → classify as behavioral
 ```
 
 **Announce format (mode-aware):**
