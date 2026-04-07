@@ -128,6 +128,54 @@ Ship Phase Summary:
 
 Fire the notification from `notifications.on_stop` in `.feature-flow.yml` if set.
 
+### Step 6: Changelog Consolidation
+
+After all PRs have been processed (merged, skipped, or failed), consolidate any `.changelogs/` fragment files into `CHANGELOG.md`:
+
+1. Check for fragments: `ls .changelogs/*.md 2>/dev/null`
+   - If no fragments exist: skip silently and proceed to Standalone Mode
+   - If fragments exist: continue
+
+2. Read all fragment files. For each fragment:
+   - Parse frontmatter (date, pr, scope)
+   - Parse categorized entries (Added, Fixed, Changed, etc.)
+
+3. Read existing `CHANGELOG.md` (or create with Keep a Changelog header if absent):
+   ```markdown
+   # Changelog
+
+   All notable changes to this project will be documented in this file.
+
+   The format is based on [Keep a Changelog](https://keepachangelog.com/),
+   and this project adheres to [Semantic Versioning](https://semver.org/).
+
+   ## [Unreleased]
+   ```
+
+4. Merge all fragment entries into `CHANGELOG.md` under `[Unreleased]`:
+   - For each category, append entries from all fragments
+   - Deduplicate entries with identical text (case-insensitive)
+   - Sort categories in standard order: Added, Fixed, Changed, Documentation, Testing, Maintenance
+   - Within each category, sort entries alphabetically
+
+5. Delete all processed fragment files: `rm .changelogs/*.md`
+   - If `.changelogs/` is now empty, remove the directory: `rmdir .changelogs 2>/dev/null || true`
+
+6. Stage and commit:
+   ```bash
+   git add CHANGELOG.md
+   git rm -r --ignore-unmatch .changelogs/
+   git commit -m "chore: consolidate changelog fragments"
+   ```
+
+7. Announce: "Consolidated N changelog fragments into CHANGELOG.md (M total entries across K categories)."
+
+**YOLO/Express behavior:** Run consolidation automatically, announce inline: `YOLO: ship — Consolidated N fragments into CHANGELOG.md`
+
+**If no fragments found:** Announce nothing; skip silently.
+
+**Single-PR workflows (no Ship phase):** The fragment file stays on the branch. When the PR is merged manually, the fragment lands on the base branch. The next Ship phase (or manual `merge-prs` invocation) picks it up during consolidation.
+
 ---
 
 ## Standalone Mode
