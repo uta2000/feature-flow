@@ -60,12 +60,15 @@ gh pr list \
 
 ### Step 3: Determine merge order
 
+**Read `references/dependency-analysis.md`** to perform cross-PR import dependency analysis before applying heuristics.
+
 Sort the discovered PRs to minimize conflicts:
 
-1. PRs with no pending CI checks first (fastest path)
-2. PRs with fewest changed files second (lowest conflict surface)
-3. PRs targeting `main` / `master` before PRs targeting feature branches
-4. Within ties: ascending PR number (oldest first)
+1. **Dependency constraints** — if PR B's changed files import a file that PR A changes, PR A merges first. Run dependency analysis per `references/dependency-analysis.md` before applying heuristics 2–5. If a circular dependency is detected, warn and skip to heuristics 2–5.
+2. PRs with no pending CI checks first (fastest path)
+3. PRs with fewest changed files second (lowest conflict surface)
+4. PRs targeting `main` / `master` before PRs targeting feature branches
+5. Within ties: ascending PR number (oldest first)
 
 **Express/YOLO:** Announce: `Express: ship — Merge order: #[N1] → #[N2] → ... Proceeding...`
 **Interactive:** Present order, wait for confirmation via `AskUserQuestion` before proceeding.
@@ -198,7 +201,9 @@ For `epic N`:
 gh pr list --state open --json number,title,body --jq "[.[] | select(.body | test(\"#N\"))]"
 ```
 
-Then execute Step 4 (sequential merge) and Step 5 (summary) from Lifecycle Mode above.
+For `all open` and `epic N`: execute Step 3 (dependency analysis + merge order), then Step 4 (sequential merge) and Step 5 (summary) from Lifecycle Mode above.
+
+For explicit PR numbers (e.g. `185 186`): skip Step 3 — the user specified the order. Execute Step 4 and Step 5 directly.
 
 ---
 
