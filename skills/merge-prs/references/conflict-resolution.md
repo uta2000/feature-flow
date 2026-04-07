@@ -30,7 +30,7 @@ Before checking for behavioral keywords, classify the conflict's *structure*. Th
 | Structure | Description | Classification |
 |-----------|-------------|----------------|
 | **One-sided modification** | Only one side has changes; the other side of the conflict markers is identical to the merge base (or empty) | Trivial (additive) — auto-resolve by taking the modified side |
-| **Adjacent additions** | Both sides add NEW lines without modifying any shared existing lines | Trivial (already handled above) |
+| **Adjacent additions** | Both sides add NEW lines without modifying any shared existing lines | Trivial — auto-resolve by taking both sides |
 | **Context-only keywords** | Behavioral keywords (`if`, `return`, etc.) appear in surrounding code but NOT between `<<<<<<<`/`=======`/`>>>>>>>` markers | Ignore keywords — classify based on the actual conflict content only |
 | **Both-sided modification** | Both sides modify the SAME existing lines (lines present in the merge base are changed differently by each side) | Proceed to behavioral keyword check below |
 
@@ -39,8 +39,9 @@ Before checking for behavioral keywords, classify the conflict's *structure*. Th
 2. Identify the "ours" block (`<<<<<<<` to `=======`) and "theirs" block (`=======` to `>>>>>>>`)
 3. If one block is empty or contains only lines NOT present in the merge base → **one-sided modification** → trivial
 4. If both blocks contain only NEW lines (additions, not modifications of existing lines) → **adjacent additions** → trivial
-5. If both blocks modify lines that existed in the merge base → **both-sided modification** → proceed to behavioral keyword check
-6. If structure cannot be determined (malformed markers, unusual format) → default to **behavioral** (conservative)
+5. If both blocks modify lines that existed in the merge base, check whether behavioral keywords appear only in surrounding context (outside the `<<<<<<<`/`=======`/`>>>>>>>` markers) — if so → **context-only keywords** → ignore keywords and classify based on conflict content only
+6. If both blocks modify lines that existed in the merge base and keywords appear within the markers → **both-sided modification** → proceed to behavioral keyword check
+7. If structure cannot be determined (malformed markers, unusual format) → default to **behavioral** (conservative)
 
 ### Behavioral Conflicts (require confirmation)
 
@@ -168,7 +169,7 @@ Resolution: delete, run `npm install` to regenerate.
 ```
 
 **Old classification:** `return` and `if` detected → behavioral → pause for review.
-**New classification:** Both sides add new lines, no shared lines modified → **trivial** (one-sided/additive) → auto-resolve (take both).
+**New classification:** Both sides add new lines, no shared lines modified → **trivial** (adjacent additions) → auto-resolve (take both).
 
 **Why reclassified:** Structure classification (Step 1) identifies this as adjacent additions — both blocks contain only new lines. The keyword check (Step 2) is never reached.
 
@@ -186,9 +187,9 @@ function existingCode() {
 ```
 
 **Old classification:** `if` and `return` found in the conflict region → behavioral → pause for review.
-**New classification:** Keywords only appear in surrounding context lines (outside `<<<<<<<`/`=======`/`>>>>>>>` markers) → **trivial** → keywords are ignored, classify based on conflict content only.
+**New classification:** Keywords only appear in surrounding context lines (outside `<<<<<<<`/`=======`/`>>>>>>>` markers) → keywords are ignored. The actual conflicting lines (`logMetric('a')` vs `logMetric('b')`) contain no behavioral keywords → not a behavioral conflict. Resolution: these are competing alternatives (not additive), so present to the user to pick one — but without the behavioral escalation.
 
-**Why reclassified:** Context-only keywords are not part of the conflict. The actual conflicting lines (`logMetric('a')` vs `logMetric('b')`) contain no behavioral keywords.
+**Why reclassified:** Context-only keywords are not part of the conflict. The conflict itself is a simple value choice, not a semantic logic change. The user still resolves it, but it's not flagged as a behavioral safety concern.
 
 ### Example 6: True both-sided modification — still behavioral
 
