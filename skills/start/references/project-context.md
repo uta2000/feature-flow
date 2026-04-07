@@ -212,7 +212,7 @@ After the Notification Preference step, check for an existing per-feature knowle
       - Move stale entries to `DECISIONS_ARCHIVE.md` (append under a `## Archived from [branch-name]` header; create file if absent)
       - If file still > `max_lines` after age-based archival: move oldest remaining entries until under the limit
       - Rewrite `FEATURE_CONTEXT.md` with remaining entries (preserve section headers and comments)
-      - Commit: `git add FEATURE_CONTEXT.md DECISIONS_ARCHIVE.md && git commit -m "chore: archive stale decisions [auto]"`
+      - Note: `FEATURE_CONTEXT.md` and `DECISIONS_ARCHIVE.md` are session-local files (not committed to git). Archival modifies them locally for the current session only.
 4. Count remaining `## Key Decisions` bullet entries → N. Let M = total entries moved to `DECISIONS_ARCHIVE.md` during this run (0 if no archival occurred).
 
 **Edge cases:**
