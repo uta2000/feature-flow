@@ -1,18 +1,18 @@
 # Design Decisions
 
 ## Key Decisions
-- **Auto-discovery via GitHub label:** Labels are queryable, work across machines, visible in UI. PR body marker as fallback.
-- **Three invocation modes:** Lifecycle (auto from start), standalone (explicit PR numbers), cross-session (`merge-prs feature-flow`).
-- **Behavioral conflicts always pause:** Function body changes, conditionals, API contracts require confirmation even in YOLO.
-- **Continue-on-failure:** Skip problematic PRs, continue merging remaining, report at end. No rollback.
-- **Inline orchestrator logic:** Post-PR label application via inline code, not hooks.
-- **Ship phase scope-gated:** Feature (step 21) and Major feature (step 22) only.
+- **Per-task gate timing:** Gate runs once per task after all criterion commits, not after every individual criterion.
+- **Reuse existing detection:** Same linter/test-runner detection as quality-gate.js Stop hook.
+- **Scoped lint, full typecheck:** Lint scoped to changed files. TypeScript runs full project.
+- **Tests default on, opt-out available:** skip_tests config for 60s+ suites.
+- **Inline fix on failure:** Agent fixes errors immediately while task context is active.
+- **No new top-level step:** Gate documented as sub-step within Implement.
 
 ## Rejected Alternatives
-- **Branch naming convention:** Too fragile — users rename branches.
-- **Local state file:** Doesn't survive across machines.
-- **Rollback on mid-batch failure:** Destructive and error-prone.
-- **Ship phase for all scopes:** Quick fix and small enhancement are single-PR workflows.
+- **Per-criterion gate:** Too much overhead
+- **New top-level step:** Would inflate all scope step counts
+- **Changes to quality-gate.js:** Agent runs same commands inline
+- **New lint command config fields:** Existing detection is sufficient
 
 ## Open Questions
-- None — all 8 design gaps resolved
+- None — design complete per issue #216
