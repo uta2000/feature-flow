@@ -560,7 +560,7 @@ For inline steps (CHANGELOG generation, self-review, code review, study existing
 | Path key | When it becomes available |
 |----------|--------------------------|
 | `base_branch` | Step 0 — base branch detection |
-| `feature_context` | Step 0 — knowledge base pre-flight (null if no FEATURE_CONTEXT.md found) |
+| `feature_context` | Step 0 — knowledge base pre-flight (null if no FEATURE_CONTEXT.md found). File is session-local (not committed). |
 | `issue` | Step 1 — when an issue number is linked |
 | `design_doc` | After design document step (the absolute path returned by the skill) |
 | `plan_file` | After implementation plan step (the absolute path of the saved plan file) |
@@ -596,9 +596,9 @@ Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/p
 | Brainstorm requirements | `superpowers:brainstorming` | Decisions on scope, approach, UX. **For Feature and Major Feature scopes:** brainstorming includes the design preferences preamble — captures or loads project-wide design preferences before feature-specific questions begin. See `references/orchestration-overrides.md` → "Design Preferences Preamble". |
 | Spike / PoC | `feature-flow:spike` | Confirmed/denied assumptions |
 | Documentation lookup | No skill — inline step (see below) | Current patterns from official docs injected into context |
-| Design document | `feature-flow:design-document` | File at `docs/plans/YYYY-MM-DD-*.md` **Context capture:** After the design document is saved, write key scope decisions, approach choices, and rejected alternatives to `.feature-flow/design/design-decisions.md` (append to the existing template — do not overwrite). **If `.feature-flow/design/` does not exist yet (worktree not yet created), defer this write until immediately after worktree setup.** |
+| Design document | `feature-flow:design-document` | File at `docs/plans/YYYY-MM-DD-*.md` **Context capture:** After the design document is saved, write key scope decisions, approach choices, and rejected alternatives to `.feature-flow/design/design-decisions.md` (append to the existing template — do not overwrite). |
 | Study existing patterns | No skill — inline step (see below) | Understanding of codebase conventions for the areas being modified |
-| Design verification | `feature-flow:design-verification` | Blockers/gaps identified and fixed **Context capture:** After verification completes, write the blockers found and their resolutions to `.feature-flow/design/verification-results.md` (append to the existing template — do not overwrite). Include the verification score summary and any design changes required. **If `.feature-flow/design/` does not exist yet (worktree not yet created), defer this write until immediately after worktree setup.** |
+| Design verification | `feature-flow:design-verification` | Blockers/gaps identified and fixed **Context capture:** After verification completes, write the blockers found and their resolutions to `.feature-flow/design/verification-results.md` (append to the existing template — do not overwrite). Include the verification score summary and any design changes required. |
 | Create issue | `feature-flow:create-issue` | GitHub issue URL. **If an issue number was detected in Step 1**, pass it to create-issue as the `existing_issue` context — the skill will update the existing issue instead of creating a new one. |
 | Implementation plan | `superpowers:writing-plans` | Numbered tasks with acceptance criteria. **Override:** After the plan is saved, always proceed with subagent-driven execution — do not present the execution choice to the user. Immediately invoke `superpowers:subagent-driven-development`. |
 | Verify plan criteria | `feature-flow:verify-plan-criteria` | All tasks have verifiable criteria |
