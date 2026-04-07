@@ -44,6 +44,8 @@ standards:             # Optional: project standards for design cross-checking
 yolo:                  # Optional: YOLO mode stopping points
   stop_after:          # Phases where YOLO pauses for review
     - plan             # brainstorming | design | verification | plan
+changelog:             # Optional: changelog fragment behavior
+  fragments_dir: .changelogs  # Directory for per-PR changelog fragments (default: .changelogs)
 plugin_registry:       # Auto-generated: plugin scan results — do not edit manually
   last_scan: "2026-04-01T12:00:00Z"
   content_hashes: {}
@@ -362,6 +364,16 @@ yolo:
 **Invalid values:** Unrecognized phase names in `stop_after` are silently ignored. Only the 7 valid values listed above trigger checkpoints.
 
 **Checkpoint behavior:** At each listed stopping point, the `start` skill orchestrator pauses and presents the phase output via `AskUserQuestion` with two options: "Continue YOLO" (resume unattended execution) or "Switch to Interactive" (disable YOLO for remaining phases).
+
+### `changelog`
+
+Optional configuration for changelog fragment behavior.
+
+| Field | Default | Description |
+|-------|---------|-------------|
+| `fragments_dir` | `.changelogs` | Directory where per-PR changelog fragments are written. Consolidated into `CHANGELOG.md` by the Ship phase. |
+
+When absent, defaults are used. The directory is created automatically during the "Generate CHANGELOG Entry" step if it doesn't exist.
 
 ### `standards`
 
