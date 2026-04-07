@@ -19,7 +19,6 @@ Auto-resolve without user confirmation. Announce each resolution.
 | Lock files | Conflicting file is `package-lock.json`, `yarn.lock`, or `pnpm-lock.yaml` | Delete the lock file, run `npm install` / `yarn install` / `pnpm install` to regenerate |
 | Auto-generated files | Filename contains `.generated.` or `.snap` (Jest snapshots) | Accept incoming (regenerate from source if needed) |
 | Adjacent additive lines | Both sides add new lines without overlapping (gap between conflict markers is empty on one side) | Take both sides — prepend one block, append the other |
-| CHANGELOG.md | Conflicting file is `CHANGELOG.md` | Take both entries; re-sort by date (newest first) |
 
 **Announce format (YOLO/Express):**
 `YOLO: ship — Trivial conflict in PR #N ([type]) → auto-resolved`
@@ -119,24 +118,7 @@ function calculateTotal(items) {
 Classification: **behavioral** — function body change, `return` keyword, logic difference.
 Action: pause, present to user. Do not auto-resolve.
 
-### Example 3: CHANGELOG.md (trivial)
-
-```
-<<<<<<< HEAD
-## [1.5.0] - 2026-04-06
-### Added
-- Feature A
-=======
-## [1.5.0] - 2026-04-06
-### Added
-- Feature B
->>>>>>> feature/feature-b
-```
-
-Classification: **trivial** — CHANGELOG entry conflict.
-Resolution: keep both `### Added` entries under the same version heading, sorted by feature name.
-
-### Example 4: Lock file (trivial)
+### Example 3: Lock file (trivial)
 
 Conflicting file: `package-lock.json`
 
