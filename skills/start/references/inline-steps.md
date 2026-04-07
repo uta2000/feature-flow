@@ -306,53 +306,60 @@ Category order: Added, Fixed, Changed, Documentation, Testing, Maintenance, Chan
 
 Present the generated entry to the user via `AskUserQuestion`:
 
-- **Option 1:** "Looks good — write it" with description: "*Recommended — writes the entry to CHANGELOG.md under the appropriate version heading*"
+- **Option 1:** "Looks good — write it" with description: "*Recommended — writes the entry to a changelog fragment file*"
 - **Option 2:** "Let me edit" with description: "Provide corrections in freeform text — the entry will be revised before writing"
 - **Option 3:** "Skip CHANGELOG" with description: "Omit the entry — note: missing CHANGELOG entries complicate release note generation"
 
 **YOLO behavior:** If YOLO mode is active, skip this question. Auto-select "Looks good — write it" and announce: `YOLO: start — CHANGELOG entry → Accepted`
 
-#### Phase 6: Write to CHANGELOG.md
+#### Phase 6: Write changelog fragment
 
-**If CHANGELOG.md exists with an `[Unreleased]` section:**
-1. Parse existing categories under `[Unreleased]`
-2. For each generated category:
-   - If the category exists in the file, append new entries at the end of that category's list
-   - If the category doesn't exist, add it after the last existing category under `[Unreleased]`
-3. Deduplicate: skip any generated entry that matches an existing entry (case-insensitive)
-4. Preserve all existing entries — never remove or reorder them
+Instead of writing directly to `CHANGELOG.md`, write the entry to a per-PR fragment file. This prevents merge conflicts when multiple PRs are created concurrently — each PR writes a unique file.
 
-**If CHANGELOG.md exists without `[Unreleased]`:**
-1. Find the first `## [` heading (the latest version section)
-2. Insert the new `## [Unreleased]` section before it
+**Fragment filename:**
+- If a GitHub issue is linked: `.changelogs/<issue-number>.md` (e.g., `.changelogs/195.md`)
+- If no issue is linked: `.changelogs/<branch-name>.md` (e.g., `.changelogs/feat-csv-export.md`)
 
-**If no CHANGELOG.md exists:**
-1. Create the file with the Keep a Changelog header:
-
+**Fragment format:**
 ```markdown
-# Changelog
+---
+date: YYYY-MM-DD
+pr: <pr-number or "pending">
+scope: <lifecycle scope>
+---
 
-All notable changes to this project will be documented in this file.
+### Added
+- Entry from feat: commit
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/),
-and this project adheres to [Semantic Versioning](https://semver.org/).
+### Fixed
+- Entry from fix: commit
 
-## [Unreleased]
-
-[generated categories and entries]
+### Changed
+- Entry from refactor: commit
 ```
 
-After writing, announce: "CHANGELOG.md updated with N entries across M categories."
+**Process:**
+1. Create `.changelogs/` directory if it doesn't exist: `mkdir -p .changelogs`
+2. Write the fragment file with frontmatter metadata and categorized entries
+3. Stage the fragment: `git add .changelogs/<filename>.md`
+4. Do NOT modify `CHANGELOG.md` — consolidation happens at merge time via the Ship phase
+
+After writing, announce: "Changelog fragment written to `.changelogs/<filename>.md` with N entries across M categories."
+
+**Existing CHANGELOG.md:** Do not read, parse, merge into, or deduplicate against `CHANGELOG.md` during this step. The fragment is self-contained.
+
+**`.changelogs/` in `.gitignore`:** This directory MUST be committed (unlike `.feature-flow/`). Do not add it to `.gitignore`. Each PR carries its own fragment file.
 
 **Output format:**
 ```
 ## CHANGELOG Generation Results
 
+**Fragment file:** `.changelogs/<filename>.md`
 **Version heading:** [Unreleased] (or [X.Y.Z] - YYYY-MM-DD)
 **Commits parsed:** N
 **Entries generated:** M (after dedup)
 **Categories:** [list]
-**Action:** Written to CHANGELOG.md / Skipped by user
+**Action:** Written to `.changelogs/<filename>.md` / Skipped by user
 ```
 
 *(Turn Bridge Rule applies — call `TaskUpdate` immediately after outputting CHANGELOG results.)*
