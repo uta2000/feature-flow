@@ -9,3 +9,8 @@ __pycache__/
 .dispatcher/
 .dispatcher-worktrees/
 dispatcher.db
+
+# feature-flow session-local files (not committed to feature branches)
+.feature-flow/
+FEATURE_CONTEXT.md
+DECISIONS_ARCHIVE.md
