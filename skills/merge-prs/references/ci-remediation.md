@@ -25,10 +25,10 @@ Apply these rules top-to-bottom against each failure entry from `gh run view <ru
 | Category | Detection pattern | Example log snippet | Terminal? |
 |----------|-------------------|---------------------|-----------|
 | `lint-format` | Log contains `prettier`, `eslint`, `pylint`, `flake8`, `black`, `ruff`, `unexpected token`, `Parsing error`, or ends with `Expected N spaces` | `Expected 2 spaces but found 4` | No |
-| `type-error` | Log contains `TS\d+:`, `Type '.*' is not assignable`, `Property '.*' does not exist`, `Cannot find name`, `mypy: error:`, `pyright:` | `TS2345: Argument of type 'string' is not assignable` | No |
-| `test-flaky` | Failing test name matches the project known-flake list OR first encounter of a test timeout/network error that passes on re-run (see Flake Handling Policy) | `Error: ETIMEDOUT`, `connect ECONNREFUSED` (and passes on re-run) | No |
+| `type-error` | Log contains `TS\d+:`, `Type '.*' is not assignable`, `Property '.*' does not exist`, `Cannot find name`, `mypy: error:`, `pyright:`. **Includes all `TS\d+:` errors even those emitted during a build step** (e.g., `TS6133` unused-variable) — type errors are handled here, not in `build`. | `TS2345: Argument of type 'string' is not assignable`, `error TS6133: 'foo' is declared but its value is never read` | No |
+| `test-flaky` | Failing test name appears in the project known-flake list (if present at `.feature-flow-flakes.txt`) OR the error message matches a transient-network/timeout pattern: `ETIMEDOUT`, `ECONNREFUSED`, `socket hang up`, `timed out after`. **Detection is pattern-only — re-run outcome is determined later in the fix phase.** | `Error: ETIMEDOUT`, `connect ECONNREFUSED`, `socket hang up` | No |
 | `test-real` | Any `FAIL`/`FAILED` assertion not matching `test-flaky` criteria; or a `test-flaky` failure that also fails on re-run | `Expected: 42, Received: 0`, `AssertionError` | No |
-| `build` | Log contains `Build failed`, `Cannot find module`, `webpack`, `tsc: error`, `esbuild`, `vite: error`, `rollup`, `SyntaxError` in a build step | `error TS6133: 'foo' is declared but its value is never read` | No |
+| `build` | Log contains `Build failed`, `Cannot find module`, `webpack`, `esbuild`, `vite: error`, `rollup`, `SyntaxError` in a non-TS build step. **Excludes `TS\d+:` errors** — those are routed to `type-error` even when emitted by a build step. | `Build failed: Cannot find module './missing-file'`, `esbuild error: syntax error near token ')'` | No |
 | `dependency-install` | Log contains `npm ERR!`, `yarn error`, `pnpm ERR!`, `pip install`, `Could not resolve dependency`, `ERESOLVE` | `npm ERR! ERESOLVE unable to resolve dependency tree` | No |
 | `timeout-infra` | Log contains `Job was cancelled`, `timed out after`, `The runner has received a shutdown signal`, GitHub Actions infrastructure timeout messages | `Error: The operation was canceled` (runner shutdown) | No |
 | `unknown` | None of the above patterns matched | (any log not matching above) | **Yes** |
@@ -44,21 +44,21 @@ Apply these rules top-to-bottom against each failure entry from `gh run view <ru
 | `lint-format` | Run `npm run lint -- --fix` (JS/TS) or `black <file>` / `ruff check --fix <file>` (Python). If no auto-fix command available, run `prettier --write <file>` for formatting-only errors. | Commit with `fix(ci): resolve lint/format errors` |
 | `type-error` | Read the exact `file:line` from the log. Open the file, inspect the type annotation, apply a minimal targeted fix (add missing type annotation, correct type cast, fix import). Do not refactor. | Commit with `fix(ci): resolve type errors in <file>` |
 | `test-flaky` | Run `gh run rerun --failed <run-id>` to re-run the failing job. Do not apply any code change. If re-run passes, exit loop (success). If re-run fails, re-classify to `test-real`. | No commit needed for re-run. If re-classified, treat as `test-real`. |
-| `test-real` | Cannot auto-fix. **Skip the PR immediately** with reason "real test failure — manual investigation required". | Terminal for this PR; do not consume remaining attempts. |
+| `test-real` | Cannot auto-fix. `apply_fix()` returns `ok=false` so no commit/push happens this attempt. If this is the only failure, the loop advances to the verify phase which will still report red → attempt increments → next iteration returns the same `test-real` → after `MAX_ATTEMPTS` the PR is skipped with reason "real test failure — manual investigation required". | Consumes attempt slots via normal flow (not a fast-exit like `unknown`). |
 | `build` | Inspect the exact error. If it is a missing import or mis-named export (resolvable from the error message alone), apply the targeted fix. If it requires broader investigation, skip with reason "build failure — manual investigation required". | Commit with `fix(ci): resolve build error in <file>` |
 | `dependency-install` | Run `npm install` / `yarn install` / `pnpm install` (match the project's package manager from `package.json`). Commit the updated lock file. | Commit with `fix(ci): regenerate lock file` |
-| `timeout-infra` | Run `gh run rerun --failed <run-id>`. This is an infrastructure flake — do not apply code changes. | No commit needed. If re-run also times out, skip with reason "persistent infra timeout". |
+| `timeout-infra` | Run `gh run rerun --failed <run-id>` **exactly once per loop invocation** (track with a `timeout_infra_rerun_count` flag across all attempts, initialized to 0 at loop entry, incremented on first rerun, capped at 1). If `timeout_infra_rerun_count >= 1`, treat the second occurrence as terminal and skip the PR. This is an infrastructure flake — do not apply code changes. | No commit needed. Consumes an attempt slot on the first rerun. On the second occurrence, skip with reason "persistent infra timeout (already re-ran once)". |
 | `unknown` | **Terminal** — skip the PR immediately. Do not apply any fix. | Reason: "unknown failure category — cannot auto-remediate" |
 
 ---
 
 ## Flake Handling Policy
 
-A failure is classified as `test-flaky` on its first encounter only when:
-1. The failing test name appears in the project's known-flake list (if one exists at `.feature-flow-flakes.txt` or similar), **OR**
-2. The error message matches a transient-network or timeout pattern (`ETIMEDOUT`, `ECONNREFUSED`, `socket hang up`, `timed out after`) AND the test passes on a single re-run via `gh run rerun --failed`.
+**Detection phase (pattern-only, no re-run yet):** A failure is classified as `test-flaky` when either:
+1. The failing test name appears in the project's known-flake list (`.feature-flow-flakes.txt` or similar), **OR**
+2. The error message matches a transient-network or timeout pattern (`ETIMEDOUT`, `ECONNREFUSED`, `socket hang up`, `timed out after`).
 
-**Re-run rule:** Re-run once only. If the re-run passes → `test-flaky` confirmed (success). If the re-run fails → re-classify as `test-real` → skip the PR.
+**Fix phase (re-run verification):** Once a failure has been classified as `test-flaky`, the fix strategy is: run `gh run rerun --failed <run-id>` exactly once. If the re-run passes → flaky confirmed (success, exit loop). If the re-run fails → re-classify as `test-real` (which then follows the `test-real` flow: `apply_fix` returns `ok=false`, attempt increments, eventually skipped after `MAX_ATTEMPTS`).
 
 **Never re-run more than once per failure instance** — two consecutive failures of the same test indicate a real failure.
 
@@ -107,7 +107,7 @@ After committing and pushing fixes, poll `gh pr checks <number>` every `CI_POLL_
 | `IN_PROGRESS` | Check currently running | Continue polling |
 | `COMPLETED` + `SUCCESS` | Check passed | All checks in this state → CI green → exit loop (success) |
 | `COMPLETED` + `FAILURE` | Check failed | All checks no longer pending → CI red → increment attempt |
-| `COMPLETED` + `CANCELLED` | Check was cancelled (infra) | Treat as `timeout-infra` → re-run once |
+| `COMPLETED` + `CANCELLED` | Check was cancelled (infra) | Treat as `timeout-infra` → follow the capped-rerun rule in Fix Strategies (once per loop invocation, skip on second occurrence) |
 
 **Poll loop:**
 1. Check elapsed wall-clock time — if >= `MAX_WALL_CLOCK`, stop polling and skip PR.

@@ -124,7 +124,7 @@ Procedure:
 
 ## Announcement Format Templates
 
-Use these exact templates. Replace `<MODE>` with `YOLO`, `Express`, or `Ship` (for Interactive). Replace placeholders in `<angle brackets>`.
+Use these exact templates. Replace `<MODE>` with `YOLO`, `Express`, or `Interactive`. Replace placeholders in `<angle brackets>`.
 
 **Loop entry (all modes):**
 ```

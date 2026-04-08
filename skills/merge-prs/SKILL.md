@@ -276,3 +276,6 @@ Read from `.feature-flow.yml` `merge:` section. All fields optional with default
 | `require_ci` | `true` | Require CI green before merge |
 | `require_review` | `true` | Require approved review before merge |
 | `auto_discover` | `label` | `label` \| `body_marker` \| `both` |
+| `ci_remediation.max_attempts` | `3` | Max CI fix attempts before skipping (integer >= 1). See `references/ci-remediation.md`. |
+| `ci_remediation.max_wall_clock_minutes` | `10` | Wall-clock budget per PR (integer >= 1) |
+| `ci_remediation.ci_poll_interval_seconds` | `30` | CI poll interval (integer >= 10) |

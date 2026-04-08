@@ -30,7 +30,7 @@ design_preferences:
 # ci_remediation:                       # Bounded CI failure remediation loop (see skills/merge-prs/references/ci-remediation.md)
 #   max_attempts: 3                     # integer >= 1 (default: 3)
 #   max_wall_clock_minutes: 10          # integer >= 1 (default: 10)
-#   ci_poll_interval_seconds: 30        # integer >= 5 (default: 30)
+#   ci_poll_interval_seconds: 30        # integer >= 10 (default: 30; GitHub API rate-limit safe floor)
 plugin_registry:
   last_scanned: "2026-04-04"
   base_plugins:
