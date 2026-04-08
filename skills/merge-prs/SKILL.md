@@ -85,7 +85,7 @@ gh pr view <number> --json state,mergeable,statusCheckRollup,reviews
 
 - If `state: "MERGED"`: announce "PR #N already merged — skipping." Continue.
 - If `mergeable: "CONFLICTING"`: attempt conflict resolution (see §Conflict Resolution).
-- If CI failing: investigate once — read CI logs via `gh run view`. If trivial fix (lint/type error), apply and push. If unfixable, skip with reason.
+- If CI failing: enter bounded remediation loop. Read `references/ci-remediation.md` and apply the attempt loop (default: 3 attempts, 10-min wall-clock, 30s poll interval). Skip only after budget exhausted or an `unknown` category is encountered.
 - If `reviews` has any `CHANGES_REQUESTED` state: flag to user, skip PR. Announce reason.
 
 **4b. Merge:**
