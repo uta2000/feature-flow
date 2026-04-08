@@ -29,25 +29,42 @@ Before checking for behavioral keywords, classify the conflict's *structure*. Th
 
 | Structure | Description | Classification |
 |-----------|-------------|----------------|
-| **One-sided modification** | Only one side has changes; the other side of the conflict markers is identical to the merge base (or empty) | Trivial (additive) — auto-resolve by taking the modified side |
-| **Adjacent additions** | Both sides add NEW lines without modifying any shared existing lines | Trivial — auto-resolve by taking both sides |
-| **Context-only keywords** | Behavioral keywords (`if`, `return`, etc.) appear in surrounding code but NOT between `<<<<<<<`/`=======`/`>>>>>>>` markers | Ignore keywords — classify based on the actual conflict content only |
-| **Both-sided modification** | Both sides modify the SAME existing lines (lines present in the merge base are changed differently by each side) | Proceed to behavioral keyword check below |
+| **One-sided modification** | Only one side has changes; the other side of the conflict markers is identical to the merge base (or empty) | **Tier 1** (additive) — auto-resolve by taking the modified side |
+| **Adjacent additions** | Both sides add NEW lines without modifying any shared existing lines | **Tier 1** — auto-resolve by taking both sides |
+| **Context-only keywords** | Behavioral keywords (`if`, `return`, etc.) appear in surrounding code but NOT between `<<<<<<<`/`=======`/`>>>>>>>` markers | **Tier 1** — ignore keywords and classify based on actual conflict content only |
+| **Both-sided modification — structurally independent** | Both sides modify the same conflict region BUT at non-overlapping positions (different statements, different declarations within the same scope). Keywords may be present. | **Tier 2** — run the structural independence gate, attempt additive merge, verify with tests |
+| **Both-sided modification — semantic overlap** | Both sides modify the SAME existing lines (shared lines in the merge base are changed differently by each side) | **Tier 3** — pause for user review (always) |
+| **Unknown / malformed** | Marker parsing fails or structure cannot be determined | **Tier 3** (conservative default) |
 
 **How to apply:**
 1. Parse the conflict region between `<<<<<<<` and `>>>>>>>` markers
 2. Identify the "ours" block (`<<<<<<<` to `=======`) and "theirs" block (`=======` to `>>>>>>>`)
-3. If one block is empty or contains only lines NOT present in the merge base → **one-sided modification** → trivial
-4. If both blocks contain only NEW lines (additions, not modifications of existing lines) → **adjacent additions** → trivial
-5. If both blocks modify lines that existed in the merge base, check whether behavioral keywords appear only in surrounding context (outside the `<<<<<<<`/`=======`/`>>>>>>>` markers) — if so → **context-only keywords** → ignore keywords and classify based on conflict content only
-6. If both blocks modify lines that existed in the merge base and keywords appear within the markers → **both-sided modification** → proceed to behavioral keyword check
-7. If structure cannot be determined (malformed markers, unusual format) → default to **behavioral** (conservative)
+3. If one block is empty or contains only lines NOT present in the merge base → **one-sided modification** → **Tier 1** (trivial)
+4. If both blocks contain only NEW lines (additions, not modifications of existing lines) → **adjacent additions** → **Tier 1** (trivial)
+5. If both blocks modify lines that existed in the merge base, check whether behavioral keywords appear only in surrounding context (outside the `<<<<<<<`/`=======`/`>>>>>>>` markers) — if so → **context-only keywords** → **Tier 1** (ignore keywords and classify based on conflict content only)
+6. If both blocks modify lines that existed in the merge base and keywords appear within the markers → **both-sided modification** → run the **structural independence gate** (defined in Tier 2 below):
+   - If the gate passes (changes at non-overlapping positions within the region, no shared-line modifications) → **Tier 2** (attempt additive merge + test verification)
+   - If the gate fails (**semantic overlap** — both sides modify the same existing lines differently) → **Tier 3** (pause for user review)
+7. If structure cannot be determined (malformed markers, unusual format) → **Tier 3** (conservative default)
 
 ---
 
 ## Tier 2: Attempt-with-Test-Verification (NEW)
 
-**When this applies:** Tier 2 targets the gap currently over-flagged by the behavioral keyword check. When Structure Classification routes a conflict to "both-sided modification" and the keyword check would fire, Tier 2 runs *before* the escalation to Tier 3. If the conflict's changes are structurally independent — meaning both sides introduce behavioral constructs at non-overlapping positions within the same region — an additive union merge is mechanically safe, and we can verify that safety by running the project test suite. This is a single-shot attempt, not a loop: one try, one verification, commit or escalate.
+**When this applies:** Tier 2 targets the gap currently over-flagged by the behavioral keyword check. When Structure Classification routes a conflict to "both-sided modification" and the keyword check would fire, the structural independence gate (below) runs *before* the escalation to Tier 3. If the gate passes, Tier 2 attempts an additive union merge and verifies safety by running the project test suite. This is a single-shot attempt, not a loop: one try, one verification, commit or escalate.
+
+### Structural Independence Gate
+
+The gate determines whether a both-sided modification with behavioral keywords is eligible for Tier 2 (additive merge + test verification) or must escalate directly to Tier 3 (pause).
+
+**Gate rules (evaluated in order — first match wins):**
+
+1. **Behavioral keywords present but non-overlapping scopes.** Both blocks introduce behavioral constructs (`if`, `return`, etc.) in distinct statements that do not modify the same merge-base line. Example: both sides add a new `return` inside the same function, but at different positions around a shared statement. → **Gate passes** (Tier 2 eligible).
+2. **Different declarations within the same file.** The conflict region spans multiple declarations (e.g., two functions, two `describe` blocks), and each side modifies a different declaration. → **Gate passes** (Tier 2 eligible).
+3. **Shared-line modifications (semantic overlap).** Both sides modify the same existing line from the merge base differently — e.g., both change the same `if` condition, both rewrite the same return statement. Additive union merge would produce contradictory logic. → **Gate fails** (Tier 3 only).
+4. **Ambiguous marker parsing or conflicting imports that Tier 1 did not already resolve.** → **Gate fails** (Tier 3, conservative).
+
+**Invariant:** The gate is ONLY evaluated for both-sided modifications with behavioral keyword matches. Cases already caught by one-sided modification, adjacent additions, or context-only keywords continue to resolve as Tier 1 with no change in behavior.
 
 **Procedure:**
 
