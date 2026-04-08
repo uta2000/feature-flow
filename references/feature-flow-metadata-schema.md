@@ -112,8 +112,10 @@ Used by `skills/start` in the `Wait for CI and Address Reviews` step (Phases 2c 
 
 ## §Version Compatibility
 
-- **v1 → v1 (adding fields):** Adding optional fields within v1 is non-breaking. Old consumers that don't know the new field ignore it (step 6 of §Parsing: missing optional fields default to `null`).
-- **Breaking changes (rename, retype, remove required field):** Bump to v2. Coexist with v1 for one release cycle — new producers write v2, consumers accept both v1 and v2.
+The marker version (`v1` in `<!-- feature-flow-metadata:v1`) and the `schema_version` field MUST agree. Consumers validate this match in step 5 of §Parsing.
+
+- **v1 → v1 (adding fields):** Adding optional fields within `schema_version: 1` is non-breaking. Old consumers that don't know the new field ignore it (step 6 of §Parsing: missing optional fields default to `null`).
+- **Breaking changes (rename, retype, remove required field):** Bump the marker to `v2` and `schema_version: 2`. Coexist with v1 for one release cycle — new producers write v2, consumers accept both v1 and v2.
 - **Unknown version:** Consumer treats as absent (step 2 of §Parsing). No crash, one warning.
 
 ---
