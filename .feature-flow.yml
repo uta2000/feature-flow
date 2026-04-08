@@ -27,6 +27,7 @@ design_preferences:
 # require_ci: true             # require CI green before merge (default: true)
 # require_review: true         # require approved review before merge (default: true)
 # auto_discover: label         # label | body_marker | both (default: label)
+# wait_for_rereview: false     # Wait for re-approval after auto-fixing review comments (default: false; see skills/merge-prs/references/review-triage.md)
 # ci_remediation:                       # Bounded CI failure remediation loop (see skills/merge-prs/references/ci-remediation.md)
 #   max_attempts: 3                     # integer >= 1 (default: 3)
 #   max_wall_clock_minutes: 10          # integer >= 1 (default: 10)

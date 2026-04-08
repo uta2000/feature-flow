@@ -11,7 +11,7 @@ This file is the canonical definition of the **bounded-attempt pattern** used ac
 **Current consumers:**
 - `references/ci-remediation.md` (CI failure loop — issue #224)
 - `references/conflict-resolution.md` (merge conflict ladder — issue #225, future)
-- PR review triage (issue #226, future)
+- `references/review-triage.md` (PR review triage — issue #226)
 
 ---
 
