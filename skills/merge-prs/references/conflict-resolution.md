@@ -43,6 +43,66 @@ Before checking for behavioral keywords, classify the conflict's *structure*. Th
 6. If both blocks modify lines that existed in the merge base and keywords appear within the markers → **both-sided modification** → proceed to behavioral keyword check
 7. If structure cannot be determined (malformed markers, unusual format) → default to **behavioral** (conservative)
 
+---
+
+## Tier 2: Attempt-with-Test-Verification (NEW)
+
+**When this applies:** Tier 2 targets the gap currently over-flagged by the behavioral keyword check. When Structure Classification routes a conflict to "both-sided modification" and the keyword check would fire, Tier 2 runs *before* the escalation to Tier 3. If the conflict's changes are structurally independent — meaning both sides introduce behavioral constructs at non-overlapping positions within the same region — an additive union merge is mechanically safe, and we can verify that safety by running the project test suite. This is a single-shot attempt, not a loop: one try, one verification, commit or escalate.
+
+**Procedure:**
+
+1. **Attempt additive union merge** — write the merged file with both blocks concatenated in their original order. The "ours" block is placed first, followed by the "theirs" block, with the shared merge-base context surrounding both.
+2. **Discover test runner** — see §Test Runner Discovery below. If no runner can be discovered for the project's stack, abort Tier 2 and escalate to Tier 3 with reason `test-runner-not-found`.
+3. **Run tests under hard wall-clock timeout** — invoke the discovered command using the detected `timeout`/`gtimeout`/bash-kill fallback (see §Timeout Detection below). Default limit: 5 minutes, configurable via `merge.conflict_resolution.test_timeout_minutes` (minimum 1).
+4. **On tests pass** (exit code 0 within the timeout window): commit the resolution and push.
+5. **On tests fail** (non-zero exit, timeout, or runner crash): discard the attempt via `git checkout -- .` to restore the conflict markers, capture the combined stdout+stderr output (trimmed to 80 lines), and fall through to Tier 3 with that output attached to the presentation.
+
+**Commit message contract:** Tier 2 commits MUST use the exact literal message `merge: resolve conflict, verified by tests` (no variants, no additional prefixes). This makes Tier 2 commits greppable and distinct from trivial (Tier 1) resolutions and manual (Tier 3) resolutions. When two or more files were resolved in the same Tier 2 attempt, the commit may include a multi-line body listing each file — but the first line is fixed.
+
+**Mode Behavior:**
+
+| Mode | Tier 2 attempt | Tier 2 commit on green |
+|------|----------------|------------------------|
+| **YOLO** | Automatic — no user prompt | Automatic — announce only |
+| **Express** | Automatic — no user prompt | Automatic — announce only |
+| **Interactive** | Confirm attempt via `AskUserQuestion` before applying | Confirm commit via `AskUserQuestion` before pushing |
+
+In all modes, failed Tier 2 attempts fall through to Tier 3 (which always pauses — see below).
+
+**Announcement templates:**
+
+Tier 2 attempt start:
+```
+<MODE>: ship — Conflict in PR #<N> (<file>:<scope>) → Tier 2 attempt
+  → Structural independence check: <reason passed>
+  → Applying additive merge...
+  → Detected test runner: <command> (<source>)
+  → Running: <TIMEOUT_CMD> <seconds> <command>
+```
+
+Tier 2 success:
+```
+  → Tests passed after <mm:ss>
+  → Committed: merge: resolve conflict, verified by tests
+  → Pushed. Proceeding to merge.
+```
+
+Tier 2 failure escalating to Tier 3:
+```
+  → Tests failed after <mm:ss> (exit <code>)
+<MODE>: ship — Tier 2 tests failed in PR #<N> → Tier 3 pause
+  → Discarded attempt (git checkout -- .)
+  → Captured test output (<lines> lines)
+  → Presenting to user...
+```
+
+Tier 2 skipped (no runner discoverable):
+```
+<MODE>: ship — Tier 2 skipped in PR #<N> → Tier 3 (reason: test-runner-not-found)
+```
+
+---
+
 ### Behavioral Conflicts (require confirmation)
 
 **Never auto-resolve.** Always pause and present to the user, regardless of mode (YOLO, Express, or Interactive).
