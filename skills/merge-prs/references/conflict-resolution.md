@@ -140,6 +140,48 @@ fi
 
 The `packageManager` field in `package.json` takes precedence over lockfile heuristics when present — this handles projects that set a preferred package manager but haven't yet committed a lockfile for it.
 
+### Timeout Detection
+
+Tier 2 must enforce a hard wall-clock limit on the test run so a slow or hanging test suite cannot stall the `merge-prs` batch. The default limit is **5 minutes**, configurable via `merge.conflict_resolution.test_timeout_minutes` in `.feature-flow.yml` (minimum 1 minute).
+
+**macOS does not ship a `timeout` command by default.** GNU `timeout` is available on Linux (from coreutils) and on macOS via Homebrew as `gtimeout`. If neither is available, fall back to a bash background-job + kill pattern.
+
+**Detection snippet (run once per merge-prs invocation, before the first Tier 2 attempt):**
+```bash
+if command -v timeout >/dev/null 2>&1; then
+  TIMEOUT_CMD="timeout"
+elif command -v gtimeout >/dev/null 2>&1; then
+  TIMEOUT_CMD="gtimeout"
+else
+  TIMEOUT_CMD=""  # bash-kill fallback
+fi
+```
+
+**Invocation with detected command:**
+```bash
+TIMEOUT_SECONDS=$(( ${TEST_TIMEOUT_MINUTES:-5} * 60 ))
+if [ -n "$TIMEOUT_CMD" ]; then
+  "$TIMEOUT_CMD" "$TIMEOUT_SECONDS" bash -c "$TEST_CMD"
+  TEST_EXIT=$?
+else
+  # Bash background-kill fallback (no GNU timeout / gtimeout available)
+  ( eval "$TEST_CMD" ) &
+  TEST_PID=$!
+  ( sleep "$TIMEOUT_SECONDS" && kill -TERM "$TEST_PID" 2>/dev/null ) &
+  KILLER_PID=$!
+  wait "$TEST_PID"; TEST_EXIT=$?
+  kill -TERM "$KILLER_PID" 2>/dev/null
+fi
+```
+
+**Exit code interpretation:**
+- `0` → tests passed within the timeout window → commit Tier 2 resolution
+- `1`–`127` → tests failed (normal failure) → discard attempt, escalate to Tier 3
+- `124` (GNU `timeout` semantics) or `143` (SIGTERM from the bash fallback) → timed out → discard attempt, escalate to Tier 3 with reason `test-timeout`
+- `>128` (killed by other signal) → treat as "tests failed" → discard and escalate
+
+**Minimum timeout enforcement:** If `test_timeout_minutes` is set below 1 in config, clamp to 1 minute (a shorter window cannot reliably run any realistic test suite and would defeat Tier 2's purpose).
+
 ---
 
 ## Tier 3: Diff Presentation (Always Pauses)
