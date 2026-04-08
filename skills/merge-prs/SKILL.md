@@ -282,3 +282,5 @@ Read from `.feature-flow.yml` `merge:` section. All fields optional with default
 | `ci_remediation.max_attempts` | `3` | Max CI fix attempts before skipping (integer >= 1). See `references/ci-remediation.md`. |
 | `ci_remediation.max_wall_clock_minutes` | `10` | Wall-clock budget per PR (integer >= 1) |
 | `ci_remediation.ci_poll_interval_seconds` | `30` | CI poll interval (integer >= 10) |
+| `conflict_resolution.test_command` | *(none)* | Optional override for Tier 2 test runner. If unset, stack-based detection is used. See `references/conflict-resolution.md` § Test Runner Discovery. |
+| `conflict_resolution.test_timeout_minutes` | `5` | Hard wall-clock timeout for Tier 2 test verification. Minimum 1. |
