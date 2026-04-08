@@ -1,6 +1,6 @@
 # Fixture: Absent — No Marker
 
-**Purpose:** Standard PR body with no `feature-flow-metadata` marker. Represents a PR created manually (outside the lifecycle) or before this feature was shipped. Used to verify that the absent path is fully silent — no warning, no error.
+**Purpose:** Standard PR body with no `metadata-block` marker. Represents a PR created manually (outside the lifecycle) or before this feature was shipped. Used to verify that the absent path is fully silent — no warning, no error.
 
 **Expected consumer behavior:**
 1. Marker regex search finds no match.
