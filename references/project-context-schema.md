@@ -424,6 +424,24 @@ lifecycle:
 
 **Trade-off:** Set `auto_invoke_merge_prs: true` only when you want YOLO to run fully end-to-end without human intervention — for example, in automated release pipelines or scheduled lifecycle runs. For interactive development, keep the default.
 
+#### `lifecycle.metadata_block`
+
+Controls the PR Metadata Block Step, which appends a versioned `feature-flow-metadata` YAML block inside an HTML comment to every PR body created by the lifecycle. See `references/feature-flow-metadata-schema.md` for the full schema.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | boolean | `true` | When `false`, skip the PR Metadata Block Step entirely. No warning is emitted when skipped. |
+
+**Format:**
+
+```yaml
+lifecycle:
+  metadata_block:
+    enabled: true
+```
+
+**When absent:** Defaults to `true`. The PR Metadata Block Step runs for all scopes and all modes (YOLO, Express, Interactive). Set `enabled: false` to opt out if the metadata block causes issues (e.g. downstream tooling that parses PR bodies fails on the HTML comment).
+
 ### `changelog`
 
 Optional configuration for changelog fragment behavior.
