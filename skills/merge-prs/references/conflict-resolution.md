@@ -53,6 +53,16 @@ Before checking for behavioral keywords, classify the conflict's *structure*. Th
 
 **When this applies:** Tier 2 targets the gap currently over-flagged by the behavioral keyword check. When Structure Classification routes a conflict to "both-sided modification" and the keyword check would fire, the structural independence gate (below) runs *before* the escalation to Tier 3. If the gate passes, Tier 2 attempts an additive union merge and verifies safety by running the project test suite. This is a single-shot attempt, not a loop: one try, one verification, commit or escalate.
 
+**Mode Behavior:**
+
+| Mode | Tier 2 attempt | Tier 2 commit on green |
+|------|----------------|------------------------|
+| **YOLO** | Automatic — no user prompt | Automatic — announce only |
+| **Express** | Automatic — no user prompt | Automatic — announce only |
+| **Interactive** | Confirm attempt via `AskUserQuestion` before applying | Confirm commit via `AskUserQuestion` before pushing |
+
+In all modes, failed Tier 2 attempts fall through to Tier 3 (which always pauses — see below).
+
 ### Structural Independence Gate
 
 The gate determines whether a both-sided modification with behavioral keywords is eligible for Tier 2 (additive merge + test verification) or must escalate directly to Tier 3 (pause).
@@ -75,16 +85,6 @@ The gate determines whether a both-sided modification with behavioral keywords i
 5. **On tests fail** (non-zero exit, timeout, or runner crash): discard the attempt via `git checkout -- .` to restore the conflict markers, capture the combined stdout+stderr output (trimmed to 80 lines), and fall through to Tier 3 with that output attached to the presentation.
 
 **Commit message contract:** Tier 2 commits MUST use the exact literal message `merge: resolve conflict, verified by tests` (no variants, no additional prefixes). This makes Tier 2 commits greppable and distinct from trivial (Tier 1) resolutions and manual (Tier 3) resolutions. When two or more files were resolved in the same Tier 2 attempt, the commit may include a multi-line body listing each file — but the first line is fixed.
-
-**Mode Behavior:**
-
-| Mode | Tier 2 attempt | Tier 2 commit on green |
-|------|----------------|------------------------|
-| **YOLO** | Automatic — no user prompt | Automatic — announce only |
-| **Express** | Automatic — no user prompt | Automatic — announce only |
-| **Interactive** | Confirm attempt via `AskUserQuestion` before applying | Confirm commit via `AskUserQuestion` before pushing |
-
-In all modes, failed Tier 2 attempts fall through to Tier 3 (which always pauses — see below).
 
 **Announcement templates:**
 
