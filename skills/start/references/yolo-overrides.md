@@ -166,6 +166,7 @@ How to proceed:
    - If `.feature-flow/design/verification-results.md` has content: `### Verification Results` — include the blockers-found list only
    - If `.feature-flow/implement/patterns-found.md` has content: `### Key Patterns Used` — include the How to Code This section only (omit the full patterns dump)
    - Omit subsections whose files contain only template placeholder text (no real entries)
+7a. **Append feature-flow-metadata block.** Run the PR Metadata Block Step from `inline-steps.md` §PR Metadata Block Step. Applies in all modes (YOLO, Express, Interactive) — not YOLO-specific.
 8. **Test failure during completion:** If tests fail, log the failures as a warning and proceed with PR creation. Announce: `YOLO: finishing-a-development-branch — Tests failing → Proceeding with PR (N failures logged)`. Proceed past test failures — the code review pipeline already ran verification.
 9. **Do NOT merge the PR or remove worktrees in this step.** The lifecycle ends at PR creation. Do not run `gh pr merge`, `git worktree remove`, or `git branch -d` — the user merges and cleans up after reviewing. If worktree cleanup is needed later, always `cd` to the parent repo root first: `cd <parent-repo-root> && git worktree remove .worktrees/<name>`. Running worktree removal while CWD is inside the worktree destroys the shell and crashes the session.
 
