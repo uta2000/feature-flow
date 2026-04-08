@@ -579,13 +579,13 @@ This step runs during the `Commit and PR` phase, immediately after the PR body (
      '$ARGS.named')
    ```
 
-3. Serialize to YAML via Python one-liner (canonical field order, see `../../references/feature-flow-metadata-schema.md` §Serialization):
+3. Serialize to YAML via Python one-liner (canonical field order, see references/feature-flow-metadata-schema.md §Serialization):
    ```bash
    METADATA_YAML=$(python3 -c \
      "import yaml,sys,json; d=json.loads(sys.argv[1]); print(yaml.safe_dump(d, sort_keys=False, default_flow_style=False).rstrip())" \
      "$METADATA_JSON")
    ```
-   If this fails (PyYAML unavailable), use the printf fallback per `../../references/feature-flow-metadata-schema.md` §Serialization. If fallback also fails, log warning and skip block (continue to PR creation without block).
+   If this fails (PyYAML unavailable), use the printf fallback per references/feature-flow-metadata-schema.md §Serialization. If fallback also fails, log warning and skip block (continue to PR creation without block).
 
 4. Append the block to the PR body file:
    ```bash
@@ -722,7 +722,7 @@ Review bots like Gemini Code Review and CodeRabbit post inline code review comme
 
 8. After pushing fixes, re-wait for CI (Phase 1) one more time to confirm the fix commit passes. Do NOT re-wait for a second round of bot reviews — the fix commit does not trigger a new full review from most bots.
 
-9. **Update PR metadata remediation_log.** After the fix commit is pushed, append an entry to the `remediation_log` in the PR's `feature-flow-metadata` block. Follow the read-modify-write protocol in `../../references/feature-flow-metadata-schema.md` §Update Protocol. Entry fields: `type: "review-bot"`, `description: "addressed N review comments (K declined)"`, `commit: <fix_commit_sha>`, `at: <current UTC timestamp>`. This step is non-fatal — if it fails, log a warning and continue.
+9. **Update PR metadata remediation_log.** After the fix commit is pushed, append an entry to the `remediation_log` in the PR's `feature-flow-metadata` block. Follow the read-modify-write protocol in references/feature-flow-metadata-schema.md §Update Protocol. Entry fields: `type: "review-bot"`, `description: "addressed N review comments (K declined)"`, `commit: <fix_commit_sha>`, `at: <current UTC timestamp>`. This step is non-fatal — if it fails, log a warning and continue.
 
 ### Phase 3: Handle CI failures
 
@@ -733,7 +733,7 @@ Review bots like Gemini Code Review and CodeRabbit post inline code review comme
    - **Deploy / infra failure** → not actionable by code changes, warn and continue
 3. After pushing a fix, return to Phase 1 (re-wait for CI).
 
-4. **Update PR metadata remediation_log.** After the fix commit is pushed, append an entry to the `remediation_log` in the PR's `feature-flow-metadata` block. Follow the read-modify-write protocol in `../../references/feature-flow-metadata-schema.md` §Update Protocol. Entry fields: `type: "ci-<category>"` (e.g. `"ci-lint"`, `"ci-test"`), `description: "<check name>: <brief fix description>"`, `commit: <fix_commit_sha>`, `at: <current UTC timestamp>`. This step is non-fatal — if it fails, log a warning and continue.
+4. **Update PR metadata remediation_log.** After the fix commit is pushed, append an entry to the `remediation_log` in the PR's `feature-flow-metadata` block. Follow the read-modify-write protocol in references/feature-flow-metadata-schema.md §Update Protocol. Entry fields: `type: "ci-<category>"` (e.g. `"ci-lint"`, `"ci-test"`), `description: "<check name>: <brief fix description>"`, `commit: <fix_commit_sha>`, `at: <current UTC timestamp>`. This step is non-fatal — if it fails, log a warning and continue.
 
 ### Phase Ordering
 
