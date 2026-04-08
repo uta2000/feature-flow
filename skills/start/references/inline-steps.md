@@ -710,9 +710,9 @@ After addressing: `YOLO: start — Review comments → N addressed, K declined`
 
 ---
 
-## Comment and Close Issue Step
+## Post Implementation Comment Step
 
-This step runs after "Wait for CI and address reviews" (or after mobile-specific steps like app store review) and before the completion summary. It only runs when a GitHub issue was linked during Step 1 (issue reference detection). If no issue was linked, skip this step silently.
+This step runs after the Harden PR step (for Feature and Major Feature scopes) or after "Wait for CI and address reviews" (for smaller scopes, or after app store review for mobile platforms), and before the Handoff step (or before the lifecycle completion summary for non-feature scopes). It only runs when a GitHub issue was linked during Step 1 (issue reference detection). If no issue was linked, skip this step silently.
 
 **Process:**
 
@@ -742,8 +742,8 @@ This step runs after "Wait for CI and address reviews" (or after mobile-specific
    Task(
      subagent_type: "general-purpose",
      model: "sonnet",
-     description: "Post issue comment and close issue #[N]",
-     prompt: "Post a comment on GitHub issue #[N], then close it. Use exactly this comment body:
+     description: "Post implementation comment on issue #[N]",
+     prompt: "Post a comment on GitHub issue #[N]. Use exactly this comment body:
 
    ## Implementation Complete
 
@@ -763,12 +763,14 @@ This step runs after "Wait for CI and address reviews" (or after mobile-specific
    - \`[file path]\` — [1-line description]
    [up to 10 files from git diff --stat]
 
-   Run: gh issue comment [N] --body-file /tmp/ff_issue_comment.md then gh issue close [N] (write the comment body to /tmp/ff_issue_comment.md first to avoid shell quoting issues with apostrophes and special characters). Return 'success' or 'failed: [reason]' so the orchestrator can branch the announcement."
+   *This issue will close automatically when PR #[PR number from context] is merged (via `Closes #[N]` in the PR body).*
+
+   Run: gh issue comment [N] --body-file /tmp/ff_issue_comment.md (write the comment body to /tmp/ff_issue_comment.md first to avoid shell quoting issues with apostrophes and special characters). Return 'success' or 'failed: [reason]' so the orchestrator can branch the announcement."
    )
    ```
 
 4. **Announce:**
-   - If subagent returned `'success'`: `"Issue #[N] commented and closed."`
+   - If subagent returned `'success'`: `"Issue #[N] commented (will auto-close on PR merge)."`
    - If subagent returned `'failed: [reason]'`: log `"Issue #[N] comment/close failed — [reason]. Continuing."` and skip success announcement.
 
 **Edge cases:**
@@ -776,6 +778,134 @@ This step runs after "Wait for CI and address reviews" (or after mobile-specific
 - **Issue already closed:** Caught in step 1 — skip dispatch. Do not reopen or double-comment.
 - **`gh` command fails:** Subagent logs error and continues — non-blocking
 - **YOLO/mode propagation:** YOLO propagation applies only to `Skill()` invocations, not `Task()` dispatches. These git/gh subagents require no mode flag.
+
+---
+
+## Harden PR Step
+
+This step runs after "Wait for CI and address reviews" and before the "Post Implementation Comment" step. Feature and Major Feature scopes only — smaller scopes skip this step entirely.
+
+Harden PR applies a bounded best-effort remediation loop to drive the PR from its current state (possibly red CI, conflicts, or unresolved reviews) to a mergeable state. Unlike "Wait for CI and address reviews" (which waits for initial CI + bot reviews to land), Harden PR actively attempts to fix remaining problems.
+
+**Process:**
+
+1. **Read shared references** (in this order):
+   - `../../references/best-effort-remediation.md` — bounded-attempt loop skeleton and mode escalation contract
+   - `../../references/ci-remediation.md` — category-specific CI fix strategies
+   - `../../references/conflict-resolution.md` — graduated conflict resolution ladder
+   - `../../references/review-triage.md` — review comment triage and remediation
+
+2. **Read bounds from `.feature-flow.yml`:**
+   - `lifecycle.harden_pr.enabled` (default: `true`) — if `false`, skip this step
+   - `lifecycle.harden_pr.max_attempts` (default: `3`)
+   - `lifecycle.harden_pr.max_wall_clock_minutes` (default: `10`)
+   - `lifecycle.harden_pr.pause_on_unresolvable_conflict` (default: `true`)
+
+3. **Get current PR state:**
+   ```bash
+   gh pr view <pr_number> --json state,mergeable,statusCheckRollup,reviews,reviewDecision
+   ```
+
+4. **Fast path: already mergeable?** If `mergeable: MERGEABLE` AND `reviewDecision != CHANGES_REQUESTED` AND all checks green, skip the loop. Announce: `Harden PR: PR #N already mergeable — no remediation needed.`
+
+5. **Apply bounded remediation loop:**
+   - **CI red?** Apply `../../references/ci-remediation.md` strategies. After each fix commit, push and re-poll CI.
+   - **Mergeable: CONFLICTING?** Apply `../../references/conflict-resolution.md` graduated ladder. Tier 3 always pauses — even in YOLO — when `pause_on_unresolvable_conflict: true`.
+   - **Unresolved human reviews?** Apply `../../references/review-triage.md` to classify and remediate. Blockers without an automated fix always pause.
+   - **All clean?** Exit loop.
+
+6. **Final mergeable check:**
+   ```bash
+   gh pr view <pr_number> --json mergeable,reviewDecision,statusCheckRollup
+   ```
+   - `mergeable: MERGEABLE` AND `reviewDecision != CHANGES_REQUESTED` AND CI green → record status `READY`
+   - Otherwise → record status `BLOCKED` and the outstanding blockers
+
+7. **Output structured summary:**
+   ```
+   Harden PR: PR #N status — [READY | BLOCKED]
+     CI: [green | red — N failing checks: name1, name2]
+     Conflicts: [none | unresolved in: file1, file2]
+     Reviews: [approved | N unresolved: blockers=K, suggestions=L]
+     Remediation log: [N attempts, M fixes applied across X categories]
+   ```
+
+**Mode behavior:**
+
+| Mode | Behavior |
+|------|----------|
+| YOLO | All remediation automatic. Pause only when conflict-resolution.md or review-triage.md mandate it (Tier 3 conflicts, unresolvable blockers). Announce each attempt: `YOLO: harden-pr — Attempt N/3 → [action]` |
+| Express | First remediation attempt confirmed via `AskUserQuestion`; subsequent attempts automatic. Announce: `Express: harden-pr — Attempt N/3 → [action]` |
+| Interactive | Confirm each remediation attempt with proposed diff via `AskUserQuestion` before applying |
+
+**Edge cases:**
+
+- **Budget exhausted, PR still blocked:** Record what's still blocking. Proceed to "Post Implementation Comment" + "Handoff" — the user sees blockers in the handoff announcement and decides whether to fix manually or invoke `/merge-prs` later. Do NOT loop indefinitely.
+- **PR already merged (user merged manually mid-lifecycle):** Announce, skip Harden PR, skip Post Implementation Comment (the comment is not useful post-merge), proceed to Handoff with a "PR was merged externally" note.
+- **No remediation needed (PR already green/mergeable):** Skip all loop attempts per step 4 fast path.
+- **Wall-clock budget exceeded mid-attempt:** Complete the in-progress fix (don't leave a half-applied state), then exit with `BLOCKED` status.
+
+---
+
+## Handoff Step
+
+This step is the terminal step for Feature and Major Feature scopes. It replaces the previous Ship step and the current Step 5 completion output for these scopes. Smaller scopes (Quick fix, Small enhancement) use the existing Step 5 completion summary — they do not reach this step.
+
+**Process:**
+
+1. **Read PR state one more time** (final snapshot):
+   ```bash
+   gh pr view <pr_number> --json number,url,state,mergeable,reviewDecision,statusCheckRollup
+   ```
+
+2. **Count sibling feature-flow PRs** (informational only, not a gate):
+   ```bash
+   gh pr list --label feature-flow --base <base_branch> --state open --json number --jq 'length'
+   ```
+   Subtract 1 to get "other open feature-flow PRs."
+
+3. **Count changelog fragments:**
+   ```bash
+   ls .changelogs/*.md 2>/dev/null | wc -l
+   ```
+
+4. **Build handoff announcement:**
+
+   ```
+   Lifecycle complete — PR is ready for merge.
+
+   PR: #<number> — <url>
+     Status: [MERGEABLE | BLOCKED — see harden-pr output above]
+     CI: [green | red]
+     Reviews: [approved | N unresolved]
+     Issue: #<N> will close automatically on merge (via `Closes #N`)
+     [or "Issue: none linked" if issue is null]
+
+   Other open feature-flow PRs: [M]
+   Changelog fragments pending: [K]
+
+   Next steps:
+     1. Merge PR #<number> directly in GitHub  →  closes issue #<N>
+     2. Or run `/merge-prs <number>`  →  feature-flow merges, closes issue, consolidates changelog
+     3. Or run `/merge-prs feature-flow`  →  batch-merge all [M+1] feature-flow PRs
+
+   Worktree: [Removed | Still active at .worktrees/<name>]
+   [If still active: "Run `cd <repo-root> && git worktree remove .worktrees/<name>` from the parent repo (NOT from inside the worktree)."]
+   ```
+
+5. **Mode behavior:**
+
+| Mode | Behavior |
+|------|----------|
+| YOLO | If `lifecycle.handoff.auto_invoke_merge_prs: true` is set in config, automatically invoke `Skill(skill: "feature-flow:merge-prs", args: "yolo: true. <pr_number>")` after the announcement. Otherwise stop after announcing. **Default: do NOT auto-invoke** (preserves the "merging is a deliberate action" principle even in YOLO). Users who want full unattended end-to-end can opt in. Announce: `YOLO: handoff — PR ready, [auto-invoking merge-prs / stopping per config]` |
+| Express | Stop after announcing. Suggest `/merge-prs` as next action. |
+| Interactive | Stop after announcing. Suggest `/merge-prs` as next action. |
+
+6. **Notification:** Fire `notifications.on_stop` from `.feature-flow.yml` if set.
+
+7. **Mark final todo complete** via `TaskUpdate` (Turn Bridge Rule).
+
+**Note on changelog consolidation:** Fragments in `.changelogs/` remain until the user runs `/merge-prs` — consolidation runs as part of merge-prs's terminal step. This matches the principle that handoff ends the lifecycle and lets the user choose when to ship.
 
 ---
 
