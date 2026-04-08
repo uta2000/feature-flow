@@ -224,7 +224,7 @@ Then execute Step 3 (merge order), Step 4 (sequential merge), and Step 5 (summar
 
 **Read `references/conflict-resolution.md`** when a PR reports `mergeable: "CONFLICTING"`.
 
-Summary of resolution strategy:
+Summary of resolution strategy — the **4-tier ladder** (Tier 1 → Tier 2 → Tier 3 → Tier 4):
 
 1. Create a temporary worktree for conflict resolution:
    ```bash
@@ -234,11 +234,13 @@ Summary of resolution strategy:
    ```bash
    cd /tmp/merge-prs-conflict-<number> && git merge origin/<base_branch>
    ```
-3. Classify each conflict per `references/conflict-resolution.md` rules.
-4. For trivial conflicts: auto-resolve and announce.
-5. For behavioral conflicts: **always pause** regardless of mode. Present conflict diff and ask for direction.
-6. After resolution: `git add . && git commit && git push`
-7. **Cleanup:** Always remove the worktree, even on error:
+3. For each conflict, run Structure Classification per `references/conflict-resolution.md` and route to the appropriate tier.
+4. **Tier 1 — Trivial auto-resolve.** Imports, lockfiles, adjacent additions, one-sided modifications, context-only keywords → auto-resolve and announce. No user interaction in any mode.
+5. **Tier 2 — Attempt-with-test-verification.** Both-sided modifications that pass the structural independence gate → attempt an additive union merge, run the project test suite under a hard 5-minute timeout (`merge.conflict_resolution.test_timeout_minutes`, configurable), and commit with the literal message `merge: resolve conflict, verified by tests` if tests pass. On test failure or timeout, discard the attempt via `git checkout -- .` and escalate to Tier 3 with the test output captured for presentation.
+6. **Tier 3 — Diff presentation. ALWAYS pauses regardless of mode, including YOLO (safety invariant).** Present the conflict diff, the Tier 2 proposed resolution (if any), and the test failure output (if Tier 2 was attempted) via `AskUserQuestion`. Options: Accept proposed / Accept ours / Accept theirs / I'll resolve manually / Skip this PR.
+7. **Tier 4 — Skip (last resort).** Reached only when Tier 3 is declined or manual resolution fails. Log reason, report in Ship Phase Summary, continue with remaining PRs.
+8. After Tier 1 or Tier 2 success: `git add . && git commit && git push`. Tier 1 uses its existing per-type commit message; Tier 2 uses the fixed literal message `merge: resolve conflict, verified by tests`.
+9. **Cleanup:** Always remove the worktree, even on error:
    ```bash
    ORIG_DIR=$(pwd)
    # ... conflict resolution work ...
