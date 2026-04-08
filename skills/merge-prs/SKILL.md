@@ -85,7 +85,7 @@ gh pr view <number> --json state,mergeable,statusCheckRollup,reviews
 
 - If `state: "MERGED"`: announce "PR #N already merged — skipping." Continue.
 - If `mergeable: "CONFLICTING"`: attempt conflict resolution (see §Conflict Resolution).
-- If CI failing: investigate once — read CI logs via `gh run view`. If trivial fix (lint/type error), apply and push. If unfixable, skip with reason.
+- If CI failing: enter bounded remediation loop. Read `references/ci-remediation.md` and apply the attempt loop (default: 3 attempts, 10-min wall-clock, 30s poll interval). Skip only after budget exhausted or an `unknown` category is encountered.
 - If `reviews` has any `CHANGES_REQUESTED` state: flag to user, skip PR. Announce reason.
 
 **4b. Merge:**
@@ -259,8 +259,7 @@ Strategy: continue-on-failure. Every skip is reported with a reason.
 | PR already merged | Detect via `gh pr view`. Announce "PR #N already merged — skipping." Continue. |
 | Merge conflict, auto-resolvable | Auto-resolve (trivial), announce, continue |
 | Merge conflict, behavioral | Pause for confirmation. If unresolved, skip with reason |
-| CI failing, trivial fix | Apply fix, push, retry merge once |
-| CI failing, unfixable | Skip with reason |
+| CI failing | Enter bounded remediation loop (see `references/ci-remediation.md`). Skip only after `MAX_ATTEMPTS` / `MAX_WALL_CLOCK` exhausted or `unknown` category detected. |
 | Unresolved review requests | Skip with reason |
 | GitHub API error | Retry once after 5 seconds. If still failing, skip with reason |
 
@@ -277,3 +276,6 @@ Read from `.feature-flow.yml` `merge:` section. All fields optional with default
 | `require_ci` | `true` | Require CI green before merge |
 | `require_review` | `true` | Require approved review before merge |
 | `auto_discover` | `label` | `label` \| `body_marker` \| `both` |
+| `ci_remediation.max_attempts` | `3` | Max CI fix attempts before skipping (integer >= 1). See `references/ci-remediation.md`. |
+| `ci_remediation.max_wall_clock_minutes` | `10` | Wall-clock budget per PR (integer >= 1) |
+| `ci_remediation.ci_poll_interval_seconds` | `30` | CI poll interval (integer >= 10) |

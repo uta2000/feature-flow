@@ -1,4 +1,4 @@
-plugin_version: 1.32.0
+plugin_version: 1.33.0
 platform: cli
 stack:
   - node-js
@@ -27,6 +27,10 @@ design_preferences:
 # require_ci: true             # require CI green before merge (default: true)
 # require_review: true         # require approved review before merge (default: true)
 # auto_discover: label         # label | body_marker | both (default: label)
+# ci_remediation:                       # Bounded CI failure remediation loop (see skills/merge-prs/references/ci-remediation.md)
+#   max_attempts: 3                     # integer >= 1 (default: 3)
+#   max_wall_clock_minutes: 10          # integer >= 1 (default: 10)
+#   ci_poll_interval_seconds: 30        # integer >= 10 (default: 30; GitHub API rate-limit safe floor)
 plugin_registry:
   last_scanned: "2026-04-04"
   base_plugins:

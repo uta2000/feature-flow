@@ -2,6 +2,17 @@
 
 All notable changes to the feature-flow plugin.
 
+## [1.33.0] - 2026-04-07
+
+### Added
+- **Cross-PR import dependency analysis for merge-prs ordering (GH220)** — PRs whose changed files are imported by other PRs now merge first. New reference file `dependency-analysis.md` documents the algorithm, supported languages (JS/TS, Python, Go, Rust), and edge cases. Merge ordering priority list updated from 4 to 5 items — dependency constraints are now priority #1.
+- **Structure-aware conflict classification pre-filter (GH221)** — Conflict classification now analyzes conflict *structure* (one-sided modification, adjacent additions, context-only keywords, both-sided modification) before checking for behavioral keywords. One-sided modifications and context-only keywords no longer trigger false behavioral escalations. Three reclassified examples added. Safety invariant preserved: true both-sided modifications with behavioral keywords still always pause for human review.
+
+### Fixed
+- False behavioral conflict escalations where one-sided modifications or context-only keywords triggered unnecessary human review pauses in merge-prs
+- Standalone mode `all open` and `epic N` now run dependency analysis before merging
+- Context lines in diffs no longer create false dependency edges
+
 ## [1.32.0] - 2026-04-07
 
 ### Added
