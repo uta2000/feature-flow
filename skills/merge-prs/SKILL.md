@@ -260,7 +260,7 @@ Strategy: continue-on-failure. Every skip is reported with a reason.
 | Merge conflict, auto-resolvable | Auto-resolve (trivial), announce, continue |
 | Merge conflict, behavioral | Pause for confirmation. If unresolved, skip with reason |
 | CI failing | Enter bounded remediation loop (see `references/ci-remediation.md`). Skip only after `MAX_ATTEMPTS` / `MAX_WALL_CLOCK` exhausted or `unknown` category detected. |
-| Unresolved review requests | Skip with reason |
+| Unresolved review requests | Enter single-pass review triage loop (see `references/review-triage.md`). Skip only if blockers cannot be fixed or (in YOLO) unclear threads remain. |
 | GitHub API error | Retry once after 5 seconds. If still failing, skip with reason |
 
 ---
