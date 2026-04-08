@@ -4,6 +4,21 @@ All notable changes to the feature-flow plugin.
 
 ## [Unreleased]
 
+### Added
+- `.feature-flow.yml` schema: `lifecycle.harden_pr` (enabled, max_attempts, max_wall_clock_minutes, pause_on_unresolvable_conflict).
+- `.feature-flow.yml` schema: `lifecycle.handoff.auto_invoke_merge_prs` (default `false`; set `true` in YOLO to restore legacy end-to-end auto-merge).
+- `yolo.stop_after` enum: new values `harden_pr` and `handoff`.
+
+### Changed
+- **Lifecycle no longer auto-closes linked issues or auto-merges PRs (#228)**. Terminal phase is now `Harden PR` (bounded remediation loop) + `Handoff` (announces a ready-to-merge PR and stops). Issue closure happens via `Closes #N` in the PR body when the user merges.
+- `feature-flow:start` and `feature-flow:merge-prs` are now independent entry points sharing one remediation knowledge base under top-level `references/`. `start` no longer invokes `merge-prs`.
+- `merge-prs` no longer has a `Lifecycle Mode`. Standalone and Cross-Session modes remain; the post-merge `gh issue close` safety net is removed.
+- `skills/start/references/yolo-overrides.md` PR body template uses `Closes #N` instead of `Related: #N`.
+
+### Maintenance
+- Moved `best-effort-remediation.md`, `ci-remediation.md`, `conflict-resolution.md`, and `review-triage.md` from `skills/merge-prs/references/` to top-level `references/`. Both `start` and `merge-prs` now consume the same files without cross-skill coupling. (`skills/merge-prs/references/dependency-analysis.md` is merge-prs-specific and stays in place.)
+- `yolo.stop_after: ship` is deprecated as an alias for `handoff`; it will be removed in a future release.
+
 ## [1.34.0] - 2026-04-08
 
 ### Added
