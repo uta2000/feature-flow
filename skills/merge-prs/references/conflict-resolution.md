@@ -2,9 +2,16 @@
 
 Reference file for the `merge-prs` skill. Read this file when a PR reports `mergeable: "CONFLICTING"`.
 
+**The 4-tier ladder:** Every conflict is routed to exactly one tier, from lowest-friction to highest:
+
+- **Tier 1 — Trivial auto-resolve** (below): imports, lockfiles, adjacent additions, one-sided modifications, context-only keywords. No user interaction.
+- **Tier 2 — Attempt-with-test-verification** (§Tier 2 below): both-sided modifications that pass the structural independence gate. Attempt additive merge, run tests, commit if green.
+- **Tier 3 — Diff presentation** (§Tier 3 below): semantic overlap, Tier 2 test failure, or ambiguous structure. **Always pauses for user review**, even in YOLO mode.
+- **Tier 4 — Skip** (last resort): reached only when Tier 3 is declined or manual resolution fails. Logged in the Ship Phase Summary.
+
 ---
 
-## Classification: Trivial vs Behavioral
+## Tier 1: Trivial Auto-Resolve
 
 Parse the conflict markers in the diff. Classify the conflict based on the content of the conflicting region.
 
