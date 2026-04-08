@@ -224,7 +224,7 @@ Then execute Step 3 (merge order), Step 4 (sequential merge), and Step 5 (summar
 
 **Read `references/conflict-resolution.md`** when a PR reports `mergeable: "CONFLICTING"`.
 
-Summary of resolution strategy:
+Summary of resolution strategy — the **4-tier ladder** (Tier 1 → Tier 2 → Tier 3 → Tier 4):
 
 1. Create a temporary worktree for conflict resolution:
    ```bash
@@ -234,11 +234,13 @@ Summary of resolution strategy:
    ```bash
    cd /tmp/merge-prs-conflict-<number> && git merge origin/<base_branch>
    ```
-3. Classify each conflict per `references/conflict-resolution.md` rules.
-4. For trivial conflicts: auto-resolve and announce.
-5. For behavioral conflicts: **always pause** regardless of mode. Present conflict diff and ask for direction.
-6. After resolution: `git add . && git commit && git push`
-7. **Cleanup:** Always remove the worktree, even on error:
+3. For each conflict, run Structure Classification per `references/conflict-resolution.md` and route to the appropriate tier.
+4. **Tier 1 — Trivial auto-resolve.** Imports, lockfiles, adjacent additions, one-sided modifications, context-only keywords → auto-resolve and announce. No user interaction in any mode.
+5. **Tier 2 — Attempt-with-test-verification.** Both-sided modifications that pass the structural independence gate → attempt an additive union merge, run the project test suite under a hard 5-minute timeout (`merge.conflict_resolution.test_timeout_minutes`, configurable), and commit with the literal message `merge: resolve conflict, verified by tests` if tests pass. On test failure or timeout, discard the attempt via `git checkout -- .` and escalate to Tier 3 with the test output captured for presentation.
+6. **Tier 3 — Diff presentation. ALWAYS pauses regardless of mode, including YOLO (safety invariant).** Present the conflict diff, the Tier 2 proposed resolution (if any), and the test failure output (if Tier 2 was attempted) via `AskUserQuestion`. Options: Accept proposed / Accept ours / Accept theirs / I'll resolve manually / Skip this PR.
+7. **Tier 4 — Skip (last resort).** Reached only when Tier 3 is declined or manual resolution fails. Log reason, report in Ship Phase Summary, continue with remaining PRs.
+8. After Tier 1 or Tier 2 success: `git add . && git commit && git push`. Tier 1 uses its existing per-type commit message; Tier 2 uses the fixed literal message `merge: resolve conflict, verified by tests`.
+9. **Cleanup:** Always remove the worktree, even on error:
    ```bash
    ORIG_DIR=$(pwd)
    # ... conflict resolution work ...
@@ -258,7 +260,8 @@ Strategy: continue-on-failure. Every skip is reported with a reason.
 |-------|--------|
 | PR already merged | Detect via `gh pr view`. Announce "PR #N already merged — skipping." Continue. |
 | Merge conflict, auto-resolvable | Auto-resolve (trivial), announce, continue |
-| Merge conflict, behavioral | Pause for confirmation. If unresolved, skip with reason |
+| Merge conflict, structurally independent | Tier 2: attempt additive merge + run tests. Commit if green, escalate to Tier 3 if red. |
+| Merge conflict, semantic overlap | Tier 3: pause via `AskUserQuestion`, present diff + proposed resolution + test output. Always pauses regardless of mode. |
 | CI failing | Enter bounded remediation loop (see `references/ci-remediation.md`). Skip only after `MAX_ATTEMPTS` / `MAX_WALL_CLOCK` exhausted or `unknown` category detected. |
 | Unresolved review requests | Enter single-pass review triage loop (see `references/review-triage.md`). Skip only if blockers cannot be fixed or (in YOLO) unclear threads remain. |
 | GitHub API error | Retry once after 5 seconds. If still failing, skip with reason |
@@ -279,3 +282,5 @@ Read from `.feature-flow.yml` `merge:` section. All fields optional with default
 | `ci_remediation.max_attempts` | `3` | Max CI fix attempts before skipping (integer >= 1). See `references/ci-remediation.md`. |
 | `ci_remediation.max_wall_clock_minutes` | `10` | Wall-clock budget per PR (integer >= 1) |
 | `ci_remediation.ci_poll_interval_seconds` | `30` | CI poll interval (integer >= 10) |
+| `conflict_resolution.test_command` | *(none)* | Optional override for Tier 2 test runner. If unset, stack-based detection is used. See `references/conflict-resolution.md` § Test Runner Discovery. |
+| `conflict_resolution.test_timeout_minutes` | `5` | Hard wall-clock timeout for Tier 2 test verification. Minimum 1. |
