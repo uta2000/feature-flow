@@ -260,7 +260,8 @@ Strategy: continue-on-failure. Every skip is reported with a reason.
 |-------|--------|
 | PR already merged | Detect via `gh pr view`. Announce "PR #N already merged — skipping." Continue. |
 | Merge conflict, auto-resolvable | Auto-resolve (trivial), announce, continue |
-| Merge conflict, behavioral | Pause for confirmation. If unresolved, skip with reason |
+| Merge conflict, structurally independent | Tier 2: attempt additive merge + run tests. Commit if green, escalate to Tier 3 if red. |
+| Merge conflict, semantic overlap | Tier 3: pause via `AskUserQuestion`, present diff + proposed resolution + test output. Always pauses regardless of mode. |
 | CI failing | Enter bounded remediation loop (see `references/ci-remediation.md`). Skip only after `MAX_ATTEMPTS` / `MAX_WALL_CLOCK` exhausted or `unknown` category detected. |
 | Unresolved review requests | Skip with reason |
 | GitHub API error | Retry once after 5 seconds. If still failing, skip with reason |
