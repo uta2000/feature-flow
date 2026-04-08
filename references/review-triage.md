@@ -1,8 +1,8 @@
 # Review Triage
 
-Reference file for the `merge-prs` skill. Read this file when a PR has any unresolved inline review comments, discussion comments, or `CHANGES_REQUESTED` formal reviews — enter the single-pass triage flow described here.
+Shared reference file for the `merge-prs` skill and the `start` lifecycle Harden PR step. Read this file when a PR has any unresolved inline review comments, discussion comments, or `CHANGES_REQUESTED` formal reviews — enter the single-pass triage flow described here.
 
-See `references/best-effort-remediation.md` for the attempt loop skeleton and mode escalation contract. This file specializes only the review-triage-specific portions.
+See `best-effort-remediation.md` for the attempt loop skeleton and mode escalation contract. This file specializes only the review-triage-specific portions.
 
 ---
 
@@ -206,7 +206,7 @@ The reviewers in the `@mention` list are the union of all reviewers whose blocke
 
 ## Mode Behavior
 
-See `references/best-effort-remediation.md § Mode-Aware Escalation Contract` for the base contract. Review-triage specifics:
+See `best-effort-remediation.md § Mode-Aware Escalation Contract` for the base contract. Review-triage specifics:
 
 | Mode | Questions | Nits / Suggestions | Blockers | Unclear |
 |------|-----------|--------------------|----------|---------|
@@ -264,7 +264,7 @@ Do NOT post a re-review comment if only nits/suggestions/questions were addresse
 
 ## Reference Back to Shared File
 
-This file specializes the loop defined in `references/best-effort-remediation.md`:
+This file specializes the loop defined in `best-effort-remediation.md`:
 
 - **Attempt loop skeleton** → `best-effort-remediation.md § Attempt Loop Skeleton` (with `MAX_ATTEMPTS=1`)
 - **Mode-aware escalation** → `best-effort-remediation.md § Mode-Aware Escalation Contract`

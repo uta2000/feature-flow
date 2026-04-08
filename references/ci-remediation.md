@@ -1,8 +1,8 @@
 # CI Remediation
 
-Reference file for the `merge-prs` skill. Read this file when a PR's `statusCheckRollup` reports a failing check — enter the bounded remediation loop described here.
+Shared reference file for the `merge-prs` skill and the `start` lifecycle Harden PR step. Read this file when a PR's `statusCheckRollup` reports a failing check — enter the bounded remediation loop described here.
 
-See `references/best-effort-remediation.md` for the attempt loop skeleton and mode escalation contract. This file specializes only the CI-specific portions.
+See `best-effort-remediation.md` for the attempt loop skeleton and mode escalation contract. This file specializes only the CI-specific portions.
 
 ---
 
@@ -123,7 +123,7 @@ After committing and pushing fixes, poll `gh pr checks <number>` every `CI_POLL_
 
 ## Reference Back to Shared File
 
-This file specializes the loop defined in `references/best-effort-remediation.md`:
+This file specializes the loop defined in `best-effort-remediation.md`:
 
 - **Attempt loop skeleton** → `best-effort-remediation.md § Attempt Loop Skeleton`
 - **Mode-aware escalation** → `best-effort-remediation.md § Mode-Aware Escalation Contract`

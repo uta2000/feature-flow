@@ -46,6 +46,14 @@ yolo:                  # Optional: YOLO mode stopping points
     - plan             # brainstorming | design | verification | plan
 changelog:             # Optional: changelog fragment behavior
   fragments_dir: .changelogs  # Directory for per-PR changelog fragments (default: .changelogs)
+lifecycle:              # Optional: lifecycle terminal phase configuration (Harden PR + Handoff)
+  harden_pr:
+    enabled: true                     # Run Harden PR step (default: true)
+    max_attempts: 3                   # Max remediation attempts (default: 3)
+    max_wall_clock_minutes: 10        # Wall-clock budget (default: 10)
+    pause_on_unresolvable_conflict: true  # Tier 3 conflicts always pause, even in YOLO (default: true)
+  handoff:
+    auto_invoke_merge_prs: false      # YOLO-only: auto-invoke /merge-prs after handoff (default: false; restores legacy auto-merge behavior)
 plugin_registry:       # Auto-generated: plugin scan results — do not edit manually
   last_scan: "2026-04-01T12:00:00Z"
   content_hashes: {}
@@ -333,7 +341,7 @@ Optional configuration for YOLO mode stopping points. When YOLO mode runs the fu
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `stop_after` | list of strings | `[]` (empty) | Phases after which YOLO pauses for user review. Valid values: `brainstorming`, `design`, `verification`, `plan`, `implementation`, `pr`, `ship`. |
+| `stop_after` | list of strings | `[]` (empty) | Phases after which YOLO pauses for user review. Valid values: `brainstorming`, `design`, `verification`, `plan`, `implementation`, `pr`, `harden_pr`, `handoff`. |
 
 **Valid `stop_after` values:**
 
@@ -345,7 +353,10 @@ Optional configuration for YOLO mode stopping points. When YOLO mode runs the fu
 | `plan` | Planning phase — review the task breakdown before implementation |
 | `implementation` | Before implementation starts — last chance to review before subagents code |
 | `pr` | Before PR creation — review the final diff before it goes public |
-| `ship` | Before Ship phase — review before batch merging feature-flow PRs |
+| `harden_pr` | After the Harden PR remediation loop exits — review the PR state and blockers |
+| `handoff` | Before the final Handoff announcement — last chance to redirect |
+
+> **Deprecation:** `ship` is accepted as a deprecated alias for `handoff` for one release. A warning is printed when it is encountered in `.feature-flow.yml`. Users should migrate to `handoff`. This alias will be removed in a future release.
 
 **Format:**
 
@@ -361,9 +372,57 @@ yolo:
 
 **When `stop_after` is an empty list:** Same as absent — YOLO runs all phases without stopping.
 
-**Invalid values:** Unrecognized phase names in `stop_after` are silently ignored. Only the 7 valid values listed above trigger checkpoints.
+**Invalid values:** Unrecognized phase names in `stop_after` are silently ignored. Only the valid values listed above trigger checkpoints.
 
 **Checkpoint behavior:** At each listed stopping point, the `start` skill orchestrator pauses and presents the phase output via `AskUserQuestion` with two options: "Continue YOLO" (resume unattended execution) or "Switch to Interactive" (disable YOLO for remaining phases).
+
+### `lifecycle`
+
+Optional configuration for the lifecycle terminal phase (Harden PR + Handoff). Applies only to Feature and Major Feature scopes. Smaller scopes (Quick fix, Small enhancement) do not run these steps.
+
+#### `lifecycle.harden_pr`
+
+Controls the Harden PR step, which applies a bounded best-effort remediation loop to drive the PR from its current state to a mergeable state.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | boolean | `true` | When `false`, skip the Harden PR step entirely |
+| `max_attempts` | integer | `3` | Maximum remediation attempts (shared budget across CI, conflict, review fixes) |
+| `max_wall_clock_minutes` | integer | `10` | Wall-clock budget for the full loop |
+| `pause_on_unresolvable_conflict` | boolean | `true` | Tier 3 conflicts always pause, even in YOLO mode, when this is true |
+
+**Format:**
+
+```yaml
+lifecycle:
+  harden_pr:
+    enabled: true
+    max_attempts: 3
+    max_wall_clock_minutes: 10
+    pause_on_unresolvable_conflict: true
+```
+
+**When absent:** All four fields use their defaults silently.
+
+#### `lifecycle.handoff`
+
+Controls the Handoff step, which is the terminal step for Feature and Major Feature scopes.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `auto_invoke_merge_prs` | boolean | `false` | YOLO-only. When `true`, automatically invoke `/merge-prs <pr_number>` after the handoff announcement. Restores legacy auto-merge behavior — bypasses the "merging is a deliberate action" principle. |
+
+**Format:**
+
+```yaml
+lifecycle:
+  handoff:
+    auto_invoke_merge_prs: false
+```
+
+**When absent:** Defaults to `false`. The handoff step announces the ready-to-merge PR and stops; the user chooses when to merge.
+
+**Trade-off:** Set `auto_invoke_merge_prs: true` only when you want YOLO to run fully end-to-end without human intervention — for example, in automated release pipelines or scheduled lifecycle runs. For interactive development, keep the default.
 
 ### `changelog`
 
