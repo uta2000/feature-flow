@@ -83,7 +83,17 @@ Sort the discovered PRs to minimize conflicts:
 
 For each PR in merge order:
 
-**4a. Pre-merge checks (parallel `gh` calls):**
+**4a. Pre-merge checks:**
+
+**4a.0 Parse feature-flow-metadata block.** Fetch the PR body and parse the `feature-flow-metadata` block per ../../references/feature-flow-metadata-schema.md §Parsing:
+```bash
+gh pr view <number> --json body --jq '.body'
+```
+- On successful parse: bind `metadata.sibling_prs`, `metadata.depends_on_prs`, `metadata.risk_areas`, and `metadata.remediation_log` into the PR's pre-merge context for use in dependency analysis (Step 3) and CI remediation de-duplication (Step 4b).
+- On absent block, unparseable block, unknown version, or missing required fields: log one warning (per ../../references/feature-flow-metadata-schema.md §Parsing warning budget), bind `metadata` to `null`, and continue with diff-based inference. This is the expected path for PRs created outside the lifecycle.
+- See `references/fixtures/` for test cases: `metadata-block-happy.md` (success path), `metadata-block-unparseable.md`, `metadata-block-absent.md`, `metadata-block-unknown-version.md`.
+
+**4a.1 Check current state (parallel `gh` calls):**
 ```bash
 # Check current state
 gh pr view <number> --json state,mergeable,statusCheckRollup,reviews

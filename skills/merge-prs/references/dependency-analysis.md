@@ -14,6 +14,24 @@ For each batch of PRs to merge, build a partial ordering based on import/require
 
 ---
 
+## Metadata Block Precedence
+
+When a PR's `feature-flow-metadata` block is present and parseable (bound to `metadata` in Step 4a.0 of `SKILL.md`), prefer its fields over diff-based file-overlap inference:
+
+| Metadata field | Use in dependency analysis |
+|---------------|---------------------------|
+| `depends_on_prs` | Hard ordering requirements — these PRs must merge before this one, regardless of file overlap. |
+| `sibling_prs` | Same-session grouping — treat as a batch; order within the batch by existing heuristics 2–5. |
+| `risk_areas` | Semantic touchpoints — when two PRs share a `risk_areas` entry, treat as a soft ordering hint (prefer the PR with fewer `risk_areas` first to minimize blast radius). |
+
+**Metadata is additive, not replacing.** Inference-detected edges not covered by metadata still apply. Example: if diff analysis finds PR B imports a file PR A changes, that constraint holds even if `depends_on_prs` is empty.
+
+**When metadata is absent or `metadata` is `null`:** Skip this section entirely. Proceed directly to Steps 1–5 (diff-based inference). This is the expected path for PRs created outside the lifecycle.
+
+See `fixtures/metadata-block-happy.md` for an example of a PR body with a well-formed block, and `fixtures/metadata-block-absent.md` for the no-block path.
+
+---
+
 ## Step 1: Collect Changed Files per PR
 
 For each PR in the batch, get its changed files:
