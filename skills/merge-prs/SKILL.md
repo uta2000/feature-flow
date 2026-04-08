@@ -86,7 +86,7 @@ gh pr view <number> --json state,mergeable,statusCheckRollup,reviews
 - If `state: "MERGED"`: announce "PR #N already merged — skipping." Continue.
 - If `mergeable: "CONFLICTING"`: attempt conflict resolution (see §Conflict Resolution).
 - If CI failing: enter bounded remediation loop. Read `references/ci-remediation.md` and apply the attempt loop (default: 3 attempts, 10-min wall-clock, 30s poll interval). Skip only after budget exhausted or an `unknown` category is encountered.
-- If `reviews` has any `CHANGES_REQUESTED` state: flag to user, skip PR. Announce reason.
+- If any unresolved review threads, discussion comments, or formal reviews exist: enter single-pass review triage loop. Read `references/review-triage.md` and apply the triage flow (fetch all feedback surfaces in parallel, filter stale/resolved/self-reply threads, classify and fix, post replies). Review triage runs **before** the CI remediation loop so that any fix commits trigger a fresh CI run which `ci-remediation.md` can then handle. Skip the PR only if an unfixable blocker remains or (in YOLO) an unclear thread is found.
 
 **4b. Merge:**
 ```bash
