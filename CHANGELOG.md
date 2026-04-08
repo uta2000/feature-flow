@@ -2,6 +2,15 @@
 
 All notable changes to the feature-flow plugin.
 
+## [Unreleased]
+
+### Added
+- **Bounded CI failure remediation loop for merge-prs Ship phase (GH224)** — Replaces the one-shot "investigate once, fix trivial, skip unfixable" CI handling with a bounded diagnosis-and-fix loop. Each failing PR now gets up to 3 category-specific fix attempts within a 10-minute wall-clock budget (all configurable via `merge.ci_remediation`). Failures are classified into 8 categories (`lint-format`, `type-error`, `test-flaky`, `test-real`, `build`, `dependency-install`, `timeout-infra`, `unknown`), each with a targeted fix strategy. Flakes are first-class: transient timeout/network failures get a single automatic re-run via `gh run rerun --failed` before being classified as real test failures. Remediation commits use the `fix(ci):` prefix so they are greppable in `git log` and squash cleanly. New shared reference file `skills/merge-prs/references/best-effort-remediation.md` contains the bounded-attempt loop skeleton, mode-aware escalation contract, announcement templates, and skip/pause/escalate decision table — this file is the first of three sibling consumers (sibling issues #225 merge conflict ladder and #226 PR review triage will import it unchanged). New CI-specific reference `skills/merge-prs/references/ci-remediation.md` specializes the shared pattern with category detection heuristics, fix strategies, flake handling policy, commit message contract, and `gh pr checks` polling behavior. New `merge.ci_remediation` config subsection in `.feature-flow.yml` (`max_attempts: 3`, `max_wall_clock_minutes: 10`, `ci_poll_interval_seconds: 30`, minimum 10s to stay within GitHub API rate-limit floor). `merge-prs` SKILL.md Config table extended with `ci_remediation.*` fields for discoverability. Mode-aware behavior: YOLO applies all fixes automatically with announcements; Express confirms the first attempt then proceeds automatically; Interactive confirms each attempt with a diff.
+
+### Changed
+- `merge-prs` SKILL.md Step 4a CI handling: replaced single-shot investigation with a bounded remediation loop reference
+- `merge-prs` SKILL.md Error Recovery table: collapsed two `CI failing, trivial fix` / `CI failing, unfixable` rows into a single `CI failing` row that invokes the bounded loop
+
 ## [1.33.0] - 2026-04-07
 
 ### Added
