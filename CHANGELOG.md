@@ -5,6 +5,7 @@ All notable changes to the feature-flow plugin.
 ## [Unreleased]
 
 ### Added
+- Feature-flow lifecycle now writes a versioned `feature-flow-metadata` YAML block inside an HTML comment to every PR body (opt-out via `lifecycle.metadata_block.enabled: false`). `/merge-prs` reads the block for dependency analysis and remediation de-duplication with graceful fallback to diff-based inference when the block is absent or unparseable. See `references/feature-flow-metadata-schema.md` for the full schema (#229).
 - `.feature-flow.yml` schema: `lifecycle.harden_pr` (enabled, max_attempts, max_wall_clock_minutes, pause_on_unresolvable_conflict).
 - `.feature-flow.yml` schema: `lifecycle.handoff.auto_invoke_merge_prs` (default `false`; set `true` in YOLO to restore legacy end-to-end auto-merge).
 - `yolo.stop_after` enum: new values `harden_pr` and `handoff`.
