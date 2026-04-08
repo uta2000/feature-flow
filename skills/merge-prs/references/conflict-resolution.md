@@ -101,7 +101,44 @@ Tier 2 skipped (no runner discoverable):
 <MODE>: ship — Tier 2 skipped in PR #<N> → Tier 3 (reason: test-runner-not-found)
 ```
 
----
+### Test Runner Discovery
+
+Tier 2 needs a way to run the consumer project's test suite without hard-coding commands. The discovery algorithm is stack-aware and can be overridden by explicit config. This is a reusable helper — future remediation loops that need to run local tests can cite this subsection.
+
+**Discovery order (first match wins):**
+
+1. **Explicit config:** If `merge.conflict_resolution.test_command` is set in `.feature-flow.yml`, use it verbatim and stop. Example: `test_command: "pnpm test --silent"`. No further detection runs.
+2. **Node.js stack detection** (when `stack:` in `.feature-flow.yml` contains `node-js`):
+   - If `package.json` declares `packageManager: "pnpm@..."` → `pnpm test` (highest priority for pnpm projects)
+   - Else if `pnpm-lock.yaml` exists → `pnpm test`
+   - Else if `yarn.lock` exists → `yarn test`
+   - Else if `package-lock.json` exists → `npm test`
+   - Else if `package.json` exists (no lockfile) → `npm test`
+3. **Python stack detection** (when `stack:` contains `python`):
+   - If `pytest.ini` exists → `pytest`
+   - Else if `pyproject.toml` exists with a `[tool.pytest]` or `[tool.pytest.ini_options]` section → `pytest`
+   - Else if `setup.cfg` exists with a `[tool:pytest]` section → `pytest`
+   - Else if `pyproject.toml` exists without pytest config but `setup.py` exists → `python -m pytest`
+4. **No match:** return `None`. Tier 2 is skipped with reason `test-runner-not-found`, and the conflict escalates to Tier 3 without an attempted resolution (no Tier 2 output to show in the presentation).
+
+**Example bash detection snippet (node-js path):**
+```bash
+if test -f package.json && grep -q '"packageManager":.*"pnpm' package.json; then
+  TEST_CMD="pnpm test"
+elif test -f pnpm-lock.yaml; then
+  TEST_CMD="pnpm test"
+elif test -f yarn.lock; then
+  TEST_CMD="yarn test"
+elif test -f package-lock.json; then
+  TEST_CMD="npm test"
+elif test -f package.json; then
+  TEST_CMD="npm test"
+else
+  TEST_CMD=""  # fall through to python or skip
+fi
+```
+
+The `packageManager` field in `package.json` takes precedence over lockfile heuristics when present — this handles projects that set a preferred package manager but haven't yet committed a lockfile for it.
 
 ---
 
