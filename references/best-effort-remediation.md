@@ -1,6 +1,6 @@
 # Best-Effort Remediation — Shared Bounded-Attempt Pattern
 
-Reference file for the `merge-prs` skill. Read this file when implementing any bounded remediation loop (CI failures, merge conflicts, review triage) to get the shared loop skeleton, mode escalation contract, announcement templates, and skip/pause/escalate decision table.
+Shared reference file for the `merge-prs` skill and the `start` lifecycle Harden PR step. Read this file when implementing any bounded remediation loop (CI failures, merge conflicts, review triage) to get the shared loop skeleton, mode escalation contract, announcement templates, and skip/pause/escalate decision table.
 
 ---
 

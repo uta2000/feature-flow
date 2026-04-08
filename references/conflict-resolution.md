@@ -1,6 +1,6 @@
 # Conflict Resolution Rules
 
-Reference file for the `merge-prs` skill. Read this file when a PR reports `mergeable: "CONFLICTING"`.
+Shared reference file for the `merge-prs` skill and the `start` lifecycle Harden PR step. Read this file when a PR reports `mergeable: "CONFLICTING"`.
 
 **The 4-tier ladder:** Every conflict is routed to exactly one tier, from lowest-friction to highest:
 

@@ -509,7 +509,7 @@ Use the `TaskCreate` tool to create a todo item for each step. Call all TaskCrea
 For each step, follow this pattern:
 
 1. **Announce the step:** "Step N: [name]. Invoking [skill name]."
-2. **Mark in progress (conditional):** Only set `in_progress` via `TaskUpdate` before starting steps where the work is extended and the user benefits from an active status indicator. **Steps that keep `in_progress`:** study existing patterns, implementation, self-review, code review, generate CHANGELOG entry, final verification, documentation lookup. **Steps that skip `in_progress`:** brainstorming, design document, design verification, create/update issue, implementation plan, verify plan criteria, worktree setup, copy env files, commit planning artifacts, commit and PR, comment and close issue. Note: sub-step 5 (`completed`) is always retained — it is the turn-continuity bridge. Skipping `in_progress` does not affect YOLO Execution Continuity. Note: YOLO propagation (prepending `yolo: true`) applies only to `Skill()` invocations, not to `Task()` dispatches.
+2. **Mark in progress (conditional):** Only set `in_progress` via `TaskUpdate` before starting steps where the work is extended and the user benefits from an active status indicator. **Steps that keep `in_progress`:** study existing patterns, implementation, self-review, code review, generate CHANGELOG entry, final verification, documentation lookup. **Steps that skip `in_progress`:** brainstorming, design document, design verification, create/update issue, implementation plan, verify plan criteria, worktree setup, copy env files, commit planning artifacts, commit and PR, post implementation comment. Note: sub-step 5 (`completed`) is always retained — it is the turn-continuity bridge. Skipping `in_progress` does not affect YOLO Execution Continuity. Note: YOLO propagation (prepending `yolo: true`) applies only to `Skill()` invocations, not to `Task()` dispatches.
 3. **Invoke the skill** using the Skill tool (see mapping below and `../../references/tool-api.md` — Skill Tool for correct parameter names)
 4. **Confirm completion:** Verify the step produced its expected output. *(Turn Bridge Rule — include any confirmation notes alongside the `TaskUpdate` call in step 5, not as a separate text-only response.)*
 5. **Mark complete:** Update the todo item to `completed` — **always call `TaskUpdate` here.** *(Turn Bridge Rule — this call keeps your turn alive.)* **Batching optimization:** When the next step (N+1) is in the `in_progress`-eligible list (study existing patterns, implementation, self-review, code review, generate CHANGELOG entry, final verification, documentation lookup), send both `TaskUpdate` calls as a single parallel message: `[TaskUpdate(N, completed), TaskUpdate(N+1, in_progress)]`. This saves one API round-trip per eligible step transition. If N is the final lifecycle step, no N+1 exists — skip the batch and call only `TaskUpdate(N, completed)` as usual.
@@ -608,7 +608,7 @@ Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/p
 | Implement | `superpowers:subagent-driven-development` | Code written with tests, spec-reviewed, and quality-reviewed per task |
 | Self-review | No skill — inline step (see below) | Code verified against coding standards before formal review |
 | Code review | No skill — inline step (see below) | All Critical/Important findings fixed, tests pass |
-| Generate CHANGELOG entry | No skill — inline step (see below) | Changelog fragment written to `.changelogs/<id>.md`; consolidated at Ship phase |
+| Generate CHANGELOG entry | No skill — inline step (see below) | Changelog fragment written to `.changelogs/<id>.md`; consolidated when `/merge-prs` is invoked |
 | Final verification | No skill — inline step (see below) | All criteria PASS + quality gates pass (or skipped if Phase 4 already passed) |
 | Sync with base branch | No skill — inline step (see below) | Branch merged onto latest base branch; conflicts require manual resolution |
 | Commit and PR | `superpowers:finishing-a-development-branch` | PR URL |
@@ -616,8 +616,8 @@ Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/p
 | Device matrix testing | No skill — manual step | Tested on min OS, small/large screens, slow network |
 | Beta testing | No skill — manual step | TestFlight / Play Console build tested by internal tester |
 | App store review | No skill — manual step | Submission accepted |
-| Post implementation comment | No skill — inline step (see below) | Issue commented with implementation summary (will auto-close on PR merge) |
 | Harden PR | No skill — inline step (see below) | PR hardened for merge (READY or BLOCKED) via bounded remediation loop |
+| Post implementation comment | No skill — inline step (see below) | Issue commented with implementation summary (will auto-close on PR merge) |
 | Handoff | No skill — inline step (see below) | Lifecycle terminal announcement; PR ready for user to merge |
 
 ### Orchestration Overrides
@@ -696,13 +696,13 @@ if yolo_mode AND current_phase_name in config.yolo.stop_after:
 
 **Read `references/inline-steps.md` — "Generate CHANGELOG Entry Step" section** when reaching this step.
 
-### Post Implementation Comment Step (inline — no separate skill)
-
-**Read `references/inline-steps.md` — "Post Implementation Comment Step" section** when reaching this step.
-
 ### Harden PR Step (inline — no separate skill)
 
 **Read `references/inline-steps.md` — "Harden PR Step" section** when reaching this step. Feature and Major Feature scopes only. Runs after "Wait for CI and address reviews" and before "Post Implementation Comment".
+
+### Post Implementation Comment Step (inline — no separate skill)
+
+**Read `references/inline-steps.md` — "Post Implementation Comment Step" section** when reaching this step.
 
 ### Handoff Step (lifecycle — feature and major feature scopes only)
 
@@ -798,7 +798,7 @@ Extracted reference files (read on-demand during lifecycle execution):
 - **`references/orchestration-overrides.md`** — Brainstorming interview format, Express design approval
 - **`references/yolo-overrides.md`** — YOLO/Express overrides for writing-plans, git-worktrees, finishing-branch, subagent-driven-dev; quality context injections
 - **`references/code-review-pipeline.md`** — Code review pipeline Phases 0-5
-- **`references/inline-steps.md`** — 8 inline step definitions (documentation lookup, commit artifacts, copy env, study patterns, self-review, CHANGELOG, final verification, comment/close issue)
+- **`references/inline-steps.md`** — 13 inline step definitions (documentation lookup, commit artifacts, copy env, study patterns, self-review, CHANGELOG, sync with base branch, final verification, wait for CI and reviews, harden PR, post implementation comment, handoff, commit and PR)
 - **`references/model-routing.md`** — Model routing defaults (orchestrator phases + subagent dispatches)
 - **`references/scope-guide.md`** — Detailed criteria for classifying work scope
 

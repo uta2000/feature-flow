@@ -1,6 +1,6 @@
 # Review Triage
 
-Reference file for the `merge-prs` skill. Read this file when a PR has any unresolved inline review comments, discussion comments, or `CHANGES_REQUESTED` formal reviews — enter the single-pass triage flow described here.
+Shared reference file for the `merge-prs` skill and the `start` lifecycle Harden PR step. Read this file when a PR has any unresolved inline review comments, discussion comments, or `CHANGES_REQUESTED` formal reviews — enter the single-pass triage flow described here.
 
 See `best-effort-remediation.md` for the attempt loop skeleton and mode escalation contract. This file specializes only the review-triage-specific portions.
 

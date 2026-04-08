@@ -93,8 +93,8 @@ If the small enhancement qualifies for fast-track (issue richness 3+ or equivale
 - [ ] 17. Sync with base branch
 - [ ] 18. Commit and PR
 - [ ] 19. Wait for CI and address reviews
-- [ ] 20. Post implementation comment
-- [ ] 21. Harden PR
+- [ ] 20. Harden PR
+- [ ] 21. Post implementation comment
 - [ ] 22. Handoff
 ```
 
@@ -121,8 +121,8 @@ If the small enhancement qualifies for fast-track (issue richness 3+ or equivale
 - [ ] 18. Sync with base branch
 - [ ] 19. Commit and PR
 - [ ] 20. Wait for CI and address reviews
-- [ ] 21. Post implementation comment
-- [ ] 22. Harden PR
+- [ ] 21. Harden PR
+- [ ] 22. Post implementation comment
 - [ ] 23. Handoff
 ```
 
