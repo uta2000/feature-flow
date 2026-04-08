@@ -8,7 +8,7 @@ See `best-effort-remediation.md` for the attempt loop skeleton and mode escalati
 
 ## Overview
 
-When the pre-merge fetch in `SKILL.md` Step 4a returns any unresolved review threads or discussion comments, do not skip the PR without attempting remediation. Instead, enter the single-pass triage flow:
+When the pre-merge fetch in `SKILL.md` Step 4a.1 returns any unresolved review threads or discussion comments, do not skip the PR without attempting remediation. Instead, enter the single-pass triage flow:
 
 - **MAX_ATTEMPTS:** 1 (review triage is atomic per PR — one classify + fix + reply pass)
 - **MAX_WALL_CLOCK:** 10 minutes (overridable — shares the same budget semantics as the shared skeleton)
@@ -73,7 +73,7 @@ gh api "repos/<owner>/<repo>/issues/<pr>/comments"
 gh api user --jq .login
 ```
 
-The existing `gh pr view ... --json reviews` call (already in Step 4a) continues to fetch formal review states. Keep it — do not remove it.
+The existing `gh pr view ... --json reviews` call (already in Step 4a.1) continues to fetch formal review states. Keep it — do not remove it.
 
 ---
 
@@ -85,7 +85,7 @@ Apply these four filters in order to every fetched thread. A thread that matches
 |--------|-----------|------------|
 | **Outdated** | `isOutdated == true` in the GraphQL result | reviewThreads only (discussion comments have no `isOutdated` field) |
 | **Resolved** | `isResolved == true` in the GraphQL result | reviewThreads only |
-| **Self-reply** | All comments in the thread have `author.login == <current_actor>` — the current actor login is fetched once at Step 4a entry and cached for the batch | reviewThreads AND discussion comments |
+| **Self-reply** | All comments in the thread have `author.login == <current_actor>` — the current actor login is fetched once at Step 4a.1 entry and cached for the batch | reviewThreads AND discussion comments |
 | **Addressed by later approval** | The most recent formal review by the thread's original commenter is `APPROVED` AND that review's `submittedAt` is after the thread's most recent comment by that reviewer | reviewThreads AND discussion comments |
 
 **Self-reply rule detail:** If a thread contains a mix of self-replies AND non-self comments, drop only the self-reply comments and keep the thread. If after dropping self-replies the thread has no remaining comments, drop the thread entirely. This prevents merge-prs from re-processing its own past fix replies as new feedback.

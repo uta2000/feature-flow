@@ -91,7 +91,7 @@ gh pr view <number> --json body --jq '.body'
 ```
 - On successful parse: bind `metadata.sibling_prs`, `metadata.depends_on_prs`, `metadata.risk_areas`, and `metadata.remediation_log` into the PR's pre-merge context for use in dependency analysis (Step 3) and CI remediation de-duplication (Step 4b).
 - On absent block, unparseable block, unknown version, or missing required fields: log one warning (per ../../references/feature-flow-metadata-schema.md §Parsing warning budget), bind `metadata` to `null`, and continue with diff-based inference. This is the expected path for PRs created outside the lifecycle.
-- See `references/fixtures/` for test cases: `metadata-block-happy.md` (success path), `metadata-block-unparseable.md`, `metadata-block-absent.md`, `metadata-block-unknown-version.md`.
+- See `references/fixtures/` for test cases: `metadata-block-happy.md` (success path), `metadata-block-minimal.md` (required-only / optional fields default to null), `metadata-block-unparseable.md`, `metadata-block-absent.md`, `metadata-block-unknown-version.md`.
 
 **4a.1 Check current state (parallel `gh` calls):**
 ```bash

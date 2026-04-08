@@ -557,7 +557,10 @@ This step runs during the `Commit and PR` phase, immediately after the PR body (
    - `depends_on_prs`: parse explicit `gh-pr:<N>` tokens from design doc body (empty list if none or no design doc)
    - `remediation_log`: always `[]` at PR creation
 
-2. Build the JSON representation using `jq -n` (avoids shell quoting pitfalls):
+2. Build the JSON representation using `jq -n` (avoids shell quoting pitfalls).
+
+   **Convention:** Optional string fields (`design_doc`, `design_doc_sha`, `plan_file`) use the empty string `""` to mean "absent/null". The `with_entries` filter at the end converts every empty-string field value to JSON `null` so the serialized YAML emits `null` instead of `""`. Optional integer fields (`issue`, `acceptance_criteria_count`) and list/dict fields use `--argjson` and pass the literal string `null` or a JSON-encoded list when absent.
+
    ```bash
    METADATA_JSON=$(jq -n \
      --argjson schema_version 1 \
@@ -565,27 +568,29 @@ This step runs during the `Commit and PR` phase, immediately after the PR body (
      --arg created_at "$CREATED_AT" \
      --arg scope "$SCOPE" \
      --arg risk_tier "$RISK_TIER" \
-     --argjson issue "$ISSUE_OR_NULL" \
-     --argjson design_doc "$DESIGN_DOC_OR_NULL" \
-     --argjson design_doc_sha "$DESIGN_DOC_SHA_OR_NULL" \
-     --argjson plan_file "$PLAN_FILE_OR_NULL" \
+     --argjson issue "${ISSUE_OR_NULL:-null}" \
+     --arg design_doc "${DESIGN_DOC:-}" \
+     --arg design_doc_sha "${DESIGN_DOC_SHA:-}" \
+     --arg plan_file "${PLAN_FILE:-}" \
      --argjson acceptance_criteria_verified_at null \
      --argjson acceptance_criteria_verified_sha null \
      --argjson acceptance_criteria_count null \
-     --argjson risk_areas "$RISK_AREAS_JSON" \
+     --argjson risk_areas "${RISK_AREAS_JSON:-[]}" \
      --argjson sibling_prs '[]' \
-     --argjson depends_on_prs "$DEPENDS_ON_PRS_JSON" \
+     --argjson depends_on_prs "${DEPENDS_ON_PRS_JSON:-[]}" \
      --argjson remediation_log '[]' \
-     '$ARGS.named')
+     '$ARGS.named | with_entries(if (.value | type) == "string" and .value == "" then .value = null else . end)')
    ```
 
-3. Serialize to YAML via Python one-liner (canonical field order, see references/feature-flow-metadata-schema.md §Serialization):
+   The `with_entries` filter coerces empty-string optional fields to `null` so the serialized YAML uses `null` (not `""`) consistently. Required string fields (`lifecycle_session`, `created_at`, `scope`, `risk_tier`) are populated by lifecycle state and never empty in practice — if they were, the parser would correctly reject them in the `null` form.
+
+3. Serialize to YAML via Python one-liner (canonical field order, see ../../references/feature-flow-metadata-schema.md §Serialization):
    ```bash
    METADATA_YAML=$(python3 -c \
      "import yaml,sys,json; d=json.loads(sys.argv[1]); print(yaml.safe_dump(d, sort_keys=False, default_flow_style=False).rstrip())" \
      "$METADATA_JSON")
    ```
-   If this fails (PyYAML unavailable), use the printf fallback per references/feature-flow-metadata-schema.md §Serialization. If fallback also fails, log warning and skip block (continue to PR creation without block).
+   If this fails (PyYAML unavailable), use the printf fallback per ../../references/feature-flow-metadata-schema.md §Serialization. If fallback also fails, log warning and skip block (continue to PR creation without block).
 
 4. Append the block to the PR body file:
    ```bash
@@ -722,7 +727,7 @@ Review bots like Gemini Code Review and CodeRabbit post inline code review comme
 
 8. After pushing fixes, re-wait for CI (Phase 1) one more time to confirm the fix commit passes. Do NOT re-wait for a second round of bot reviews — the fix commit does not trigger a new full review from most bots.
 
-9. **Update PR metadata remediation_log.** After the fix commit is pushed, append an entry to the `remediation_log` in the PR's `feature-flow-metadata` block. Follow the read-modify-write protocol in references/feature-flow-metadata-schema.md §Update Protocol. Entry fields: `type: "review-bot"`, `description: "addressed N review comments (K declined)"`, `commit: <fix_commit_sha>`, `at: <current UTC timestamp>`. This step is non-fatal — if it fails, log a warning and continue.
+9. **Update PR metadata remediation_log.** After the fix commit is pushed, append an entry to the `remediation_log` in the PR's `feature-flow-metadata` block. Follow the read-modify-write protocol in ../../references/feature-flow-metadata-schema.md §Update Protocol. Entry fields: `type: "review-bot"`, `description: "addressed N review comments (K declined)"`, `commit: <fix_commit_sha>`, `at: <current UTC timestamp>`. This step is non-fatal — if it fails, log a warning and continue.
 
 ### Phase 3: Handle CI failures
 
@@ -733,7 +738,7 @@ Review bots like Gemini Code Review and CodeRabbit post inline code review comme
    - **Deploy / infra failure** → not actionable by code changes, warn and continue
 3. After pushing a fix, return to Phase 1 (re-wait for CI).
 
-4. **Update PR metadata remediation_log.** After the fix commit is pushed, append an entry to the `remediation_log` in the PR's `feature-flow-metadata` block. Follow the read-modify-write protocol in references/feature-flow-metadata-schema.md §Update Protocol. Entry fields: `type: "ci-<category>"` (e.g. `"ci-lint"`, `"ci-test"`), `description: "<check name>: <brief fix description>"`, `commit: <fix_commit_sha>`, `at: <current UTC timestamp>`. This step is non-fatal — if it fails, log a warning and continue.
+4. **Update PR metadata remediation_log.** After the fix commit is pushed, append an entry to the `remediation_log` in the PR's `feature-flow-metadata` block. Follow the read-modify-write protocol in ../../references/feature-flow-metadata-schema.md §Update Protocol. Entry fields: `type: "ci-<category>"` (e.g. `"ci-lint"`, `"ci-test"`), `description: "<check name>: <brief fix description>"`, `commit: <fix_commit_sha>`, `at: <current UTC timestamp>`. This step is non-fatal — if it fails, log a warning and continue.
 
 ### Phase Ordering
 
