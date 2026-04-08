@@ -103,9 +103,13 @@ Tier 2 skipped (no runner discoverable):
 
 ---
 
-### Behavioral Conflicts (require confirmation)
+---
 
-**Never auto-resolve.** Always pause and present to the user, regardless of mode (YOLO, Express, or Interactive).
+## Tier 3: Diff Presentation (Always Pauses)
+
+**Tier 3 always pauses via `AskUserQuestion`, regardless of mode (YOLO, Express, or Interactive). This is the safety invariant of the 4-tier ladder — the single rule that must never be violated.** Tier 3 is reached when (a) Structure Classification routes a conflict to "both-sided modification" AND the structural independence gate fails (semantic overlap), (b) Tier 2 was attempted and tests failed, or (c) the conflict structure cannot be determined (conservative default for malformed markers).
+
+**Never auto-resolve.** Always pause and present to the user.
 
 | Type | Detection heuristic |
 |------|---------------------|
@@ -123,25 +127,33 @@ Step 1: Classify conflict structure (see Structure Classification above)
   - adjacent additions → TRIVIAL (skip keyword check entirely)
   - context-only keywords → IGNORE keywords (classify based on conflict content only)
   - both-sided modification → proceed to Step 2
-  - unknown structure → BEHAVIORAL (conservative default)
+  - unknown structure → TIER 3 (conservative default)
 
 Step 2: Keyword check (ONLY for both-sided modifications)
   keywords = ["if ", "else", "for ", "while ", "return ", "throw ", "switch", "case ", "expect(", "assert", "toBe(", "toEqual("]
   Scan ONLY the lines between <<<<<<< and >>>>>>> markers (not surrounding context)
-  if any keyword appears in the conflict marker region → classify as behavioral
+  if any keyword appears in the conflict marker region → run the structural independence gate (defined in Tier 2 above).
+    - Gate passes (changes at non-overlapping positions) → TIER 2
+    - Gate fails (semantic overlap) → TIER 3
 ```
 
+**Presentation contents (what Tier 3 must show the user):**
+- The raw conflict diff, trimmed to 40 lines if longer
+- The Tier 2 proposed resolution (if any) — only present when Tier 2 was attempted
+- The test failure output (if any) — only present when Tier 2 was attempted and its tests failed, trimmed to 80 lines
+
 **Announce format (mode-aware):**
-- YOLO: `YOLO: ship — Behavioral conflict in PR #N ([file]:[location]) → paused`
-- Express: `Express: ship — Behavioral conflict in PR #N ([file]:[location]) → paused`
-- Interactive: `Ship: Behavioral conflict in PR #N ([file]:[location]) — review required`
+- YOLO: `YOLO: ship — Tier 3 pause in PR #N ([file]:[location]) → awaiting user`
+- Express: `Express: ship — Tier 3 pause in PR #N ([file]:[location]) → awaiting user`
+- Interactive: `Ship: Tier 3 conflict in PR #N ([file]:[location]) — review required`
 
 Then use `AskUserQuestion`:
-- Show the conflict diff (trimmed to 40 lines if longer)
-- Option 1: "Accept ours" — keep the current base branch version
-- Option 2: "Accept theirs" — take the incoming branch version
-- Option 3: "I'll resolve manually" — pause, let user fix, then resume
-- Option 4: "Skip this PR" — log failure, continue with remaining PRs
+- Show the presentation contents above
+- Option 1: "Accept proposed" — take the Tier 2 additive merge attempt (only shown when Tier 2 produced a resolution)
+- Option 2: "Accept ours" — keep the current base branch version
+- Option 3: "Accept theirs" — take the incoming branch version
+- Option 4: "I'll resolve manually" — pause, let the user edit files in the worktree, then resume when they confirm
+- Option 5: "Skip this PR" — fall through to Tier 4, log reason, continue with remaining PRs
 
 ---
 
