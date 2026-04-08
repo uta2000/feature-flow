@@ -377,3 +377,38 @@ function existingCode() {
 **New classification:** Both sides modify the same existing `if` condition and return statement → **behavioral** → pause for review (unchanged).
 
 **Why still behavioral:** Structure classification (Step 1) identifies this as a both-sided modification — both sides change the same existing lines. The keyword check (Step 2) confirms `if` and `return` are present → behavioral. This is the only scenario where semantic conflicts are possible.
+
+### Example 7: Structurally-independent both-sided modification — Tier 2
+
+```
+ function validateUser(user) {
+<<<<<<< HEAD
+   if (rateLimit.exceeded(user.id)) {
+     return { error: 'rate_limit' };
+   }
+=======
+   if (!passwordStrength.check(user.password)) {
+     return { error: 'weak_password' };
+   }
+>>>>>>> feature/password-strength
+   return { ok: true, user };
+ }
+```
+
+**Old classification:** `if` and `return` found in the conflict region → behavioral → paused for review. The user had to manually merge two independent guard clauses even though the resolution was mechanical (keep both).
+
+**New classification:** Structure classification identifies this as a both-sided modification (both blocks sit inside the same function scope). The structural independence gate inspects the blocks: both are distinct guard clauses added to the same function body, neither modifies the shared `function validateUser(user) {` signature, and neither modifies the shared `return { ok: true, user };` trailer. The changes target non-overlapping positions → **gate passes → Tier 2**.
+
+**Tier 2 outcome — tests pass path:**
+1. Additive merge: concatenate both guard clauses in order (rate limit check first, password strength check second), preserving the shared signature and trailing return.
+2. Discover test runner (e.g., `pnpm test` from `pnpm-lock.yaml`).
+3. Run `pnpm test` under the 5-minute timeout.
+4. Tests pass → commit `merge: resolve conflict, verified by tests` and push. Continue to the next PR.
+
+**Tier 2 outcome — tests fail path:**
+1. Tests fail after (e.g.) 00:47 with a `TypeError` in `passwordStrength.check` — a fixture was missing that only existed on the `feature/password-strength` branch.
+2. Discard the attempt via `git checkout -- .` to restore the conflict markers.
+3. Capture the test output (trimmed to 80 lines).
+4. Escalate to **Tier 3** with the diff, the attempted resolution, and the test failure output. User decides: "Accept proposed" + add missing fixture, "Accept ours" (skip password strength), "I'll resolve manually", etc.
+
+**Why Tier 2 fits here:** The old behavioral keyword check would have paused this conflict immediately, even though the resolution is mechanical in 90% of cases (simply keep both guard clauses). Tier 2 trusts the test suite as ground truth — if the additive merge is safe, tests pass and the conflict resolves automatically; if it isn't, the user still sees the full context including test output, and can decide with more information than the old path provided.
