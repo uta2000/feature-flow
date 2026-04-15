@@ -19,7 +19,7 @@
 ### New files
 ```
 skills/consult-codex/
-├── SKILL.md
+├── SKILL.md                     # Claude-facing orchestration (not a script runner)
 ├── references/
 │   ├── brief-format.md
 │   ├── modes.md
@@ -29,24 +29,25 @@ skills/consult-codex/
     ├── state.test.js
     ├── config.js                # .feature-flow.yml codex-section loader
     ├── config.test.js
-    ├── resolve-model.js         # model fallback chain
+    ├── resolve-model.js         # model fallback chain (pure, injectable)
     ├── resolve-model.test.js
-    ├── call-codex.js            # mcp__codex__codex wrapper (mockable)
-    ├── call-codex.test.js
-    ├── build-brief.js           # dispatcher + shared skeleton formatter
+    ├── build-brief.js           # shared skeleton formatter
     ├── build-brief.test.js
     ├── record-exchange.js       # append to state + codex-log.md
     ├── record-exchange.test.js
-    ├── consult.js               # main dispatcher (consultation + verdict subcommands)
+    ├── consult.js               # CLI with three subcommands:
+    │                            #   start            → Phase 1 (budget, brief, JSON out)
+    │                            #   record-response  → Phase 3 (state + log + tiered msg)
+    │                            #   verdict          → Phase 4 (update state, rewrite log)
     ├── consult.test.js
     └── modes/
-        ├── review-design.js
+        ├── review-design.js     # in v1 scope
         ├── review-design.test.js
-        ├── review-plan.js
+        ├── review-plan.js       # deferred to follow-up plan
         ├── review-plan.test.js
-        ├── review-code.js
+        ├── review-code.js       # deferred to follow-up plan
         ├── review-code.test.js
-        ├── stuck.js
+        ├── stuck.js             # deferred to follow-up plan
         └── stuck.test.js
 
 hooks/scripts/
@@ -82,6 +83,19 @@ hooks/scripts/
 
 Every test file follows the `version-check.test.js` pattern: inline `assert` helper, plain closures, process.exit(1) on failure, no external test runner. First task establishes the canonical helper file.
 
+### Architectural note — Claude-orchestrated, not script-orchestrated
+
+**MCP tools (`mcp__codex__codex`) are only callable from Claude's own context, not from subprocess scripts.** The `consult-codex` skill therefore runs as a three-phase orchestration that Claude drives:
+
+1. **Phase 1 — `consult.js start --mode <mode> [--signal-key <key>]`** (subprocess). Budget check, escape-hatch check, model resolution, brief assembly. Outputs JSON `{ status: "ready", mode, brief, model, timeout_ms, worktree }` to stdout. Does not touch state — failed preconditions return `{ status: "skipped", reason }` with nothing written.
+2. **Phase 2 — Claude invokes `mcp__codex__codex` directly** using the Phase 1 JSON. Handles errors per the SKILL.md error-classification table (codex_mcp_unavailable, model_auth_rejected, timeout, codex_call_failed).
+3. **Phase 3 — `consult.js record-response --mode <mode> [--signal-key <key>]`** (subprocess, stdin-driven). Reads `{ threadId, content }` or `{ error: { reason, detail } }` from stdin. Appends consultation record, writes log section, increments budget, outputs tiered return message.
+4. **Phase 4 — `consult.js verdict --id cN --decision <accept|reject> --reason <text>`** (subprocess). Updates state verdict, rewrites log section. For `strict: true` consultations, the verdict-gate PreToolUse hook blocks other Skill calls until this runs.
+
+**There is NO `call-codex.js` wrapper module.** Its original responsibilities (timeout, error classification) split between (a) Claude's own handling of the MCP tool result, per an error-classification table in SKILL.md, and (b) `consult.js record-response`, which reads the error reason from stdin.
+
+**Why:** MCP tool invocation is exclusively Claude's capability. A subprocess cannot do it. Splitting the skill into "mechanical subprocess work" + "Claude-driven MCP call in between" matches the actual capability boundary.
+
 ---
 
 ## Execution notes
@@ -91,7 +105,7 @@ Every test file follows the `version-check.test.js` pattern: inline `assert` hel
 - **Each task ends with a commit.** Frequent commits are a feature-flow requirement.
 - **The commit hash at the start of this work** should be the current `main` tip (`943e8c2` at plan-writing time). Every commit below sits on top of that.
 - **Worktree note:** This plan is written on `main`. If the executor wants isolation, create a worktree first: `git worktree add .worktrees/codex-consultation -b feat/codex-consultation`. The plan does not require a worktree — `.feature-flow/` is gitignored so state files don't pollute the tree.
-- **Mock MCP at the wrapper boundary.** `call-codex.js` is the only file that talks to `mcp__codex__codex`. Every test mocks at that boundary — no test calls the real MCP. The final smoke task in Phase 2 is the first (and only) test that exercises the real codex server, run manually.
+- **No test calls real MCP.** MCP tool use (`mcp__codex__codex`) is performed by Claude directly in Phase 2, between the `start` and `record-response` subcommands. Tests exercise `start` + `recordResponse` + `verdict` as three separate function calls, passing simulated MCP results as data. Only the final manual smoke test (Step 12.4) exercises the real codex server.
 
 ---
 
@@ -788,172 +802,16 @@ git commit -m "feat: add codex model fallback chain (config → introspection �
 
 ---
 
-### Task 4: Codex call wrapper
+### Task 4: REMOVED — Codex call wrapper
 
-**Files:**
-- Create: `skills/consult-codex/scripts/call-codex.js`
-- Create: `skills/consult-codex/scripts/call-codex.test.js`
+**This task no longer exists.** The original plan included a `call-codex.js` module that wrapped `mcp__codex__codex` with a stable, mockable interface for timeout, error classification, and mode auth rejection. That module cannot work as designed because **MCP tools are only callable from Claude's context, not from subprocess scripts**.
 
-Responsibility: wrap `mcp__codex__codex` with a stable, mockable interface. Handles timeout (180 s default), model auth errors, disconnected MCP. Returns `{ ok: true, content, thread_id }` or `{ ok: false, reason, detail }`. The real MCP client is injected — tests pass a mock.
+**Where its responsibilities moved:**
+- **Timeout handling** — Claude applies a wall-clock check during its own `mcp__codex__codex` tool call. If the call exceeds `timeout_ms` (from Phase 1 output), Claude treats the result as `timeout` and passes `{ error: { reason: "timeout" } }` to Phase 3's stdin.
+- **Error classification** — the SKILL.md (Task 8 below) contains an explicit error-classification table Claude consults while handling its own MCP tool result. Four classifications: `codex_mcp_unavailable`, `model_auth_rejected`, `timeout`, `codex_call_failed`.
+- **Response plumbing** — `consult.js record-response` (Task 7's new Phase 3 subcommand) reads either `{ threadId, content }` or `{ error: { reason, detail } }` from stdin and handles each branch.
 
-- [ ] **Step 4.1: Write failing test**
-
-```js
-// skills/consult-codex/scripts/call-codex.test.js
-#!/usr/bin/env node
-'use strict';
-
-const callCodex = require('./call-codex');
-
-let passed = 0, failed = 0;
-async function assertAsync(name, promise) {
-  try {
-    const result = await promise;
-    if (result) { console.log(`  ok — ${name}`); passed++; }
-    else { console.log(`  FAIL — ${name}`); failed++; }
-  } catch (e) {
-    console.log(`  FAIL — ${name} (threw: ${e.message})`); failed++;
-  }
-}
-
-async function main() {
-  console.log('=== call-codex.js ===');
-
-  await assertAsync(
-    'happy path returns ok with content and thread_id',
-    callCodex({
-      prompt: 'hello',
-      cwd: '/tmp',
-      model: 'gpt-5.2',
-      timeoutMs: 1000,
-      mcpClient: async () => ({ threadId: 't-1', content: 'diagnosis: ok' })
-    }).then(r => r.ok === true && r.content === 'diagnosis: ok' && r.thread_id === 't-1')
-  );
-
-  await assertAsync(
-    'returns model_auth_rejected when MCP throws with detail mentioning not supported',
-    callCodex({
-      prompt: 'hello',
-      cwd: '/tmp',
-      model: 'gpt-5.2-codex',
-      timeoutMs: 1000,
-      mcpClient: async () => {
-        const e = new Error('The \'gpt-5.2-codex\' model is not supported when using Codex with a ChatGPT account.');
-        e.isMcpError = true;
-        throw e;
-      }
-    }).then(r => r.ok === false && r.reason === 'model_auth_rejected')
-  );
-
-  await assertAsync(
-    'returns codex_mcp_unavailable when MCP client is null',
-    callCodex({
-      prompt: 'hello',
-      cwd: '/tmp',
-      model: 'gpt-5.2',
-      timeoutMs: 1000,
-      mcpClient: null
-    }).then(r => r.ok === false && r.reason === 'codex_mcp_unavailable')
-  );
-
-  await assertAsync(
-    'returns timeout when MCP does not resolve within timeoutMs',
-    callCodex({
-      prompt: 'hello',
-      cwd: '/tmp',
-      model: 'gpt-5.2',
-      timeoutMs: 100,
-      mcpClient: () => new Promise(resolve => setTimeout(() => resolve({ threadId: 't-2', content: 'late' }), 500))
-    }).then(r => r.ok === false && r.reason === 'timeout')
-  );
-
-  await assertAsync(
-    'returns codex_call_failed with detail on unexpected error',
-    callCodex({
-      prompt: 'hello',
-      cwd: '/tmp',
-      model: 'gpt-5.2',
-      timeoutMs: 1000,
-      mcpClient: async () => { throw new Error('network boom'); }
-    }).then(r => r.ok === false && r.reason === 'codex_call_failed' && r.detail.includes('network boom'))
-  );
-
-  console.log(`\n=== call-codex.js: ${passed} passed, ${failed} failed ===`);
-  process.exit(failed > 0 ? 1 : 0);
-}
-
-main();
-```
-
-- [ ] **Step 4.2: Run test to verify it fails**
-
-```bash
-node skills/consult-codex/scripts/call-codex.test.js
-```
-
-Expected: `Cannot find module './call-codex'`.
-
-- [ ] **Step 4.3: Implement call-codex.js**
-
-```js
-// skills/consult-codex/scripts/call-codex.js
-'use strict';
-
-function isModelAuthError(err) {
-  const msg = (err && err.message) || '';
-  return /model is not supported/i.test(msg) || /not available.*auth/i.test(msg);
-}
-
-async function callCodex({ prompt, cwd, model, timeoutMs = 180000, mcpClient }) {
-  if (typeof mcpClient !== 'function') {
-    return { ok: false, reason: 'codex_mcp_unavailable', detail: 'mcpClient is not a function' };
-  }
-
-  const clientCall = (async () => {
-    try {
-      const result = await mcpClient({
-        prompt,
-        cwd,
-        sandbox: 'read-only',
-        'approval-policy': 'never',
-        model
-      });
-      return { ok: true, content: result.content, thread_id: result.threadId || null };
-    } catch (err) {
-      if (isModelAuthError(err)) {
-        return { ok: false, reason: 'model_auth_rejected', detail: err.message };
-      }
-      return { ok: false, reason: 'codex_call_failed', detail: err && err.message ? err.message : String(err) };
-    }
-  })();
-
-  let timer;
-  const timeout = new Promise(resolve => {
-    timer = setTimeout(() => resolve({ ok: false, reason: 'timeout', detail: `exceeded ${timeoutMs}ms` }), timeoutMs);
-  });
-
-  const result = await Promise.race([clientCall, timeout]);
-  clearTimeout(timer);
-  return result;
-}
-
-module.exports = callCodex;
-```
-
-- [ ] **Step 4.4: Run tests**
-
-```bash
-node skills/consult-codex/scripts/call-codex.test.js
-```
-
-Expected: `=== call-codex.js: 5 passed, 0 failed ===`.
-
-- [ ] **Step 4.5: Commit**
-
-```bash
-git add skills/consult-codex/scripts/call-codex.js skills/consult-codex/scripts/call-codex.test.js
-git commit -m "feat: add codex MCP wrapper with timeout and error classification"
-```
+**Do nothing for this task.** Task numbering is preserved to keep downstream task references (T5, T6, T7, etc.) stable; there is simply no work to do at T4.
 
 ---
 
@@ -1343,14 +1201,40 @@ git commit -m "feat: add record-exchange for state + codex-log.md append"
 
 ---
 
-### Task 7: Main consult dispatcher (consultation + verdict subcommands)
+### Task 7: consult.js CLI with three subcommands (start / record-response / verdict)
 
 **Files:**
 - Create: `skills/consult-codex/scripts/consult.js`
 - Create: `skills/consult-codex/scripts/consult.test.js`
 - Create: `skills/consult-codex/scripts/modes/review-design.js` (stub — filled out in Task 10)
 
-Responsibility: the entry point invoked by the SKILL. Parses args, routes to either consultation flow (with per-mode brief builder) or verdict flow. Returns the structured return message (strict vs soft tier format). Deliberately designed to be invoked from the command line for the smoke test in Task 12.
+Responsibility: the CLI entry point that the SKILL.md tells Claude to invoke between the three orchestration phases. One module, three subcommands, one shared test file. **No `call-codex.js` import** — that module has been removed (Task 4 REMOVED). MCP tool use is handled by Claude directly in Phase 2, between the `start` and `record-response` subcommands.
+
+**Three subcommands:**
+
+1. **`consult.js start --mode <mode> [--signal-key <key>]`** — Phase 1
+   - Loads config + state (without writing)
+   - Checks enabled, budget, escape-hatch
+   - Resolves model via injected introspection (real use: Claude passes via env var `CODEX_ADVERTISED_MODELS` comma-separated)
+   - Builds brief via the per-mode module
+   - Prints JSON to stdout: `{ status: "ready", mode, brief, model, timeout_ms, worktree, signal_key? }` or `{ status: "skipped", reason, message }` or `{ status: "disabled", message }`
+   - Exit code 0 always (status is in the JSON)
+   - **Does not touch state.**
+
+2. **`consult.js record-response --mode <mode> [--signal-key <key>]`** — Phase 3
+   - Reads JSON from stdin: `{ threadId, content }` on success or `{ error: { reason, detail } }` on failure
+   - Appends a consultation entry to `state.consultations[]` with `strict` set per mode, `codex_response`/`codex_thread_id` populated from stdin (or null on error)
+   - Writes the codex-log.md pending section (or skipped section on error)
+   - Increments budget (proactive or reactive)
+   - Updates escape_hatch_state (reactive only)
+   - Prints JSON to stdout with the tiered return message: `{ status: "consulted", tier: "strict"|"soft", consultation_id, message }` or `{ status: "recorded_skip", consultation_id, reason, message }`
+
+3. **`consult.js verdict --id <id> --decision <accept|reject> --reason <text>`** — Phase 4
+   - Updates the consultation's verdict/verdict_reason/outcome
+   - Rewrites the pending section of codex-log.md to the final form
+   - Prints JSON to stdout: `{ status: "verdict_recorded", consultation_id, message }`
+
+**Public interface for testing** — the module exports each subcommand as a function that takes an explicit params object (`worktreeRoot`, `sessionId`, `feature`, and subcommand-specific inputs). The CLI wrapper at the bottom of the file converts `process.argv` + stdin into those params. Tests call the functions directly with temp dirs and in-memory inputs.
 
 - [ ] **Step 7.1: Create the review-design stub**
 
@@ -1401,77 +1285,159 @@ function writeYml(dir, content) {
 async function main() {
   console.log('=== consult.js ===');
 
+  // --- start subcommand ---
+
   await assertAsync(
-    'refuses when codex.enabled is false',
-    consult.run({
+    'start: refuses when codex.enabled is false',
+    consult.start({
       worktreeRoot: (() => { const t = mkTmp(); writeYml(t, 'codex:\n  enabled: false\n'); return t; })(),
       sessionId: 's', feature: 'f',
-      args: 'mode: review-design',
-      mcpClient: async () => ({ threadId: 't', content: 'x' })
+      mode: 'review-design',
+      introspect: async () => []
     }).then(r => r.status === 'disabled' && r.message.includes('enabled: false'))
   );
 
   await assertAsync(
-    'soft-tier consultation records pending verdict with single-shot reminder',
-    consult.run({
+    'start: returns ready JSON with brief and model on success',
+    consult.start({
       worktreeRoot: (() => { const t = mkTmp(); writeYml(t, 'codex:\n  enabled: true\n  model: gpt-5.2\n'); return t; })(),
       sessionId: 's', feature: 'f',
-      args: 'mode: review-design',
-      mcpClient: async () => ({ threadId: 'thread-1', content: 'diag\nrec\nconfidence: high' })
-    }).then(r => r.status === 'consulted' &&
-                 r.tier === 'soft' &&
-                 r.consultation_id === 'c1' &&
-                 r.message.includes('single-shot reminder') &&
-                 r.message.includes('verdict --id c1'))
+      mode: 'review-design',
+      introspect: async () => []
+    }).then(r => r.status === 'ready' &&
+                 typeof r.brief === 'string' && r.brief.length > 0 &&
+                 r.model === 'gpt-5.2' &&
+                 r.mode === 'review-design' &&
+                 typeof r.timeout_ms === 'number')
   );
 
   await assertAsync(
-    'verdict subcommand updates the consultation',
-    (async () => {
-      const tmp = mkTmp();
-      writeYml(tmp, 'codex:\n  enabled: true\n  model: gpt-5.2\n');
-      await consult.run({
-        worktreeRoot: tmp, sessionId: 's', feature: 'f',
-        args: 'mode: review-design',
-        mcpClient: async () => ({ threadId: 't', content: 'x' })
-      });
-      const r = await consult.run({
-        worktreeRoot: tmp, sessionId: 's', feature: 'f',
-        args: 'verdict --id c1 --decision accept --reason matched codex'
-      });
-      fs.rmSync(tmp, { recursive: true });
-      return r.status === 'verdict_recorded' && r.message.includes('c1');
-    })()
-  );
-
-  await assertAsync(
-    'proactive budget refuses second call in same mode',
-    (async () => {
-      const tmp = mkTmp();
-      writeYml(tmp, 'codex:\n  enabled: true\n  model: gpt-5.2\n');
-      await consult.run({
-        worktreeRoot: tmp, sessionId: 's', feature: 'f',
-        args: 'mode: review-design',
-        mcpClient: async () => ({ threadId: 't', content: 'x' })
-      });
-      const second = await consult.run({
-        worktreeRoot: tmp, sessionId: 's', feature: 'f',
-        args: 'mode: review-design',
-        mcpClient: async () => ({ threadId: 't2', content: 'x' })
-      });
-      fs.rmSync(tmp, { recursive: true });
-      return second.status === 'skipped' && second.reason === 'budget_exhausted';
-    })()
-  );
-
-  await assertAsync(
-    'returns model_unresolvable when model is null and no introspection',
-    consult.run({
+    'start: returns skipped:model_unresolvable when model unset and no introspection',
+    consult.start({
       worktreeRoot: (() => { const t = mkTmp(); writeYml(t, 'codex:\n  enabled: true\n'); return t; })(),
       sessionId: 's', feature: 'f',
-      args: 'mode: review-design',
-      mcpClient: async () => ({ threadId: 't', content: 'x' })
+      mode: 'review-design',
+      introspect: async () => []
     }).then(r => r.status === 'skipped' && r.reason === 'model_unresolvable')
+  );
+
+  await assertAsync(
+    'start: does NOT touch session-state.json',
+    (async () => {
+      const tmp = mkTmp();
+      writeYml(tmp, 'codex:\n  enabled: true\n  model: gpt-5.2\n');
+      await consult.start({
+        worktreeRoot: tmp, sessionId: 's', feature: 'f',
+        mode: 'review-design',
+        introspect: async () => []
+      });
+      const stateExists = fs.existsSync(path.join(tmp, '.feature-flow', 'session-state.json'));
+      fs.rmSync(tmp, { recursive: true });
+      return stateExists === false;
+    })()
+  );
+
+  // --- record-response subcommand ---
+
+  await assertAsync(
+    'record-response: success path appends consultation and increments budget',
+    (async () => {
+      const tmp = mkTmp();
+      writeYml(tmp, 'codex:\n  enabled: true\n  model: gpt-5.2\n');
+      const result = await consult.recordResponse({
+        worktreeRoot: tmp, sessionId: 's', feature: 'f',
+        mode: 'review-design',
+        signalKey: null,
+        mcpResult: { threadId: 'thread-1', content: 'diag\nrec\nconfidence: high' }
+      });
+      const stateFile = JSON.parse(fs.readFileSync(path.join(tmp, '.feature-flow', 'session-state.json'), 'utf8'));
+      fs.rmSync(tmp, { recursive: true });
+      return result.status === 'consulted' &&
+             result.tier === 'soft' &&
+             result.consultation_id === 'c1' &&
+             result.message.includes('verdict --id c1') &&
+             stateFile.consultations.length === 1 &&
+             stateFile.consultations[0].verdict === null &&
+             stateFile.budget.proactive.design_doc === 1;
+    })()
+  );
+
+  await assertAsync(
+    'record-response: error path records skipped consultation with reason',
+    (async () => {
+      const tmp = mkTmp();
+      writeYml(tmp, 'codex:\n  enabled: true\n  model: gpt-5.2\n');
+      const result = await consult.recordResponse({
+        worktreeRoot: tmp, sessionId: 's', feature: 'f',
+        mode: 'review-design',
+        signalKey: null,
+        mcpResult: { error: { reason: 'model_auth_rejected', detail: 'not supported' } }
+      });
+      const stateFile = JSON.parse(fs.readFileSync(path.join(tmp, '.feature-flow', 'session-state.json'), 'utf8'));
+      fs.rmSync(tmp, { recursive: true });
+      return result.status === 'recorded_skip' &&
+             result.reason === 'model_auth_rejected' &&
+             stateFile.consultations[0].outcome === 'skipped:model_auth_rejected' &&
+             stateFile.consultations[0].codex_response === null;
+    })()
+  );
+
+  await assertAsync(
+    'record-response: reactive stuck mode records strict consultation with signal_key',
+    (async () => {
+      const tmp = mkTmp();
+      writeYml(tmp, 'codex:\n  enabled: true\n  model: gpt-5.2\n');
+      const result = await consult.recordResponse({
+        worktreeRoot: tmp, sessionId: 's', feature: 'f',
+        mode: 'stuck',
+        signalKey: 'test:user_notifications_creates_record',
+        mcpResult: { threadId: 'thread-2', content: 'diagnosis' }
+      });
+      const stateFile = JSON.parse(fs.readFileSync(path.join(tmp, '.feature-flow', 'session-state.json'), 'utf8'));
+      fs.rmSync(tmp, { recursive: true });
+      return result.tier === 'strict' &&
+             stateFile.consultations[0].strict === true &&
+             stateFile.consultations[0].signal_key === 'test:user_notifications_creates_record' &&
+             stateFile.budget.reactive.used === 1;
+    })()
+  );
+
+  // --- verdict subcommand ---
+
+  await assertAsync(
+    'verdict: updates consultation verdict and reason',
+    (async () => {
+      const tmp = mkTmp();
+      writeYml(tmp, 'codex:\n  enabled: true\n  model: gpt-5.2\n');
+      await consult.recordResponse({
+        worktreeRoot: tmp, sessionId: 's', feature: 'f',
+        mode: 'review-design', signalKey: null,
+        mcpResult: { threadId: 't', content: 'x' }
+      });
+      const r = await consult.verdict({
+        worktreeRoot: tmp,
+        id: 'c1',
+        decision: 'accept',
+        reason: 'matched the issue'
+      });
+      const stateFile = JSON.parse(fs.readFileSync(path.join(tmp, '.feature-flow', 'session-state.json'), 'utf8'));
+      fs.rmSync(tmp, { recursive: true });
+      return r.status === 'verdict_recorded' &&
+             stateFile.consultations[0].verdict === 'accept' &&
+             stateFile.consultations[0].verdict_reason === 'matched the issue' &&
+             stateFile.consultations[0].outcome === 'applied';
+    })()
+  );
+
+  await assertAsync(
+    'verdict: errors when --id or --decision missing',
+    (async () => {
+      const tmp = mkTmp();
+      writeYml(tmp, 'codex:\n  enabled: true\n  model: gpt-5.2\n');
+      const r = await consult.verdict({ worktreeRoot: tmp, id: 'c1', decision: null, reason: 'x' });
+      fs.rmSync(tmp, { recursive: true });
+      return r.status === 'error' && r.message.includes('--decision');
+    })()
   );
 
   console.log(`\n=== consult.js: ${passed} passed, ${failed} failed ===`);
@@ -1498,133 +1464,204 @@ Expected: `Cannot find module './consult'`.
 const path = require('path');
 const state = require('./state');
 const config = require('./config');
-const callCodex = require('./call-codex');
 const buildBrief = require('./build-brief');
 const resolveModel = require('./resolve-model');
 const record = require('./record-exchange');
 
 const PROACTIVE_MODES = new Set(['review-design', 'review-plan', 'review-code']);
 const REACTIVE_MODES = new Set(['stuck']);
+const MODE_TO_BUDGET_KEY = {
+  'review-design': 'design_doc',
+  'review-plan':   'plan_criteria',
+  'review-code':   'pre_harden'
+};
 
-// Simple arg parser: "mode: X --key value --key2 value2"
-function parseArgs(raw) {
-  const out = { _: [] };
-  const tokens = raw.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
-  const modeMatch = /^mode:\s*([a-z-]+)/.exec(raw);
-  if (modeMatch) out.mode = modeMatch[1];
-  if (/^verdict\b/.test(raw)) out.subcommand = 'verdict';
-  for (let i = 0; i < tokens.length; i++) {
-    const t = tokens[i];
-    if (t.startsWith('--')) {
-      const key = t.slice(2);
-      const rest = tokens.slice(i + 1);
-      // Collect all following non-flag tokens as the value
-      const valueTokens = [];
-      for (const r of rest) {
-        if (r.startsWith('--')) break;
-        valueTokens.push(r);
-      }
-      out[key] = valueTokens.join(' ').replace(/^"|"$/g, '');
-      i += valueTokens.length;
-    }
-  }
-  return out;
+function isValidMode(m) {
+  return PROACTIVE_MODES.has(m) || REACTIVE_MODES.has(m);
 }
 
-async function run({ worktreeRoot, sessionId, feature, args, mcpClient, introspect }) {
-  const parsed = parseArgs(args);
+// --------------------------------------------------------------------------
+// Subcommand: start
+// --------------------------------------------------------------------------
+
+async function start({ worktreeRoot, sessionId, feature, mode, signalKey, introspect }) {
   const cfg = config.load(worktreeRoot);
 
   if (!cfg.enabled) {
     return { status: 'disabled', message: 'codex is disabled (enabled: false in .feature-flow.yml)' };
   }
 
-  if (parsed.subcommand === 'verdict') {
-    const id = parsed.id;
-    const decision = parsed.decision;
-    const reason = parsed.reason || '';
-    if (!id || !decision) {
-      return { status: 'error', message: 'verdict requires --id and --decision' };
-    }
-    const outcome = decision === 'accept' ? 'applied' : 'rejected';
-    record.recordVerdict(worktreeRoot, id, { decision, reason, outcome });
-    return {
-      status: 'verdict_recorded',
-      consultation_id: id,
-      message: `Consultation ${id} verdict recorded: ${decision} — ${reason}`
-    };
-  }
-
-  const mode = parsed.mode;
-  if (!PROACTIVE_MODES.has(mode) && !REACTIVE_MODES.has(mode)) {
+  if (!isValidMode(mode)) {
     return { status: 'error', message: `unknown mode: ${mode}` };
   }
 
-  state.load(worktreeRoot, sessionId, feature);
-
-  // Proactive budget check
+  // Proactive budget check — READ ONLY, does not touch state
   if (PROACTIVE_MODES.has(mode)) {
-    const modeKey = { 'review-design': 'design_doc', 'review-plan': 'plan_criteria', 'review-code': 'pre_harden' }[mode];
-    const s = state.load(worktreeRoot, sessionId, feature);
-    if (s.budget.proactive[modeKey] >= 1) {
-      return { status: 'skipped', reason: 'budget_exhausted', message: `proactive ${mode} already ran this session` };
+    const stateFilePath = state.statePath(worktreeRoot);
+    const fs = require('fs');
+    if (fs.existsSync(stateFilePath)) {
+      try {
+        const existing = JSON.parse(fs.readFileSync(stateFilePath, 'utf8'));
+        const key = MODE_TO_BUDGET_KEY[mode];
+        if (existing.budget && existing.budget.proactive && existing.budget.proactive[key] >= 1) {
+          return { status: 'skipped', reason: 'budget_exhausted', message: `proactive ${mode} already ran this session` };
+        }
+      } catch {
+        /* corrupt state: let record-response handle recovery */
+      }
+    }
+  }
+
+  // Reactive escape-hatch check (stuck mode only)
+  if (REACTIVE_MODES.has(mode) && signalKey) {
+    const fs = require('fs');
+    const stateFilePath = state.statePath(worktreeRoot);
+    if (fs.existsSync(stateFilePath)) {
+      try {
+        const existing = JSON.parse(fs.readFileSync(stateFilePath, 'utf8'));
+        const hatch = (existing.escape_hatch_state || {})[signalKey];
+        if (hatch && hatch.last_consulted_at) {
+          // v1: default 30-minute window, not yet configurable in this task
+          const windowMs = 30 * 60 * 1000;
+          if (Date.now() - new Date(hatch.last_consulted_at).getTime() < windowMs) {
+            return { status: 'skipped', reason: 'escape_hatch_active', message: `signal ${signalKey} is within the escape-hatch window` };
+          }
+        }
+      } catch { /* corrupt state */ }
     }
   }
 
   // Resolve model
-  const defaultIntrospect = async () => [];
-  const resolved = await resolveModel(cfg, introspect || defaultIntrospect);
+  const resolved = await resolveModel(cfg, introspect || (async () => []));
   if (!resolved.model) {
     return { status: 'skipped', reason: resolved.reason || 'model_unresolvable', message: 'no codex model available' };
   }
 
-  // Build brief via per-mode inputs
+  // Build brief via per-mode module
   const modeModule = require(`./modes/${mode}`);
-  const inputs = modeModule.buildInputs({ worktreeRoot, state: state.load(worktreeRoot, sessionId, feature), parsed });
+  // Load a transient state snapshot for the brief builder without writing
+  const transientState = { feature, worktree: worktreeRoot, attempts_log: [] };
+  const inputs = modeModule.buildInputs({ worktreeRoot, state: transientState });
   const brief = buildBrief({
     mode,
-    state: state.load(worktreeRoot, sessionId, feature),
+    state: transientState,
     goal: inputs.goal,
     currentState: inputs.currentState,
     signals: inputs.signals,
     question: inputs.question
   });
 
-  // Call codex
-  const timeoutMs = (cfg.timeout_seconds || 180) * 1000;
-  const result = await callCodex({
-    prompt: brief,
-    cwd: worktreeRoot,
+  return {
+    status: 'ready',
+    mode,
+    brief,
     model: resolved.model,
-    timeoutMs,
-    mcpClient
-  });
+    timeout_ms: (cfg.timeout_seconds || 180) * 1000,
+    worktree: worktreeRoot,
+    signal_key: signalKey || null
+  };
+}
 
-  if (!result.ok) {
-    return { status: 'skipped', reason: result.reason, message: result.detail };
+// --------------------------------------------------------------------------
+// Subcommand: record-response
+// --------------------------------------------------------------------------
+
+async function recordResponse({ worktreeRoot, sessionId, feature, mode, signalKey, mcpResult }) {
+  if (!isValidMode(mode)) {
+    return { status: 'error', message: `unknown mode: ${mode}` };
   }
 
-  // Record pending consultation
+  state.load(worktreeRoot, sessionId, feature);
+
   const strict = REACTIVE_MODES.has(mode);
+  const isError = mcpResult && mcpResult.error;
+
+  if (isError) {
+    const { reason, detail } = mcpResult.error;
+    const entry = record.recordConsultation(worktreeRoot, {
+      mode,
+      strict,
+      trigger: strict ? 'reactive' : 'proactive',
+      signal_key: signalKey || null,
+      brief: '(not recorded — call failed before brief was consumed)',
+      codex_response: null,
+      codex_thread_id: null
+    });
+    // Override outcome on the freshly appended entry
+    state.setVerdict(worktreeRoot, entry.id, {
+      decision: null,
+      reason: null,
+      outcome: `skipped:${reason}`
+    });
+    // Reset verdict back to null (skipped entries are not verdict-pending)
+    const fs = require('fs');
+    const s = JSON.parse(fs.readFileSync(state.statePath(worktreeRoot), 'utf8'));
+    const target = s.consultations.find(c => c.id === entry.id);
+    target.verdict = null;
+    target.verdict_reason = null;
+    state.save(worktreeRoot, s);
+
+    return {
+      status: 'recorded_skip',
+      consultation_id: entry.id,
+      reason,
+      message: `Consultation ${entry.id} skipped: ${reason} — ${detail || ''}`
+    };
+  }
+
+  // Success path
+  const { threadId, content } = mcpResult;
   const entry = record.recordConsultation(worktreeRoot, {
-    mode, strict,
+    mode,
+    strict,
     trigger: strict ? 'reactive' : 'proactive',
-    signal_key: parsed['signal-key'] || null,
-    brief,
-    codex_response: result.content,
-    codex_thread_id: result.thread_id
+    signal_key: signalKey || null,
+    brief: '(brief from start; record-response does not re-emit it)',
+    codex_response: content,
+    codex_thread_id: threadId
   });
 
-  // Increment proactive budget
+  // Increment budget
   if (PROACTIVE_MODES.has(mode)) {
-    const modeKey = { 'review-design': 'design_doc', 'review-plan': 'plan_criteria', 'review-code': 'pre_harden' }[mode];
     const s = state.load(worktreeRoot, sessionId, feature);
-    s.budget.proactive[modeKey] += 1;
+    const key = MODE_TO_BUDGET_KEY[mode];
+    s.budget.proactive[key] += 1;
+    state.save(worktreeRoot, s);
+  } else if (REACTIVE_MODES.has(mode)) {
+    const s = state.load(worktreeRoot, sessionId, feature);
+    s.budget.reactive.used += 1;
+    if (signalKey) {
+      s.escape_hatch_state[signalKey] = { last_consulted_at: new Date().toISOString() };
+    }
     state.save(worktreeRoot, s);
   }
 
-  return buildReturnMessage(entry, strict, result.content);
+  return buildReturnMessage(entry, strict, content);
 }
+
+// --------------------------------------------------------------------------
+// Subcommand: verdict
+// --------------------------------------------------------------------------
+
+async function verdict({ worktreeRoot, id, decision, reason }) {
+  if (!id || !decision) {
+    return { status: 'error', message: 'verdict requires --id and --decision' };
+  }
+  if (decision !== 'accept' && decision !== 'reject') {
+    return { status: 'error', message: 'decision must be accept or reject' };
+  }
+  const outcome = decision === 'accept' ? 'applied' : 'rejected';
+  record.recordVerdict(worktreeRoot, id, { decision, reason: reason || '', outcome });
+  return {
+    status: 'verdict_recorded',
+    consultation_id: id,
+    message: `Consultation ${id} verdict recorded: ${decision} — ${reason || ''}`
+  };
+}
+
+// --------------------------------------------------------------------------
+// Return message builder (shared by recordResponse)
+// --------------------------------------------------------------------------
 
 function buildReturnMessage(entry, strict, codexContent) {
   if (strict) {
@@ -1670,7 +1707,89 @@ function buildReturnMessage(entry, strict, codexContent) {
   };
 }
 
-module.exports = { run, parseArgs };
+// --------------------------------------------------------------------------
+// CLI wrapper
+// --------------------------------------------------------------------------
+
+async function mainCli() {
+  const argv = process.argv.slice(2);
+  const sub = argv[0];
+  const worktreeRoot = process.env.FEATURE_FLOW_WORKTREE || process.cwd();
+  const sessionId = process.env.FEATURE_FLOW_SESSION_ID || 'cli-session';
+  const feature = process.env.FEATURE_FLOW_FEATURE || path.basename(worktreeRoot);
+
+  function parseFlags(tokens) {
+    const out = {};
+    for (let i = 0; i < tokens.length; i++) {
+      if (tokens[i].startsWith('--')) {
+        const key = tokens[i].slice(2);
+        const valParts = [];
+        while (i + 1 < tokens.length && !tokens[i + 1].startsWith('--')) {
+          valParts.push(tokens[++i]);
+        }
+        out[key] = valParts.join(' ');
+      }
+    }
+    return out;
+  }
+
+  function readStdin() {
+    return new Promise(resolve => {
+      if (process.stdin.isTTY) return resolve('');
+      let data = '';
+      process.stdin.on('data', chunk => data += chunk);
+      process.stdin.on('end', () => resolve(data));
+    });
+  }
+
+  let result;
+  if (sub === 'start') {
+    const flags = parseFlags(argv.slice(1));
+    const introspect = process.env.CODEX_ADVERTISED_MODELS
+      ? async () => process.env.CODEX_ADVERTISED_MODELS.split(',').map(s => s.trim()).filter(Boolean)
+      : async () => [];
+    result = await start({
+      worktreeRoot, sessionId, feature,
+      mode: flags.mode,
+      signalKey: flags['signal-key'] || null,
+      introspect
+    });
+  } else if (sub === 'record-response') {
+    const flags = parseFlags(argv.slice(1));
+    const stdin = await readStdin();
+    let mcpResult;
+    try { mcpResult = JSON.parse(stdin); }
+    catch { mcpResult = { error: { reason: 'codex_call_failed', detail: 'could not parse stdin JSON' } }; }
+    result = await recordResponse({
+      worktreeRoot, sessionId, feature,
+      mode: flags.mode,
+      signalKey: flags['signal-key'] || null,
+      mcpResult
+    });
+  } else if (sub === 'verdict') {
+    const flags = parseFlags(argv.slice(1));
+    result = await verdict({
+      worktreeRoot,
+      id: flags.id,
+      decision: flags.decision,
+      reason: flags.reason
+    });
+  } else {
+    result = { status: 'error', message: `unknown subcommand: ${sub || '<none>'}` };
+  }
+
+  console.log(JSON.stringify(result, null, 2));
+  process.exit(result.status === 'error' ? 1 : 0);
+}
+
+if (require.main === module) {
+  mainCli().catch(err => {
+    console.log(JSON.stringify({ status: 'error', message: err.message }));
+    process.exit(1);
+  });
+}
+
+module.exports = { start, recordResponse, verdict };
 ```
 
 - [ ] **Step 7.5: Run tests**
@@ -1679,13 +1798,13 @@ module.exports = { run, parseArgs };
 node skills/consult-codex/scripts/consult.test.js
 ```
 
-Expected: `=== consult.js: 5 passed, 0 failed ===`.
+Expected: `=== consult.js: 9 passed, 0 failed ===`.
 
 - [ ] **Step 7.6: Commit**
 
 ```bash
 git add skills/consult-codex/scripts/consult.js skills/consult-codex/scripts/consult.test.js skills/consult-codex/scripts/modes/review-design.js
-git commit -m "feat: add consult-codex main dispatcher with tiered return formats"
+git commit -m "feat: add consult-codex CLI with start/record-response/verdict subcommands"
 ```
 
 ---
@@ -1698,75 +1817,126 @@ git commit -m "feat: add consult-codex main dispatcher with tiered return format
 - Create: `skills/consult-codex/references/modes.md`
 - Create: `skills/consult-codex/references/escape-hatch.md`
 
-Responsibility: the top-level skill entry read by Claude. Must tell Claude **when** to invoke each subcommand, **how** to structure the verdict reason, and **where** to find the scripts. References are loaded on demand for details.
+Responsibility: the top-level skill entry read by Claude. **This SKILL.md is the orchestration script** — it tells Claude how to run the three-phase flow (Phase 1 subprocess → Phase 2 direct MCP call → Phase 3 subprocess → Phase 4 subprocess verdict), how to classify MCP errors, and how to record the verdict. There is no monolithic "run consultation end-to-end" script; Claude drives it.
 
 - [ ] **Step 8.1: Write SKILL.md**
 
-```markdown
+````markdown
 <!-- skills/consult-codex/SKILL.md -->
 ---
 name: consult-codex
-description: Consult the codex MCP server as a second AI opinion. Use for proactive reviews (design, plan, code) or reactive stuck recovery. Requires codex.enabled=true in .feature-flow.yml.
+description: Consult the codex MCP server as a second AI opinion via a three-phase Claude-orchestrated flow. Use for proactive reviews (design, plan, code) or reactive stuck recovery. Requires codex.enabled=true in .feature-flow.yml and a configured codex MCP server.
 ---
 
 # Consult Codex
 
-Invoke this skill to get a second AI opinion from the codex MCP server. Four modes, shared contract, tiered verdict enforcement.
+Claude-orchestrated three-phase skill: **subprocess Phase 1 → direct MCP call Phase 2 → subprocess Phase 3 → subprocess Phase 4 verdict**. MCP tools like `mcp__codex__codex` are only callable from Claude's own context, so the skill is NOT a single script that runs end-to-end — it is an orchestration guide Claude follows.
 
 ## When to invoke
 
-**Proactive (automatic, from other skills):**
-- `mode: review-design` — after writing a design doc, before verification
-- `mode: review-plan` — after `verify-plan-criteria` passes its mechanical check
-- `mode: review-code` — before the Harden-PR step, after all tests pass
+**Proactive (automatic, from other lifecycle skills):**
+- `mode: review-design` — after writing a design doc, before verification (integrated into `feature-flow:design-document`)
+- `mode: review-plan` — after `verify-plan-criteria` mechanical check passes *(deferred — follow-up plan)*
+- `mode: review-code` — before Harden-PR step, after all tests pass *(deferred)*
 
 **Reactive (manual or auto-suggested):**
-- `mode: stuck` — user typed `stuck:` at the prompt, OR a signal-collector hook emitted a stuck-mode suggestion in a tool result
+- `mode: stuck` — user typed `stuck:` or a signal-collector hook emitted a stuck suggestion *(deferred — follow-up plan)*
 
-**Verdict (mandatory follow-up):**
-- `verdict --id <id> --decision <accept|reject> --reason <short text>` — after reading any consultation's response
+## Orchestration — follow these phases in order
 
-## Invocation
+### Phase 1 — `consult.js start`
 
-```
-Skill(skill: "feature-flow:consult-codex", args: "mode: review-design")
-Skill(skill: "feature-flow:consult-codex", args: "mode: stuck")
-Skill(skill: "feature-flow:consult-codex", args: "verdict --id c1 --decision accept --reason matched the issue")
-```
-
-The skill is implemented as `scripts/consult.js`. Run it from the worktree root:
+Run the start subprocess to check preconditions and build the brief.
 
 ```bash
-node skills/consult-codex/scripts/consult.js "mode: review-design"
+FEATURE_FLOW_SESSION_ID=<session-id> \
+FEATURE_FLOW_FEATURE=<feature-name> \
+FEATURE_FLOW_WORKTREE=<abs-path-to-worktree> \
+node skills/consult-codex/scripts/consult.js start --mode <mode> [--signal-key <key>]
 ```
 
-The script requires these environment bindings (injected by the harness):
-- `FEATURE_FLOW_SESSION_ID` — the current Claude Code session id
-- `FEATURE_FLOW_FEATURE` — the in-progress feature name
-- `FEATURE_FLOW_WORKTREE` — absolute path to the feature worktree (defaults to pwd)
+Parse the JSON on stdout. Possible statuses:
+
+- `"disabled"` → stop. Codex is disabled. Report the message to the user. Skip the rest of this skill.
+- `"skipped"` → stop. A precondition (budget, escape-hatch, model-unresolvable) rejected this call. Report the reason.
+- `"ready"` → proceed to Phase 2 with the returned `{ brief, model, timeout_ms, worktree, mode, signal_key }`.
+
+### Phase 2 — Call `mcp__codex__codex` directly (your own tool call)
+
+Do NOT run a subprocess for this. Claude invokes the MCP tool in its own context:
+
+```
+mcp__codex__codex({
+  prompt: <brief from Phase 1>,
+  cwd: <worktree from Phase 1>,
+  sandbox: "read-only",
+  "approval-policy": "never",
+  model: <model from Phase 1>
+})
+```
+
+**Wall-clock timeout:** if the call does not complete within `timeout_ms` (from Phase 1 output), treat it as `timeout`. Do not wait longer.
+
+**Error classification — consult this table to decide what to pass to Phase 3:**
+
+| What you observed | stdin JSON for Phase 3 |
+|---|---|
+| Tool returned `{ threadId, content }` normally | `{ "threadId": "...", "content": "..." }` |
+| Tool not loaded (ToolSearch failed or returned empty) | `{ "error": { "reason": "codex_mcp_unavailable", "detail": "..." } }` |
+| Tool throws with message matching `model is not supported` | `{ "error": { "reason": "model_auth_rejected", "detail": "<err msg>" } }` |
+| Tool throws any other message | `{ "error": { "reason": "codex_call_failed", "detail": "<err msg>" } }` |
+| Wall-clock exceeded `timeout_ms` | `{ "error": { "reason": "timeout", "detail": "exceeded <N>ms" } }` |
+
+### Phase 3 — `consult.js record-response`
+
+Pipe the Phase 2 JSON to the record-response subprocess:
+
+```bash
+echo '<phase 2 json>' | \
+FEATURE_FLOW_SESSION_ID=<id> FEATURE_FLOW_FEATURE=<name> FEATURE_FLOW_WORKTREE=<path> \
+node skills/consult-codex/scripts/consult.js record-response --mode <mode> [--signal-key <key>]
+```
+
+Parse stdout. Possible statuses:
+
+- `"consulted"` → success. The JSON contains `tier` (`strict` or `soft`), `consultation_id`, and a formatted `message`. Render the message to yourself so you can read codex's diagnosis. The message includes the exact one-liner for Phase 4 (verdict).
+- `"recorded_skip"` → the error was recorded as a skipped consultation. The lifecycle continues without codex's input. Surface the `reason` to the user.
+
+### Phase 4 — Verdict (mandatory for `consulted`, skipped for `recorded_skip`)
+
+After you read codex's diagnosis from Phase 3, invoke the skill again as a **separate Skill call**:
+
+```
+Skill(skill: "feature-flow:consult-codex",
+      args: "verdict --id cN --decision accept|reject --reason <short text>")
+```
+
+This tells Claude to run:
+
+```bash
+node skills/consult-codex/scripts/consult.js verdict --id cN --decision <accept|reject> --reason "<text>"
+```
+
+**Verdict must be specific, not generic.** Good: `"spotted the replica schema divergence we missed"`. Bad: `"looks right"`. For `reject`, the reason MUST reference either what's already been tried or a concrete flaw in codex's advice.
 
 ## Tiered verdict enforcement
 
-**Strict tier (reactive `stuck` mode):** after the consultation, Claude's next Skill call MUST be the verdict call. The `verdict-gate` PreToolUse hook blocks all other Skill invocations until the verdict is recorded. Plain Read/Edit/Write/Bash are not blocked — Claude can investigate before deciding.
+**Strict tier (reactive `stuck` mode, `strict: true`):** after Phase 3, your next `Skill(...)` call MUST be the Phase 4 verdict call. The `verdict-gate` PreToolUse hook blocks all other Skill invocations until the verdict is recorded. Plain Read/Edit/Write/Bash are not blocked — you can investigate before deciding. (Stuck mode is deferred to a follow-up plan; the verdict-gate hook is built in this plan to support it.)
 
-**Soft tier (proactive modes):** single-shot reminder in the skill return. No block. If Claude skips the verdict call, the consultation is logged with `verdict: <not recorded>` and surfaces as a visible audit defect in the PR body.
-
-## Verdict reason format
-
-The reason must be specific, not generic. Good: `"spotted the replica schema divergence we missed"`. Bad: `"looks right"`.
-
-For `reject`: the reason MUST reference either what's already been tried (from `attempts_log`) or a concrete flaw in codex's advice. Generic rejections are a smell.
-
-## References
-
-- `references/brief-format.md` — exact format of the brief sent to codex
-- `references/modes.md` — per-mode goal/current-state/question templates
-- `references/escape-hatch.md` — second-opinion-stumped protocol for reactive mode
+**Soft tier (proactive modes, `strict: false`):** single-shot reminder in the Phase 3 return message. No block. If you skip the verdict call, the consultation is logged with `verdict: <not recorded>` and surfaces as a visible audit defect in PR metadata. The lifecycle proceeds either way.
 
 ## Disabled state
 
-If `.feature-flow.yml` has `codex.enabled: false` (the default) or the section is missing, this skill no-ops with a message. Feature-flow's lifecycle is unaffected.
-```
+If `.feature-flow.yml` has `codex.enabled: false` (the default) or the `codex:` section is missing entirely, Phase 1 returns `{ status: "disabled", message }`. Stop there, surface the message, and proceed with the normal lifecycle. No state is written.
+
+## References
+
+- `references/brief-format.md` — exact format of the brief assembled by Phase 1 and sent to codex
+- `references/modes.md` — per-mode goal/current-state/question templates
+- `references/escape-hatch.md` — second-opinion-stumped protocol (reactive mode, follow-up plan)
+````
+
+Note: the triple-backtick code block wrapping the entire SKILL.md uses **four** backticks (````) for the outer fence so that the inner triple-backtick blocks (bash, markdown) render correctly. The file itself is plain markdown on disk with triple backticks.
 
 - [ ] **Step 8.2: Write references/brief-format.md**
 
@@ -2226,7 +2396,7 @@ Expected: `=== review-design mode: 4 passed, 0 failed ===`.
 node skills/consult-codex/scripts/consult.test.js
 ```
 
-Expected: still `=== consult.js: 5 passed, 0 failed ===` (the dispatcher test uses a mocked mcpClient, so it doesn't care about the real review-design content — it only checks that a consultation was recorded).
+Expected: still `=== consult.js: 9 passed, 0 failed ===` (the dispatcher tests pass simulated MCP results as in-memory objects to `recordResponse`, so the dispatcher test doesn't depend on the real review-design brief content — it only checks that state transitions and tier-selection work correctly).
 
 - [ ] **Step 10.6: Commit**
 
@@ -2314,7 +2484,7 @@ git commit -m "feat: integrate consult-codex review-design into design-document 
 **Files:**
 - Create: `skills/consult-codex/scripts/smoke.test.js`
 
-Responsibility: a single integration test that exercises the whole pipeline end-to-end with a mocked MCP client: load config → load state → set design_doc_path → invoke consult-codex mode: review-design → verify consultation recorded → invoke verdict → verify verdict recorded in state and codex-log.md. This is the Phase 2 completion criterion.
+Responsibility: a single integration test that exercises the whole **three-phase orchestration** end-to-end using the three consult.js subcommand exports. Simulates what Claude does in a real session: call `start`, simulate the MCP result in memory, call `recordResponse`, then call `verdict`. Also verifies the skipped-call path (error from simulated MCP → recordResponse records a skip) and the budget exhaustion path.
 
 - [ ] **Step 12.1: Write the smoke test**
 
@@ -2350,107 +2520,187 @@ const FAKE_CODEX_RESPONSE = [
 ].join('\n');
 
 async function main() {
-  console.log('=== smoke test — review-design end-to-end ===');
+  console.log('=== smoke test — three-phase review-design end-to-end ===');
 
   const tmp = mkTmp();
 
-  // 1. Write a .feature-flow.yml with codex enabled
+  // Setup: .feature-flow.yml + design doc + session state with design_doc_path
   fs.writeFileSync(
     path.join(tmp, '.feature-flow.yml'),
     'codex:\n  enabled: true\n  model: gpt-5.2\n  proactive_reviews:\n    design_doc: true\n'
   );
-
-  // 2. Write a design doc
   fs.mkdirSync(path.join(tmp, 'docs', 'plans'), { recursive: true });
   fs.writeFileSync(
     path.join(tmp, 'docs', 'plans', 'test-feature.md'),
     '# Test Feature\n\n## Summary\nA test.\n\n## Architecture\nSome thing.\n'
   );
-
-  // 3. Initialize state with the design_doc_path metadata
   state.load(tmp, 'smoke-session', 'test-feature');
   state.setMetadata(tmp, { design_doc_path: 'docs/plans/test-feature.md' });
 
-  // 4. Invoke the consultation with a mocked MCP client
-  const consultResult = await consult.run({
+  // === Phase 1: start ===
+  const startResult = await consult.start({
     worktreeRoot: tmp,
     sessionId: 'smoke-session',
     feature: 'test-feature',
-    args: 'mode: review-design',
-    mcpClient: async () => ({ threadId: 'smoke-thread-1', content: FAKE_CODEX_RESPONSE })
+    mode: 'review-design',
+    signalKey: null,
+    introspect: async () => []
   });
 
   await assertAsync(
-    'consultation returns consulted status with soft tier',
-    Promise.resolve(consultResult.status === 'consulted' && consultResult.tier === 'soft')
+    'Phase 1 start returns status: ready',
+    Promise.resolve(startResult.status === 'ready')
   );
 
   await assertAsync(
-    'consultation message contains the verdict one-liner',
-    Promise.resolve(consultResult.message.includes('verdict --id c1'))
-  );
-
-  // 5. Verify state was updated
-  const afterConsult = state.load(tmp, 'smoke-session', 'test-feature');
-  await assertAsync(
-    'state has one consultation with verdict: null',
-    Promise.resolve(afterConsult.consultations.length === 1 && afterConsult.consultations[0].verdict === null)
+    'Phase 1 start returns brief, model, timeout_ms, worktree',
+    Promise.resolve(
+      typeof startResult.brief === 'string' && startResult.brief.length > 0 &&
+      startResult.model === 'gpt-5.2' &&
+      typeof startResult.timeout_ms === 'number' &&
+      startResult.worktree === tmp
+    )
   );
 
   await assertAsync(
-    'codex-log.md exists with pending section',
+    'Phase 1 does NOT create consultations in state',
+    Promise.resolve((() => {
+      const s = state.load(tmp, 'smoke-session', 'test-feature');
+      return s.consultations.length === 0;
+    })())
+  );
+
+  // === Phase 2: simulate Claude calling mcp__codex__codex (we use a canned result) ===
+  const simulatedMcpResult = { threadId: 'smoke-thread-1', content: FAKE_CODEX_RESPONSE };
+
+  // === Phase 3: record-response ===
+  const recordResult = await consult.recordResponse({
+    worktreeRoot: tmp,
+    sessionId: 'smoke-session',
+    feature: 'test-feature',
+    mode: 'review-design',
+    signalKey: null,
+    mcpResult: simulatedMcpResult
+  });
+
+  await assertAsync(
+    'Phase 3 returns consulted + soft tier + consultation_id c1',
+    Promise.resolve(
+      recordResult.status === 'consulted' &&
+      recordResult.tier === 'soft' &&
+      recordResult.consultation_id === 'c1'
+    )
+  );
+
+  await assertAsync(
+    'Phase 3 return message includes verdict one-liner',
+    Promise.resolve(recordResult.message.includes('verdict --id c1'))
+  );
+
+  await assertAsync(
+    'state has one consultation with verdict: null after Phase 3',
+    Promise.resolve((() => {
+      const s = state.load(tmp, 'smoke-session', 'test-feature');
+      return s.consultations.length === 1 &&
+             s.consultations[0].verdict === null &&
+             s.consultations[0].codex_response === FAKE_CODEX_RESPONSE &&
+             s.consultations[0].codex_thread_id === 'smoke-thread-1';
+    })())
+  );
+
+  await assertAsync(
+    'codex-log.md exists with pending section after Phase 3',
     Promise.resolve((() => {
       const log = fs.readFileSync(path.join(tmp, '.feature-flow', 'codex-log.md'), 'utf8');
       return log.includes('## Consultation c1') && log.includes('_pending_');
     })())
   );
 
-  // 6. Invoke the verdict
-  const verdictResult = await consult.run({
+  await assertAsync(
+    'budget.proactive.design_doc is 1 after Phase 3',
+    Promise.resolve(state.load(tmp, 'smoke-session', 'test-feature').budget.proactive.design_doc === 1)
+  );
+
+  // === Phase 4: verdict ===
+  const verdictResult = await consult.verdict({
     worktreeRoot: tmp,
-    sessionId: 'smoke-session',
-    feature: 'test-feature',
-    args: 'verdict --id c1 --decision accept --reason added GC step to Architecture'
+    id: 'c1',
+    decision: 'accept',
+    reason: 'added GC step to Architecture'
   });
 
   await assertAsync(
-    'verdict returns verdict_recorded status',
+    'Phase 4 verdict returns verdict_recorded',
     Promise.resolve(verdictResult.status === 'verdict_recorded')
   );
 
-  // 7. Verify state and log were updated
-  const afterVerdict = state.load(tmp, 'smoke-session', 'test-feature');
   await assertAsync(
-    'state has verdict: accept and reason',
-    Promise.resolve(
-      afterVerdict.consultations[0].verdict === 'accept' &&
-      afterVerdict.consultations[0].verdict_reason === 'added GC step to Architecture'
-    )
+    'state has verdict accept after Phase 4',
+    Promise.resolve((() => {
+      const s = state.load(tmp, 'smoke-session', 'test-feature');
+      return s.consultations[0].verdict === 'accept' &&
+             s.consultations[0].verdict_reason === 'added GC step to Architecture' &&
+             s.consultations[0].outcome === 'applied';
+    })())
   );
 
   await assertAsync(
-    'codex-log.md has verdict line and no pending marker',
+    'codex-log.md has final VERDICT line and no pending marker',
     Promise.resolve((() => {
       const log = fs.readFileSync(path.join(tmp, '.feature-flow', 'codex-log.md'), 'utf8');
       return log.includes('**VERDICT:** accept') && !log.includes('_pending_');
     })())
   );
 
-  // 8. Budget exhaustion — second review-design call in same session is refused
-  const secondResult = await consult.run({
+  // === Budget exhaustion: second Phase 1 start refuses ===
+  const secondStart = await consult.start({
     worktreeRoot: tmp,
     sessionId: 'smoke-session',
     feature: 'test-feature',
-    args: 'mode: review-design',
-    mcpClient: async () => ({ threadId: 'x', content: 'y' })
+    mode: 'review-design',
+    signalKey: null,
+    introspect: async () => []
   });
 
   await assertAsync(
-    'second consultation skipped with budget_exhausted',
-    Promise.resolve(secondResult.status === 'skipped' && secondResult.reason === 'budget_exhausted')
+    'second start returns skipped: budget_exhausted',
+    Promise.resolve(secondStart.status === 'skipped' && secondStart.reason === 'budget_exhausted')
+  );
+
+  // === Error path: Phase 3 records skipped consultation when MCP fails ===
+  // Use a fresh tmp so budget is clean
+  const tmp2 = mkTmp();
+  fs.writeFileSync(
+    path.join(tmp2, '.feature-flow.yml'),
+    'codex:\n  enabled: true\n  model: gpt-5.2\n'
+  );
+  state.load(tmp2, 'smoke-session-2', 'test-feature');
+
+  const errorRecord = await consult.recordResponse({
+    worktreeRoot: tmp2,
+    sessionId: 'smoke-session-2',
+    feature: 'test-feature',
+    mode: 'review-design',
+    signalKey: null,
+    mcpResult: { error: { reason: 'model_auth_rejected', detail: 'model not supported' } }
+  });
+
+  await assertAsync(
+    'error path returns recorded_skip with reason',
+    Promise.resolve(errorRecord.status === 'recorded_skip' && errorRecord.reason === 'model_auth_rejected')
+  );
+
+  await assertAsync(
+    'error path leaves consultation with null codex_response',
+    Promise.resolve((() => {
+      const s = state.load(tmp2, 'smoke-session-2', 'test-feature');
+      return s.consultations[0].codex_response === null &&
+             s.consultations[0].outcome === 'skipped:model_auth_rejected';
+    })())
   );
 
   fs.rmSync(tmp, { recursive: true });
+  fs.rmSync(tmp2, { recursive: true });
 
   console.log(`\n=== smoke: ${passed} passed, ${failed} failed ===`);
   process.exit(failed > 0 ? 1 : 0);
@@ -2465,7 +2715,7 @@ main();
 node skills/consult-codex/scripts/smoke.test.js
 ```
 
-Expected: `=== smoke: 8 passed, 0 failed ===`.
+Expected: `=== smoke: 13 passed, 0 failed ===`.
 
 - [ ] **Step 12.3: Run the entire Phase 1 + 2 test suite as a sanity pass**
 
@@ -2474,7 +2724,6 @@ for f in \
   skills/consult-codex/scripts/state.test.js \
   skills/consult-codex/scripts/config.test.js \
   skills/consult-codex/scripts/resolve-model.test.js \
-  skills/consult-codex/scripts/call-codex.test.js \
   skills/consult-codex/scripts/build-brief.test.js \
   skills/consult-codex/scripts/record-exchange.test.js \
   skills/consult-codex/scripts/consult.test.js \
@@ -2487,7 +2736,7 @@ done
 echo "ALL GREEN"
 ```
 
-Expected: each file prints its summary line, final output is `ALL GREEN`.
+Expected: each file prints its summary line, final output is `ALL GREEN`. Note: there is no `call-codex.test.js` in the loop — that file does not exist (Task 4 REMOVED).
 
 - [ ] **Step 12.4: Manual live-codex smoke test (optional, documented)**
 
@@ -2643,7 +2892,6 @@ for f in \
   skills/consult-codex/scripts/state.test.js \
   skills/consult-codex/scripts/config.test.js \
   skills/consult-codex/scripts/resolve-model.test.js \
-  skills/consult-codex/scripts/call-codex.test.js \
   skills/consult-codex/scripts/build-brief.test.js \
   skills/consult-codex/scripts/record-exchange.test.js \
   skills/consult-codex/scripts/consult.test.js \
@@ -2655,7 +2903,7 @@ done
 echo "ALL GREEN — Phase 1 + 2 complete"
 ```
 
-Expected: `ALL GREEN — Phase 1 + 2 complete`.
+Expected: `ALL GREEN — Phase 1 + 2 complete`. Note: `call-codex.test.js` is deliberately absent — Task 4 REMOVED.
 
 ---
 

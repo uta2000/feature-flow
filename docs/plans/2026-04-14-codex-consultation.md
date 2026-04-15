@@ -65,28 +65,65 @@ hooks/scripts/signal-collector/
 
 Location: `skills/consult-codex/`
 
-Mode-parameterized skill. Handles all four modes through a shared state machine: load config → budget check → escape-hatch check → build brief → call codex → parse response → force verdict → append exchange to state. The skill is the **only** writer of consultation records.
+**Claude-orchestrated, not script-orchestrated.** MCP tools like `mcp__codex__codex` are only callable from Claude's context via tool use — a subprocess `node script.js` cannot invoke them. The skill therefore works as a three-phase orchestration that Claude drives according to SKILL.md instructions, running pure-data transforms as subprocesses and performing the MCP call itself in between.
+
+**Phase 1 — `consult.js start --mode <mode> [--signal-key <key>]`** (subprocess):
+- Load config, check `enabled` and per-mode flags
+- Check budget (proactive: reject if already run this session; reactive: reject if used ≥ cap)
+- Check escape hatch (reactive only: reject if signal key is within the window)
+- Resolve model (config → MCP introspection passed as arg → skip with reason)
+- Build brief via the per-mode module
+- Output JSON to stdout: `{ status: "ready", mode, brief, model, timeout_ms, worktree }` or `{ status: "skipped", reason, message }` or `{ status: "disabled", message }`
+- **Does not touch state.** If Claude never calls Phase 2, there is no orphan record.
+
+**Phase 2 — Claude invokes `mcp__codex__codex` directly** (in Claude's own context, not inside a subprocess):
+- Uses the brief + model + timeout + worktree from Phase 1's JSON output
+- Passes `sandbox: "read-only"` and `approval-policy: "never"` (hard-coded v1 constraints — see "Codex call mechanics")
+- Handles MCP errors itself based on the SKILL.md's error-classification table. The SKILL.md tells Claude: *"if the tool is not loaded, treat as `codex_mcp_unavailable`; if the model is rejected, treat as `model_auth_rejected`; if the call throws, treat as `codex_call_failed`; if it times out, treat as `timeout`."*
+- On success, captures `threadId` and `content` from the MCP result for Phase 3
+
+**Phase 3 — `consult.js record-response --mode <mode> [--signal-key <key>]`** (subprocess, reads MCP result from stdin):
+- Reads JSON from stdin: `{ threadId, content }` on success, or `{ error: { reason, detail } }` on failure
+- Increments budget (proactive) or updates escape_hatch_state (reactive)
+- Appends the consultation record to `session-state.json` with `verdict: null`
+- Writes the pending section to `.feature-flow/codex-log.md`
+- Outputs the tiered return message (strict vs soft) as a structured JSON to stdout, which the SKILL.md tells Claude to render back to itself
+
+**Phase 4 — `consult.js verdict --id <id> --decision <accept|reject> --reason <text>`** (subprocess):
+- Updates the consultation's verdict, verdict_reason, outcome in state
+- Rewrites the pending section of codex-log.md to the final form
+- For reactive/strict consultations, this call is what the `verdict-gate` PreToolUse Skill hook is waiting for — until Phase 4 runs, Skill calls other than this one are blocked
+
+**Why this boundary:** subprocess scripts can only touch files and run pure logic. MCP tool invocation is exclusively Claude's responsibility. Splitting the skill into "mechanical subprocess work" + "Claude-driven MCP call in between" matches the actual capability boundary and avoids an unimplementable design.
 
 **Module layout:**
 ```
 skills/consult-codex/
-├── SKILL.md
+├── SKILL.md                 # Claude-facing orchestration: "do Phase 1, call MCP,
+│                            #   do Phase 3, later do Phase 4". Contains the MCP
+│                            #   error-classification table Claude uses to handle
+│                            #   failures from its own mcp__codex__codex call.
 ├── references/
 │   ├── brief-format.md      # the rich-brief skeleton
 │   ├── modes.md             # per-mode tables + examples
 │   └── escape-hatch.md      # second-opinion-stumped protocol
 └── scripts/
-    ├── build-brief.js       # dispatcher, routes to per-mode builder
-    ├── modes/
-    │   ├── review-design.js
-    │   ├── review-plan.js
-    │   ├── review-code.js
-    │   └── stuck.js
-    ├── call-codex.js        # mcp__codex__codex wrapper with error handling
-    └── record-exchange.js   # state + codex-log.md writer
+    ├── state.js             # session-state.json R/W (shared)
+    ├── config.js            # .feature-flow.yml loader
+    ├── resolve-model.js     # model fallback chain (pure, injectable)
+    ├── build-brief.js       # shared skeleton formatter
+    ├── record-exchange.js   # state + codex-log.md writer
+    ├── consult.js           # CLI with start / record-response / verdict subcommands
+    └── modes/
+        ├── review-design.js
+        ├── review-plan.js
+        ├── review-code.js
+        └── stuck.js
 ```
 
-The SKILL.md tells Claude *when* to invoke the scripts and *how* to handle the verdict gate; the scripts do mechanical assembly (read state, read design doc / plan / git diff, apply size caps, truncate with explicit markers).
+**Removed from the original design:** the `call-codex.js` wrapper module is gone. Its responsibilities (timeout, error classification) move partly into Claude's handling of its own MCP call (per the SKILL.md error table) and partly into `consult.js record-response` (which reads the error reason from stdin if Claude passes `{ error: {...} }` instead of `{ threadId, content }`).
+
+The SKILL.md tells Claude *when* to run which subprocess and *how* to make the MCP call between them. The scripts do mechanical assembly (read state, build brief, write state, format output). Neither side does what the other is better at.
 
 ### (c) PR metadata extension
 
@@ -420,11 +457,13 @@ User-typed `stuck:` at the prompt is sugar that Claude expands to `Skill(skill: 
 
 ### Execution state machine
 
-The skill has two invocation patterns — a **consultation call** (modes `review-design` / `review-plan` / `review-code` / `stuck`) and a **verdict call** (`verdict` sub-mode). Hooks only see tool inputs and outputs, never assistant text, so the verdict must be recorded by an explicit second skill invocation, not scraped from Claude's chat output.
+The skill runs as **Claude-driven orchestration across three subprocess phases with an MCP call in Phase 2**. There is no single script that "runs the consultation" end-to-end, because MCP tools are only callable from Claude's context. The SKILL.md is the orchestration script.
 
-**Enforcement is tiered by mode** — see "Verdict enforcement tiers" below for the complete rules.
+**Consultation flow (Phases 1–3):**
 
-**Consultation call:**
+Claude is told by the SKILL.md: *"When you want to consult codex, run these three things in order. Do not do anything else between them."*
+
+**Phase 1 — `consult.js start --mode <mode> [--signal-key <key>]`** (subprocess)
 ```
 1.  Load config             (.feature-flow.yml → codex.*)
 2.  Check enabled           (codex.enabled && mode-specific flag)
@@ -434,30 +473,79 @@ The skill has two invocation patterns — a **consultation call** (modes `review
                              unless invoked with user trigger)
 5.  Escape-hatch check      (reactive only: refuse if escape_hatch_state[<key>]
                              is within window; surface instead)
-6.  Build brief             (per-mode assembler, 12 KB cap, truncation markers)
-7.  Resolve model           (fallback chain — see "Model resolution" below)
-8.  Call codex              (mcp__codex__codex, resolved model, read-only sandbox)
-9.  Parse response          (extract diagnosis/recommendation/confidence)
-10. Append pending exchange (state.consultations[] with verdict: null,
-                             strict: true for stuck mode / false for proactive,
-                             signal_key: <key> for reactive / null for proactive;
-                             also append to codex-log.md with verdict: pending)
-11. Update escape-hatch     (reactive only: set escape_hatch_state[<key>].last_consulted_at = now)
-12. Return to Claude        (structured output naming the consultation id;
-                             format varies by strict/soft tier — see below)
+6.  Resolve model           (fallback chain — see "Model resolution" below;
+                             introspection function injected as arg, for real use
+                             Claude can probe via ToolSearch before calling start)
+7.  Build brief             (per-mode assembler, 12 KB cap, truncation markers)
+8.  Output JSON to stdout:  { status: "ready", mode, brief, model, timeout_ms,
+                              worktree, signal_key? }
+                            OR { status: "skipped", reason, message }
+                            OR { status: "disabled", message }
 ```
 
-Steps 2, 4, 5 can short-circuit with a "did not consult" record — still appended to `consultations[]` with `outcome: skipped:<reason>` and verdict `null`, so the audit trail is complete even for skipped calls. Skipped records carry `strict: false` regardless of mode (nothing to enforce).
+Phase 1 **does not touch state**. If any precondition fails, it exits with a `skipped`/`disabled` JSON record and Claude stops here (the skipped record is surfaced to the user but not written to state — there's nothing to audit yet).
 
-**Verdict call:**
-```
-Skill(skill: "feature-flow:consult-codex",
-      args: "verdict --id c3 --decision accept --reason <text>")
+**Phase 2 — Claude invokes `mcp__codex__codex` directly** (Claude's own context, not a subprocess)
+
+Claude reads the Phase 1 JSON and constructs a tool call:
+```js
+mcp__codex__codex({
+  prompt: <brief>,
+  cwd: <worktree>,
+  sandbox: "read-only",
+  "approval-policy": "never",
+  model: <model>
+})
 ```
 
-- Loads `session-state.json`, updates `consultations[c3].verdict`, `verdict_reason`, `outcome: applied_or_rejected`, rewrites the pending section in `codex-log.md` to the final form.
-- Returns a short acknowledgement to Claude.
-- For `strict: true` consultations, the PreToolUse verdict-gate hook (below) blocks all other Skill calls until this call is made.
+Claude handles errors per the SKILL.md's error-classification table:
+- Tool not loaded (ToolSearch failed or returned empty) → treat as `codex_mcp_unavailable`
+- Tool throws `model is not supported` → `model_auth_rejected`
+- Tool does not resolve within `timeout_ms` → `timeout` (Claude applies a wall-clock check)
+- Any other throw → `codex_call_failed`
+- Success → captures `{ threadId, content }`
+
+**Phase 3 — `consult.js record-response --mode <mode> [--signal-key <key>]`** (subprocess, stdin-driven)
+
+Claude pipes a JSON object to stdin:
+- On success: `{ threadId, content }`
+- On failure: `{ error: { reason, detail } }`
+
+```
+1.  Read stdin JSON
+2.  Append consultation to  state.consultations[] with verdict: null,
+                            strict: (reactive ? true : false),
+                            signal_key: <key or null>,
+                            codex_thread_id: <threadId or null>,
+                            codex_response: <content or null>,
+                            outcome: "pending_verdict" (success) or
+                                     "skipped:<reason>" (error)
+3.  Write codex-log.md      append pending section (success) or skipped section (error)
+4.  Increment budget        proactive: budget.proactive.<mode>++
+                            reactive: budget.reactive.used++
+5.  Update escape-hatch     reactive only: set escape_hatch_state[<key>].last_consulted_at = now
+6.  Output JSON to stdout   the tiered return message (strict vs soft) for Claude to
+                            render to itself (the SKILL.md tells Claude to echo this)
+```
+
+**Why increment budget in Phase 3, not Phase 1:** if Claude's MCP call fails after Phase 1, we haven't actually spent a consultation — only a failed attempt. Charging budget only for completed round-trips means the 3/10 reactive cap reflects "times codex actually gave us advice" rather than "times we tried."
+
+**Verdict call — `consult.js verdict --id cN --decision accept|reject --reason <text>`** (subprocess)
+
+Claude invokes this as a separate Skill call (same `feature-flow:consult-codex`, different args). The SKILL.md includes the exact one-liner as the last line of Phase 3's return message so Claude can copy-paste.
+
+```
+1.  Load state              session-state.json
+2.  Update consultation     consultations[cN].verdict = decision,
+                            verdict_reason = reason,
+                            outcome = (accept → applied, reject → rejected)
+3.  Rewrite log             .feature-flow/codex-log.md — replace the
+                            "_pending_" marker in consultation cN's section
+                            with the final VERDICT line
+4.  Output acknowledgement  short JSON confirming the update
+```
+
+For `strict: true` consultations, the PreToolUse verdict-gate hook blocks all other Skill calls until the verdict call for that consultation runs. See "Verdict enforcement tiers" for the complete rules.
 
 ### Verdict enforcement tiers
 
@@ -505,26 +593,39 @@ The spike on two-call verdict compliance showed that uniform non-blocking remind
 
 ### Codex call mechanics
 
+There is no `call-codex.js` wrapper. Claude invokes `mcp__codex__codex` directly from its own context between Phases 1 and 3 (see "Execution state machine"). The SKILL.md provides the exact tool-call template Claude should use:
+
 ```js
-// call-codex.js
-const model = await resolveModel(config.codex)   // see "Model resolution" below
-const response = await mcp__codex__codex({
-  prompt: brief,                                  // the assembled rich brief
-  cwd: worktreePath,                              // isolated feature worktree
-  sandbox: "read-only",                           // hard-coded v1, no writes
-  "approval-policy": "never",                     // no blocking prompts
-  model                                            // resolved via fallback chain
+// Claude's own tool call, not a subprocess:
+mcp__codex__codex({
+  prompt: <brief from Phase 1>,
+  cwd: <worktree from Phase 1>,
+  sandbox: "read-only",            // hard-coded v1, no writes
+  "approval-policy": "never",      // no blocking prompts
+  model: <resolved model from Phase 1>
 })
 ```
 
 **Fixed constraints for v1:**
-- `sandbox: "read-only"` — hard-coded. Patch-proposer and direct-editor tiers deferred.
+- `sandbox: "read-only"` — hard-coded in SKILL.md. Patch-proposer and direct-editor tiers deferred.
 - `approval-policy: "never"` — codex cannot prompt anyone mid-session.
-- **Timeout:** 180 s hard. On timeout, record `outcome: timeout` and return to Claude with "codex timed out, proceed with your own judgment".
+- **Timeout:** 180 s hard. Claude applies a wall-clock check — if the MCP call does not resolve within `timeout_ms` from the Phase 1 output, Claude treats the result as `timeout` and feeds `{ error: { reason: "timeout" } }` to Phase 3's stdin.
+
+**Error classification table** (lives in SKILL.md so Claude can reference it while handling its own MCP tool result):
+
+| Claude's observed result | Reason to pass to Phase 3 |
+|---|---|
+| `mcp__codex__codex` tool not loaded or ToolSearch returns empty | `codex_mcp_unavailable` |
+| Tool throws error message matching `/model is not supported/i` | `model_auth_rejected` |
+| Tool throws error with any other message | `codex_call_failed` |
+| Call exceeds `timeout_ms` wall-clock (Claude checks time) | `timeout` |
+| Normal success with `{ threadId, content }` | pass `{ threadId, content }` to stdin, no error |
+
+Each non-success reason becomes a `skipped:<reason>` outcome record. The consultation is still appended to state (with `codex_response: null`), the codex-log.md still gets a skipped section, and Claude is told via Phase 3's return message to proceed with its own judgment. The audit trail is complete even for failures.
 
 ### Model resolution
 
-Model names churn. Hardcoding a single default (`gpt-5.2`) is a time bomb that will break in months. `call-codex.js` resolves the model via a fallback chain, cached per session:
+Model names churn. Hardcoding a single default (`gpt-5.2`) is a time bomb that will break in months. Phase 1 of `consult.js` (the `start` subcommand) resolves the model via `resolve-model.js`, which follows a fallback chain cached per session:
 
 ```
 1. config.codex.model         — if set in .feature-flow.yml, use it verbatim
@@ -740,11 +841,11 @@ Feature-flow must still work when codex is disabled, broken, or unreachable. Eve
 | Failure | Behavior |
 |---|---|
 | `codex.enabled: false` in config | Skill refuses invocation with message; hooks still collect signals (cheap and useful even without consultation); signals accumulate but emit no suggestions |
-| `mcp__codex__codex` tool not loaded | Skill calls `ToolSearch("select:mcp__codex__codex")` once, caches result; on failure records `outcome: codex_mcp_unavailable`, returns message, does not retry |
-| Codex MCP server disconnected | Same as above — recorded as outcome, surfaced to Claude as a "skipped, continue with own judgment" message |
-| Codex returns model-auth error (e.g., configured model rejected) | Skill logs error with `outcome: model_auth_rejected`, emits one-time hint: *"Your codex auth rejected model `<name>`. Edit `.feature-flow.yml` → `codex.model` to a supported variant, or set `OPENAI_API_KEY` for broader access."* Does not retry in same session. |
-| `codex.model` unset and MCP introspection unavailable | Skill records `outcome: model_unresolvable`, emits one-time SessionStart warning with remediation, no-ops. |
-| Codex timeout (>180s) | Record `outcome: timeout`, return to Claude with "codex timed out, proceed with own judgment" |
+| `mcp__codex__codex` tool not loaded | Claude's own ToolSearch probe returns empty; per SKILL.md error table, Claude pipes `{ error: { reason: "codex_mcp_unavailable" } }` to Phase 3. Phase 3 records `outcome: skipped:codex_mcp_unavailable`, appends skipped section to codex-log.md. |
+| Codex MCP server disconnected mid-call | MCP tool throws. Claude pipes `{ error: { reason: "codex_call_failed", detail } }` to Phase 3, same handling as above. |
+| Codex returns model-auth error (e.g., configured model rejected) | MCP tool throws with `model is not supported` text. Claude pipes `{ error: { reason: "model_auth_rejected", detail } }` to Phase 3. Phase 3 emits a one-time hint in its return JSON: *"Your codex auth rejected model `<name>`. Edit `.feature-flow.yml` → `codex.model` or set `OPENAI_API_KEY` for broader access."* Does not retry in same session. |
+| `codex.model` unset and MCP introspection unavailable | Phase 1 fails at step 6 (resolve model), returns `{ status: "skipped", reason: "model_unresolvable" }`. Claude never makes the MCP call. No state record created (Phase 1 doesn't touch state on skipped). A one-time SessionStart warning surfaces the remediation. |
+| Codex timeout (>180s wall clock) | Claude's wall-clock check fires, cancels/ignores the in-flight tool result, pipes `{ error: { reason: "timeout" } }` to Phase 3. |
 | Session state file corrupted JSON | `state.js` renames to `session-state.json.bak-<timestamp>`, creates fresh, emits one-time warning. Never loses data silently. |
 | Concurrent hook writes | `state.js` writes via temp-file-then-rename (atomic). Readers tolerate mid-write states by retrying once. |
 | Hook script throws | Every hook script wraps entry in `try { ... } catch { process.exit(0) }`. Signal collection never blocks or breaks a Claude tool call. Matches existing hook pattern. |
