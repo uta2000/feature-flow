@@ -64,4 +64,7 @@ function main() {
   process.exit(0);
 }
 
-try { main(); } catch { process.exit(0); }
+try { main(); } catch (err) {
+  try { process.stderr.write('[verdict-gate] fail-open due to internal error: ' + (err && err.message) + '\n'); } catch (_) { /* stderr unavailable */ }
+  process.exit(0);
+}

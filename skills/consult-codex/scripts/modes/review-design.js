@@ -8,10 +8,15 @@ const TRUNCATION_MARKER = '\n\n… [truncated to fit 10 KB cap]';
 
 function loadDoc(worktreeRoot, docPath) {
   const abs = path.isAbsolute(docPath) ? docPath : path.join(worktreeRoot, docPath);
-  if (!fs.existsSync(abs)) {
-    throw new Error(`design doc not found at ${abs}`);
+  const resolvedAbs = path.resolve(abs);
+  const resolvedRoot = path.resolve(worktreeRoot);
+  if (resolvedAbs !== resolvedRoot && !resolvedAbs.startsWith(resolvedRoot + path.sep)) {
+    throw new Error(`design doc path ${docPath} resolves outside worktree (${resolvedAbs}); refusing to read`);
   }
-  const raw = fs.readFileSync(abs, 'utf8');
+  if (!fs.existsSync(resolvedAbs)) {
+    throw new Error(`design doc not found at ${resolvedAbs}`);
+  }
+  const raw = fs.readFileSync(resolvedAbs, 'utf8');
   if (Buffer.byteLength(raw, 'utf8') <= MAX_DOC_BYTES) return raw;
   const budget = MAX_DOC_BYTES - Buffer.byteLength(TRUNCATION_MARKER, 'utf8');
   let sliced = Buffer.from(raw, 'utf8').subarray(0, budget).toString('utf8');

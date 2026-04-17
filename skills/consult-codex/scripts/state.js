@@ -88,6 +88,15 @@ function readOrThrow(p) {
 
 function setMetadata(worktreeRoot, patch) {
   const p = statePath(worktreeRoot);
+  // Self-initialize when state is missing — the integrating skill (e.g. design-document)
+  // calls setMetadata before any consult.js subcommand runs, so state may not exist yet.
+  // We use env-var-derived defaults that match consult.js's CLI wrapper, so a subsequent
+  // state.load with the same session id won't trigger GC.
+  if (!fs.existsSync(p)) {
+    const sessionId = process.env.FEATURE_FLOW_SESSION_ID || `auto-${Date.now()}`;
+    const feature = process.env.FEATURE_FLOW_FEATURE || path.basename(worktreeRoot);
+    save(worktreeRoot, freshState(sessionId, feature));
+  }
   const current = readOrThrow(p);
   Object.assign(current, patch);
   save(worktreeRoot, current);

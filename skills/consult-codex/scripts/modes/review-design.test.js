@@ -41,6 +41,36 @@ assert('errors when design doc file is missing', (() => {
   return threw;
 })());
 
+assert('rejects path traversal outside worktree', (() => {
+  const tmp = mkTmp();
+  let threw = false;
+  try {
+    reviewDesign.buildInputs({
+      worktreeRoot: tmp,
+      state: { feature: 'f', design_doc_path: '../../etc/passwd' }
+    });
+  } catch (e) {
+    threw = e.message.includes('outside worktree') || e.message.includes('refusing');
+  }
+  fs.rmSync(tmp, { recursive: true });
+  return threw;
+})());
+
+assert('rejects absolute path outside worktree', (() => {
+  const tmp = mkTmp();
+  let threw = false;
+  try {
+    reviewDesign.buildInputs({
+      worktreeRoot: tmp,
+      state: { feature: 'f', design_doc_path: '/etc/hosts' }
+    });
+  } catch (e) {
+    threw = e.message.includes('outside worktree') || e.message.includes('refusing');
+  }
+  fs.rmSync(tmp, { recursive: true });
+  return threw;
+})());
+
 assert('returns goal/currentState/signals/question from real doc', (() => {
   const tmp = mkTmp();
   fs.mkdirSync(path.join(tmp, 'docs', 'plans'), { recursive: true });

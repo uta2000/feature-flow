@@ -89,6 +89,23 @@ assert('setMetadata updates named keys only', (() => {
          reloaded.feature === 'feat';
 })());
 
+assert('setMetadata self-initializes state when file is missing', (() => {
+  const tmp = mkTmp();
+  // Do NOT call state.load first — simulate the design-document integration path.
+  process.env.FEATURE_FLOW_SESSION_ID = 'design-doc-init';
+  process.env.FEATURE_FLOW_FEATURE = 'auto-init-feat';
+  state.setMetadata(tmp, { design_doc_path: 'docs/plans/x.md' });
+  delete process.env.FEATURE_FLOW_SESSION_ID;
+  delete process.env.FEATURE_FLOW_FEATURE;
+  const reloaded = state.load(tmp, 'design-doc-init', 'auto-init-feat');
+  fs.rmSync(tmp, { recursive: true });
+  return reloaded.session_id === 'design-doc-init' &&
+         reloaded.feature === 'auto-init-feat' &&
+         reloaded.design_doc_path === 'docs/plans/x.md' &&
+         reloaded.consultations.length === 0 &&
+         reloaded.budget && reloaded.budget.proactive;
+})());
+
 // appendConsultation increments id sequentially
 assert('appendConsultation assigns sequential ids starting at c1', (() => {
   const tmp = mkTmp();

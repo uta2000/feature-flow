@@ -92,7 +92,12 @@ function load(worktreeRoot) {
   try { parsed = parseSection(block); }
   catch { return { ...DEFAULTS }; }
 
-  const enabled = parseBool(parsed.enabled) === true;
+  const enabledRaw = parsed.enabled;
+  const enabledParsed = parseBool(enabledRaw);
+  if (enabledRaw !== undefined && enabledParsed === undefined) {
+    process.stderr.write(`[consult-codex] codex.enabled value not recognized: '${enabledRaw}' — treating as disabled. Use true|false|yes|no|1|0.\n`);
+  }
+  const enabled = enabledParsed === true;
   const model = typeof parsed.model === 'string' ? parsed.model : DEFAULTS.model;
   const timeout_seconds = parseInt10(parsed.timeout_seconds) ?? DEFAULTS.timeout_seconds;
 

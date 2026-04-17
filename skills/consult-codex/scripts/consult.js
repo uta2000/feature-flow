@@ -287,12 +287,24 @@ async function mainCli() {
     return out;
   }
 
+  const MAX_STDIN_BYTES = 2 * 1024 * 1024; // 2 MB cap on Codex response payload
+
   function readStdin() {
-    return new Promise(resolve => {
+    return new Promise((resolve, reject) => {
       if (process.stdin.isTTY) return resolve('');
       let data = '';
-      process.stdin.on('data', chunk => data += chunk);
+      let bytes = 0;
+      process.stdin.on('data', chunk => {
+        bytes += chunk.length;
+        if (bytes > MAX_STDIN_BYTES) {
+          process.stdin.destroy();
+          reject(new Error(`stdin exceeded ${MAX_STDIN_BYTES} bytes — refusing to buffer further`));
+          return;
+        }
+        data += chunk;
+      });
       process.stdin.on('end', () => resolve(data));
+      process.stdin.on('error', err => reject(err));
     });
   }
 
@@ -310,10 +322,14 @@ async function mainCli() {
     });
   } else if (sub === 'record-response') {
     const flags = parseFlags(argv.slice(1));
-    const stdin = await readStdin();
     let mcpResult;
-    try { mcpResult = JSON.parse(stdin); }
-    catch { mcpResult = { error: { reason: 'codex_call_failed', detail: 'could not parse stdin JSON' } }; }
+    try {
+      const stdin = await readStdin();
+      try { mcpResult = JSON.parse(stdin); }
+      catch { mcpResult = { error: { reason: 'codex_call_failed', detail: 'could not parse stdin JSON' } }; }
+    } catch (err) {
+      mcpResult = { error: { reason: 'codex_call_failed', detail: err.message } };
+    }
     result = await recordResponse({
       worktreeRoot, sessionId, feature,
       mode: flags.mode,
