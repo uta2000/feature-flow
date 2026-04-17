@@ -41,6 +41,22 @@ assert('parses codex.enabled: true', (() => {
   return c.enabled === true && c.model === 'gpt-5.2';
 })());
 
+assert('parses quoted model value without retaining quotes', (() => {
+  const tmp = mkTmp();
+  writeYml(tmp, 'codex:\n  enabled: true\n  model: "gpt-5.2"\n');
+  const c = config.load(tmp);
+  fs.rmSync(tmp, { recursive: true });
+  return c.model === 'gpt-5.2';
+})());
+
+assert('parses single-quoted model value without retaining quotes', (() => {
+  const tmp = mkTmp();
+  writeYml(tmp, "codex:\n  enabled: true\n  model: 'gpt-5.2'\n");
+  const c = config.load(tmp);
+  fs.rmSync(tmp, { recursive: true });
+  return c.model === 'gpt-5.2';
+})());
+
 assert('parses proactive review flags with defaults', (() => {
   const tmp = mkTmp();
   writeYml(tmp, [
@@ -86,13 +102,14 @@ assert('default timeout_seconds is 180', (() => {
   return c.timeout_seconds === 180;
 })());
 
-assert('malformed yaml falls back to disabled', (() => {
+assert('weird-indent yaml does not throw', (() => {
   const tmp = mkTmp();
   writeYml(tmp, 'codex:\n  enabled: true\n    bogus_indent: 1\n');
   const c = config.load(tmp);
   fs.rmSync(tmp, { recursive: true });
-  // loader must not throw; return disabled-safe object
-  return c.enabled === false || c.enabled === true;  // must not throw
+  // loader is intentionally lenient — drops unrecognized lines silently.
+  // This test verifies it does not throw, which is the disabled-safe invariant.
+  return typeof c.enabled === 'boolean';
 })());
 
 console.log(`\n=== config.js: ${passed} passed, ${failed} failed ===`);

@@ -47,11 +47,19 @@ function parseInt10(value) {
   return Number.isFinite(n) ? n : undefined;
 }
 
+// Strip inline comment, trim whitespace, and remove matched surrounding quotes.
+// Only strips when both ends match the same quote type; leaves unmatched/embedded quotes alone.
+function stripValue(v) {
+  return v
+    .replace(/\s*#.*$/, '')
+    .trim()
+    .replace(/^"(.*)"$|^'(.*)'$/, (_m, d, s) => d ?? s ?? '');
+}
+
 // Flat key-value parse within a section; supports simple nested maps (depth 2).
 function parseSection(block) {
   const out = {};
   const lines = block.split('\n');
-  let currentKey = null;
   let currentMap = null;
   for (const raw of lines) {
     if (!raw.trim()) continue;
@@ -59,11 +67,11 @@ function parseSection(block) {
     const fourSpace = /^    ([a-zA-Z_][a-zA-Z0-9_]*):\s*(.*)$/.exec(raw);
     if (twoSpace) {
       const [, k, v] = twoSpace;
-      if (v === '') { currentKey = k; currentMap = {}; out[k] = currentMap; }
-      else { out[k] = v.replace(/\s*#.*$/, '').trim(); currentKey = null; currentMap = null; }
+      if (v === '') { currentMap = {}; out[k] = currentMap; }
+      else { out[k] = stripValue(v); currentMap = null; }
     } else if (fourSpace && currentMap) {
       const [, k, v] = fourSpace;
-      currentMap[k] = v.replace(/\s*#.*$/, '').trim();
+      currentMap[k] = stripValue(v);
     }
   }
   return out;
