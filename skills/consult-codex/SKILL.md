@@ -35,6 +35,7 @@ Parse the JSON on stdout. Possible statuses:
 - `"disabled"` → stop. Codex is disabled. Report the message to the user. Skip the rest of this skill.
 - `"skipped"` → stop. A precondition (budget, escape-hatch, model-unresolvable) rejected this call. Report the reason.
 - `"ready"` → proceed to Phase 2 with the returned `{ brief, model, timeout_ms, worktree, mode, signal_key }`.
+- `"error"` → stop. The CLI rejected the call (e.g., unknown mode). Surface the message to the user; do not proceed.
 
 ### Phase 2 — Call `mcp__codex__codex` directly (your own tool call)
 
@@ -64,18 +65,20 @@ mcp__codex__codex({
 
 ### Phase 3 — `consult.js record-response`
 
-Pipe the Phase 2 JSON to the record-response subprocess:
+Pass the Phase 2 JSON to the record-response subprocess on stdin. Use a quoted heredoc (`<<'PHASE2_JSON'`) so apostrophes, backticks, and dollar signs in the Codex response survive the shell.
 
 ```bash
-echo '<phase 2 json>' | \
 FEATURE_FLOW_SESSION_ID=<id> FEATURE_FLOW_FEATURE=<name> FEATURE_FLOW_WORKTREE=<path> \
-node skills/consult-codex/scripts/consult.js record-response --mode <mode> [--signal-key <key>]
+node skills/consult-codex/scripts/consult.js record-response --mode <mode> [--signal-key <key>] <<'PHASE2_JSON'
+<phase 2 json>
+PHASE2_JSON
 ```
 
 Parse stdout. Possible statuses:
 
 - `"consulted"` → success. The JSON contains `tier` (`strict` or `soft`), `consultation_id`, and a formatted `message`. Render the message to yourself so you can read codex's diagnosis. The message includes the exact one-liner for Phase 4 (verdict).
 - `"recorded_skip"` → the error was recorded as a skipped consultation. The lifecycle continues without codex's input. Surface the `reason` to the user.
+- `"error"` → stop. The CLI rejected the call (e.g., unknown mode). Surface the message to the user; the consultation was not recorded.
 
 ### Phase 4 — Verdict (mandatory for `consulted`, skipped for `recorded_skip`)
 

@@ -12,4 +12,4 @@ If the same signal fires again within `codex.reactive.escape_hatch_window_minute
 
 Two AI models agreeing on the wrong path is worse than one — this is the hard stop against that, scoped to a configurable window so we don't poison the well indefinitely.
 
-This protocol is stuck-mode only (v1 scope). Proactive modes don't need it because they're bounded (max 1 per mode per lifecycle).
+**Status:** This protocol is documented for the upcoming reactive `stuck` mode (deferred to a follow-up plan). Proactive modes don't need it because they're bounded (max 1 per mode per lifecycle). The `escape_hatch_state` field exists in `session-state.json` (T1) and the budget enforcement is wired (T7), but the signal collector that triggers re-consultations doesn't exist yet.

@@ -7,4 +7,6 @@
 | review-code | soft | Design doc summary + path | `git diff <base>..HEAD` truncated to 8 KB + changed files list | Does this diff realize the design? Any quality issues? Any drift from stated design? |
 | stuck | strict | Current in-flight task from plan | Failing signal with sample output | What's actually wrong? What approach hasn't been tried? Is the task approach flawed? |
 
+**Note:** `review-design` is the only mode active in v1. `review-plan`, `review-code`, and `stuck` are documented here as future scope; their per-mode builders and triggers are deferred to a follow-up plan.
+
 Strict tier = reactive `stuck` mode only. It uses the PreToolUse verdict-gate hook to block non-verdict Skill calls until the verdict is recorded. Soft tier = all proactive modes; missing verdict surfaces as `<not recorded>` in PR metadata.
