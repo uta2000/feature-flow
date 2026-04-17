@@ -190,18 +190,18 @@ Agents must name the specific rule violated from their checklist. Findings witho
 Task(
   subagent_type: "general-purpose",
   model: "opus",
-  description: "Run senior developer panel review [session:$SESSION_ID]",
+  description: "Run senior developer panel review [session:$LIFECYCLE_SESSION]",
   prompt: [persona-panel prompt from senior-panel.md]
 )
 ```
 
 A single opus subagent orchestrates three personas sequentially (Staff Engineer → SRE → Product Engineer). Each persona has a closed rule enum (see `senior-panel.md`). The subagent returns findings in the Phase 1b structured format plus two extra fields: `finding_type` (`rule | architectural | operability | product_fit`) and `persona` (`staff_eng | sre | product_eng`, required when `finding_type != rule`).
 
-**Pre-dispatch diff-size cap:** If the reviewed branch diff exceeds 1500 changed lines, skip Phase 1c entirely — do not dispatch. Rationale: opus context-window risk on very large diffs. Announce: `"Phase 1c [session:$SESSION_ID]: diff size N lines exceeds 1500-line cap. Skipping panel; Phase 1b agents still run."`
+**Pre-dispatch diff-size cap:** If the reviewed branch diff exceeds 1500 changed lines, skip Phase 1c entirely — do not dispatch. Rationale: opus context-window risk on very large diffs. Announce: `"Phase 1c [session:$LIFECYCLE_SESSION]: diff size N lines exceeds 1500-line cap. Skipping panel; Phase 1b agents still run."`
 
 **Orchestrator-enforced timeout:** 5-minute wall-clock bound. The Task primitive has no native timeout — the orchestrator MUST abandon the Phase 1c dispatch if no response arrives within 5 minutes and treat it as a transport error.
 
-**Correlation ID:** every Phase 1c announcement, log line, and Phase 5 report entry MUST carry `[session:$SESSION_ID]` (the lifecycle session's stable ID) so operators can grep-correlate across the lifecycle.
+**Correlation ID:** every Phase 1c announcement, log line, and Phase 5 report entry MUST carry `[session:$LIFECYCLE_SESSION]`. The substituted value is the `lifecycle_session` slug (`YYYY-MM-DD-<kebab-slug>`) read from `.feature-flow/session.txt` — the same slug that appears in the PR's `feature-flow-metadata` block. Do NOT mint a new identifier for Phase 1c; reuse the existing lifecycle session slug so grep-correlation works across pipeline phases, Phase 5 report, and the PR body.
 
 **Phase 1c schema-level guard:** Before merging Phase 1c findings into Phase 2, validate each finding against the schema: (a) required fields present including `finding_type` and `persona` (when `finding_type != rule`), (b) `rule` is a member of the persona's closed enum. This guard is distinct from — and parallel to — Phase 1a's section-header guard (above at "Malformed subagent response guard"). See `skills/start/references/senior-panel-fixtures.md` for canonical test payloads (F1-F8).
 
@@ -212,7 +212,7 @@ A single opus subagent orchestrates three personas sequentially (Staff Engineer 
 3. `all_findings_rejected` — response parsed but every finding dropped by guard. Announcement includes first rejection reason.
 4. `zero_findings_on_nontrivial_diff` — response parsed, zero findings, diff >50 lines. Treated as failure. Zero findings on a trivial (<50 line) diff is NOT a failure.
 
-All failure announcements include the `[session:$SESSION_ID]` correlation token.
+All failure announcements include the `[session:$LIFECYCLE_SESSION]` correlation token.
 
 ## Phase 2: Conflict Detection
 

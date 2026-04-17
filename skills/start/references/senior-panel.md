@@ -52,15 +52,15 @@ A persona MAY emit `finding_type: rule` if it identifies a genuine rule-based de
 
 ## Subagent dispatch
 
-The orchestrator MUST propagate a correlation token (`$SESSION_ID` — the lifecycle session's stable ID) into the dispatch so that failure announcements, logs, and Phase 5 report entries can be traced back to the originating `start:` invocation:
+The orchestrator MUST propagate the lifecycle session slug as a correlation token into the dispatch, so failure announcements, logs, and Phase 5 report entries can be traced back to the originating `start:` invocation. The slug is the `lifecycle_session` value already used by the feature-flow metadata block (format `YYYY-MM-DD-<kebab-slug>`, read from `.feature-flow/session.txt` per `references/feature-flow-metadata-schema.md` field #2 and `skills/start/references/inline-steps.md` → "PR Metadata Block Step"). Use it verbatim — do NOT mint a new ID for Phase 1c:
 
 ```
 Task(
   subagent_type: "general-purpose",
   model: "opus",
-  description: "Run senior developer panel review [session:$SESSION_ID]",
+  description: "Run senior developer panel review [session:$LIFECYCLE_SESSION]",
   prompt: [persona-panel prompt — see below; prompt header
-           must include `session: $SESSION_ID` so the subagent
+           must include `session: $LIFECYCLE_SESSION` so the subagent
            echoes it in its own log output]
 )
 ```
@@ -72,7 +72,7 @@ Task(
 - Model: `opus`. Judgment work is the explicit use case reserved for Opus per `model-routing.md`.
 - **Timeout (orchestrator-enforced):** 5 minutes wall-clock. The Task primitive has no native timeout — the orchestrator owns the deadline. Expected runtime on a Major-feature diff: 2–4 minutes. See "Phase 1c schema-level guard" → "Orchestrator wall-clock responsibility" for the enforcement contract.
 - **Diff-size upper bound:** 1500 changed lines. Skip Phase 1c entirely above this bound (see schema-level guard section).
-- **Correlation ID:** every announcement, log line, and Phase 5 report entry related to this Phase 1c invocation MUST carry `[session:$SESSION_ID]` so operators can grep-correlate across the lifecycle.
+- **Correlation ID:** every announcement, log line, and Phase 5 report entry related to this Phase 1c invocation MUST carry `[session:$LIFECYCLE_SESSION]` so operators can grep-correlate across the lifecycle. The substituted value is the same slug that appears in the PR's `feature-flow-metadata` block — this is not a new identifier.
 
 ## Prompt contract
 
@@ -99,12 +99,12 @@ After the subagent returns, the orchestrator validates each finding against the 
 
 **Failure dispositions** (applies AFTER the per-finding rejections above). Treat each case distinctly — do NOT collapse them into one announcement:
 
-1. **transport_error** — subagent dispatch failed before any response arrived (network error, rate limit, API unavailable). On the first occurrence, retry **once** with 30-second backoff; if the second attempt also fails, announce: `"Phase 1c [session:$SESSION_ID]: transport error (<reason>) after 1 retry — falling back to Phase 1b findings only."` Schema-validation failures (below) do NOT retry — those are deterministic.
-2. **parse_error** — subagent returned a response that could not be parsed into structured findings at all. Announce: `"Phase 1c [session:$SESSION_ID]: subagent response unparseable (could not extract structured findings). Falling back to Phase 1b findings only."`
-3. **all_findings_rejected** — response parsed but every finding was dropped by the schema guard. Announce: `"Phase 1c [session:$SESSION_ID]: all N findings rejected by schema guard (first rejection: <reason>). Falling back to Phase 1b findings only."` Include the first rejection's reason so operators can triage persona drift vs. enum mismatch quickly.
-4. **zero_findings_on_nontrivial_diff** — response parsed, guard passed zero findings, AND the reviewed diff exceeds 50 changed lines. Suspicious: likely a prompt / parse / empty-output issue rather than a truly clean PR at Major-feature scope. Announce: `"Phase 1c [session:$SESSION_ID]: subagent returned zero findings on an N-line diff. Treating as failure (possible prompt/parse issue). Falling back to Phase 1b findings only."`
+1. **transport_error** — subagent dispatch failed before any response arrived (network error, rate limit, API unavailable). On the first occurrence, retry **once** with 30-second backoff; if the second attempt also fails, announce: `"Phase 1c [session:$LIFECYCLE_SESSION]: transport error (<reason>) after 1 retry — falling back to Phase 1b findings only."` Schema-validation failures (below) do NOT retry — those are deterministic.
+2. **parse_error** — subagent returned a response that could not be parsed into structured findings at all. Announce: `"Phase 1c [session:$LIFECYCLE_SESSION]: subagent response unparseable (could not extract structured findings). Falling back to Phase 1b findings only."`
+3. **all_findings_rejected** — response parsed but every finding was dropped by the schema guard. Announce: `"Phase 1c [session:$LIFECYCLE_SESSION]: all N findings rejected by schema guard (first rejection: <reason>). Falling back to Phase 1b findings only."` Include the first rejection's reason so operators can triage persona drift vs. enum mismatch quickly.
+4. **zero_findings_on_nontrivial_diff** — response parsed, guard passed zero findings, AND the reviewed diff exceeds 50 changed lines. Suspicious: likely a prompt / parse / empty-output issue rather than a truly clean PR at Major-feature scope. Announce: `"Phase 1c [session:$LIFECYCLE_SESSION]: subagent returned zero findings on an N-line diff. Treating as failure (possible prompt/parse issue). Falling back to Phase 1b findings only."`
 
-Zero findings on a **trivial** diff (<50 changed lines) is NOT a failure — announce neutrally: `"Phase 1c [session:$SESSION_ID]: 0 judgment findings on an N-line diff (trivial; no panel-blocking concerns found)."`
+Zero findings on a **trivial** diff (<50 changed lines) is NOT a failure — announce neutrally: `"Phase 1c [session:$LIFECYCLE_SESSION]: 0 judgment findings on an N-line diff (trivial; no panel-blocking concerns found)."`
 
 **Orchestrator wall-clock responsibility:** The Task primitive has no native timeout parameter. The orchestrator MUST enforce a 5-minute wall-clock bound on the Phase 1c dispatch — if no response arrives within 5 minutes, abandon the subagent call and treat it as `transport_error` per case (1) above. This is the authoritative timeout; prose references to "5-minute timeout" elsewhere are shorthand for this mechanism.
 
@@ -124,7 +124,7 @@ All failure paths are specified in the "Phase 1c schema-level guard" section abo
 - Response parses, zero findings, diff <50 lines → neutral announcement (not a failure).
 - Diff >1500 lines → skip dispatch entirely; never reach failure paths.
 
-Every announcement carries the `[session:$SESSION_ID]` correlation token.
+Every announcement carries the `[session:$LIFECYCLE_SESSION]` correlation token.
 
 ## Stack affinity
 
@@ -136,7 +136,7 @@ Phase 1c is pipeline-integrated — there is no standalone user-invocation path 
 
 1. Start a **Major feature** task: `start: [description]` and select "Major feature" at the scope classification prompt (or let heuristics pick it). Phase 1c does not run at Feature / Small enhancement / Quick fix scope.
 2. Let the lifecycle proceed through design → plan → implement until it reaches the **Code Review Pipeline** step.
-3. During dispatch, look for the Phase 1b availability announcement: `"Running N report-only agents in parallel (Tier 3 — major feature, ...)"`. If Phase 1c dispatches in the same parallel message, the orchestrator adds a line: `"Phase 1c [session:$SESSION_ID]: senior panel dispatched (3 personas, opus, 5-min deadline)."`
-4. If the diff exceeds 1500 changed lines, you'll instead see the skip announcement: `"Phase 1c [session:$SESSION_ID]: diff size N lines exceeds 1500-line cap. Skipping panel..."`
+3. During dispatch, look for the Phase 1b availability announcement: `"Running N report-only agents in parallel (Tier 3 — major feature, ...)"`. If Phase 1c dispatches in the same parallel message, the orchestrator adds a line: `"Phase 1c [session:$LIFECYCLE_SESSION]: senior panel dispatched (3 personas, opus, 5-min deadline)."`
+4. If the diff exceeds 1500 changed lines, you'll instead see the skip announcement: `"Phase 1c [session:$LIFECYCLE_SESSION]: diff size N lines exceeds 1500-line cap. Skipping panel..."`
 5. If Phase 1c ran and produced findings, the Phase 5 report's `### Senior Panel — Judgment Findings` subsection lists them grouped by persona. If the subsection is absent, either (a) Phase 1c was skipped (scope or diff cap), (b) Phase 1c failed (see failure-disposition announcement upstream in the log), or (c) Phase 1c returned zero valid findings on a trivial diff.
 6. For ad-hoc testing of the schema guard without invoking opus, point at `senior-panel-fixtures.md` and mentally walk each F1–F8 payload through the guard rules in "Phase 1c schema-level guard" above.
