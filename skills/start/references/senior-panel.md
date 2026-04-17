@@ -52,12 +52,16 @@ A persona MAY emit `finding_type: rule` if it identifies a genuine rule-based de
 
 ## Subagent dispatch
 
+The orchestrator MUST propagate a correlation token (`$SESSION_ID` — the lifecycle session's stable ID) into the dispatch so that failure announcements, logs, and Phase 5 report entries can be traced back to the originating `start:` invocation:
+
 ```
 Task(
   subagent_type: "general-purpose",
   model: "opus",
-  description: "Run senior developer panel review",
-  prompt: [persona-panel prompt — see below]
+  description: "Run senior developer panel review [session:$SESSION_ID]",
+  prompt: [persona-panel prompt — see below; prompt header
+           must include `session: $SESSION_ID` so the subagent
+           echoes it in its own log output]
 )
 ```
 
@@ -66,7 +70,9 @@ Task(
 - Dispatched in the same parallel message as Phase 1b agents (not after).
 - Single subagent call — personas are orchestrated **internally** and run **sequentially** so later personas can see earlier findings and avoid duplication.
 - Model: `opus`. Judgment work is the explicit use case reserved for Opus per `model-routing.md`.
-- Timeout: 5 minutes. Expected runtime on a Major-feature diff: 2–4 minutes.
+- **Timeout (orchestrator-enforced):** 5 minutes wall-clock. The Task primitive has no native timeout — the orchestrator owns the deadline. Expected runtime on a Major-feature diff: 2–4 minutes. See "Phase 1c schema-level guard" → "Orchestrator wall-clock responsibility" for the enforcement contract.
+- **Diff-size upper bound:** 1500 changed lines. Skip Phase 1c entirely above this bound (see schema-level guard section).
+- **Correlation ID:** every announcement, log line, and Phase 5 report entry related to this Phase 1c invocation MUST carry `[session:$SESSION_ID]` so operators can grep-correlate across the lifecycle.
 
 ## Prompt contract
 
@@ -89,7 +95,18 @@ After the subagent returns, the orchestrator validates each finding against the 
 - Reject any finding with `finding_type != "rule"` that is missing `persona`.
 - Reject any finding whose `rule` is not a member of the persona's closed enum.
 
-If the overall response is not parseable, OR contains zero valid findings on a non-trivial diff (>50 changed lines), treat as subagent failure: announce `"senior panel subagent returned a malformed response — findings skipped"` and proceed with Phase 1b findings only.
+**Diff-size upper bound:** If the reviewed branch diff exceeds **1500 changed lines**, skip Phase 1c entirely — do not dispatch. Rationale: at ~200K opus context, a 10k-line diff plus per-persona instructions plus anti-pattern context risks silent truncation or context-window refusal, which surface as malformed responses and obscure the real failure. Announce: `"Phase 1c: diff size N lines exceeds 1500-line cap for senior panel. Skipping panel; rule-based agents still run."` Revisit the cap in a future iteration with per-file chunking.
+
+**Failure dispositions** (applies AFTER the per-finding rejections above). Treat each case distinctly — do NOT collapse them into one announcement:
+
+1. **transport_error** — subagent dispatch failed before any response arrived (network error, rate limit, API unavailable). On the first occurrence, retry **once** with 30-second backoff; if the second attempt also fails, announce: `"Phase 1c [session:$SESSION_ID]: transport error (<reason>) after 1 retry — falling back to Phase 1b findings only."` Schema-validation failures (below) do NOT retry — those are deterministic.
+2. **parse_error** — subagent returned a response that could not be parsed into structured findings at all. Announce: `"Phase 1c [session:$SESSION_ID]: subagent response unparseable (could not extract structured findings). Falling back to Phase 1b findings only."`
+3. **all_findings_rejected** — response parsed but every finding was dropped by the schema guard. Announce: `"Phase 1c [session:$SESSION_ID]: all N findings rejected by schema guard (first rejection: <reason>). Falling back to Phase 1b findings only."` Include the first rejection's reason so operators can triage persona drift vs. enum mismatch quickly.
+4. **zero_findings_on_nontrivial_diff** — response parsed, guard passed zero findings, AND the reviewed diff exceeds 50 changed lines. Suspicious: likely a prompt / parse / empty-output issue rather than a truly clean PR at Major-feature scope. Announce: `"Phase 1c [session:$SESSION_ID]: subagent returned zero findings on an N-line diff. Treating as failure (possible prompt/parse issue). Falling back to Phase 1b findings only."`
+
+Zero findings on a **trivial** diff (<50 changed lines) is NOT a failure — announce neutrally: `"Phase 1c [session:$SESSION_ID]: 0 judgment findings on an N-line diff (trivial; no panel-blocking concerns found)."`
+
+**Orchestrator wall-clock responsibility:** The Task primitive has no native timeout parameter. The orchestrator MUST enforce a 5-minute wall-clock bound on the Phase 1c dispatch — if no response arrives within 5 minutes, abandon the subagent call and treat it as `transport_error` per case (1) above. This is the authoritative timeout; prose references to "5-minute timeout" elsewhere are shorthand for this mechanism.
 
 This guard is distinct from (and parallel to) Phase 1a's malformed-response guard in `code-review-pipeline.md` — Phase 1a's guard checks section headers, this one checks schema fields.
 
@@ -97,9 +114,17 @@ This guard is distinct from (and parallel to) Phase 1a's malformed-response guar
 
 ## Failure handling
 
-- Subagent failure → skip Phase 1c, continue with Phase 1b only. Announce: `"Senior panel subagent failed — skipping. Phase 1b findings only."`
-- Timeout (>5 min) → same as subagent failure.
-- Malformed response → see schema-level guard above.
+All failure paths are specified in the "Phase 1c schema-level guard" section above under "Failure dispositions":
+
+- Transport errors (network, rate limit, API unavailable) → retry once with 30s backoff, then `transport_error`.
+- Timeout (>5 min wall-clock, orchestrator-enforced) → `transport_error` per case (1).
+- Unparseable response → `parse_error`.
+- Response parses but all findings rejected by schema guard → `all_findings_rejected` (with first rejection reason).
+- Response parses, zero findings, diff >50 lines → `zero_findings_on_nontrivial_diff`.
+- Response parses, zero findings, diff <50 lines → neutral announcement (not a failure).
+- Diff >1500 lines → skip dispatch entirely; never reach failure paths.
+
+Every announcement carries the `[session:$SESSION_ID]` correlation token.
 
 ## Stack affinity
 
