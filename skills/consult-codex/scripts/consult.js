@@ -1,6 +1,7 @@
 // skills/consult-codex/scripts/consult.js
 'use strict';
 
+const fs = require('fs');
 const path = require('path');
 const state = require('./state');
 const config = require('./config');
@@ -24,7 +25,7 @@ function isValidMode(m) {
 // Subcommand: start
 // --------------------------------------------------------------------------
 
-async function start({ worktreeRoot, sessionId, feature, mode, signalKey, introspect }) {
+async function start({ worktreeRoot, feature, mode, signalKey, introspect }) {
   const cfg = config.load(worktreeRoot);
 
   if (!cfg.enabled) {
@@ -38,7 +39,6 @@ async function start({ worktreeRoot, sessionId, feature, mode, signalKey, intros
   // Proactive budget check — READ ONLY, does not touch state
   if (PROACTIVE_MODES.has(mode)) {
     const stateFilePath = state.statePath(worktreeRoot);
-    const fs = require('fs');
     if (fs.existsSync(stateFilePath)) {
       try {
         const existing = JSON.parse(fs.readFileSync(stateFilePath, 'utf8'));
@@ -47,14 +47,13 @@ async function start({ worktreeRoot, sessionId, feature, mode, signalKey, intros
           return { status: 'skipped', reason: 'budget_exhausted', message: `proactive ${mode} already ran this session` };
         }
       } catch {
-        /* corrupt state: let record-response handle recovery */
+        console.error('[consult-codex] state file unreadable in start; budget check skipped, recovery deferred to record-response');
       }
     }
   }
 
   // Reactive escape-hatch check (stuck mode only)
   if (REACTIVE_MODES.has(mode) && signalKey) {
-    const fs = require('fs');
     const stateFilePath = state.statePath(worktreeRoot);
     if (fs.existsSync(stateFilePath)) {
       try {
@@ -67,7 +66,9 @@ async function start({ worktreeRoot, sessionId, feature, mode, signalKey, intros
             return { status: 'skipped', reason: 'escape_hatch_active', message: `signal ${signalKey} is within the escape-hatch window` };
           }
         }
-      } catch { /* corrupt state */ }
+      } catch {
+        console.error('[consult-codex] state file unreadable in start; escape-hatch check skipped, recovery deferred to record-response');
+      }
     }
   }
 
@@ -134,8 +135,7 @@ async function recordResponse({ worktreeRoot, sessionId, feature, mode, signalKe
       outcome: `skipped:${reason}`
     });
     // Reset verdict back to null (skipped entries are not verdict-pending)
-    const fs = require('fs');
-    const s = JSON.parse(fs.readFileSync(state.statePath(worktreeRoot), 'utf8'));
+    const s = state.load(worktreeRoot, sessionId, feature);
     const target = s.consultations.find(c => c.id === entry.id);
     target.verdict = null;
     target.verdict_reason = null;

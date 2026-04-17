@@ -61,6 +61,28 @@ async function main() {
   );
 
   await assertAsync(
+    'start: returns skipped:budget_exhausted after recordResponse used the proactive slot',
+    (async () => {
+      const tmp = mkTmp();
+      writeYml(tmp, 'codex:\n  enabled: true\n  model: gpt-5.2\n');
+      await consult.recordResponse({
+        worktreeRoot: tmp, sessionId: 's', feature: 'f',
+        mode: 'review-design', signalKey: null,
+        mcpResult: { threadId: 't', content: 'first response' }
+      });
+      const r = await consult.start({
+        worktreeRoot: tmp, sessionId: 's', feature: 'f',
+        mode: 'review-design',
+        introspect: async () => []
+      });
+      fs.rmSync(tmp, { recursive: true });
+      return r.status === 'skipped' &&
+             r.reason === 'budget_exhausted' &&
+             r.message.includes('review-design');
+    })()
+  );
+
+  await assertAsync(
     'start: does NOT touch session-state.json',
     (async () => {
       const tmp = mkTmp();
