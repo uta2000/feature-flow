@@ -29,6 +29,33 @@ Did the user include `--feature-flow` or `--gsd` flag?
 
 ### Step 3: Run heuristic detection
 
+**Before running heuristic scoring, run Quick-Path Confirmation** (a read-only gate sequence). If all gates pass, take the quick path (Step 5 → Step 6 quick-path branch) and skip heuristic scoring entirely. If any gate fails, fall through to heuristic scoring below — unchanged.
+
+#### Quick-Path Confirmation
+
+Quick path is available when `tool_selector.quick_path.enabled` is `true` (default) and `--no-quick` was not passed. If either condition is false, skip this subsection entirely and proceed to heuristic scoring.
+
+Run gates in strict order 0 → 5. **First failure short-circuits immediately** — do not run later gates. Pass budget: **≤5 Bash/Grep/Read tool calls total across all gates**. In-process AST tokenization and byte-range overlap checks are free (do not count). If you reach 5 tool calls before all gates pass, abort confirmation and fall through silently.
+
+| # | Gate | Pass condition | Fail action |
+|---|------|----------------|-------------|
+| 0 | **Clean working tree** | `git status --porcelain` returns empty | Surface to user: *"Working tree is dirty — running normal lifecycle to avoid trampling in-progress work."* Then fall through to heuristic scoring. |
+| 1 | **Concrete target identifiable** | Description names a file path, function name, symbol, or string literal | Surface to user: *"No specific target named — running normal lifecycle. If you meant a specific file, say `start: fix typo in X.ts line 42`."* Then fall through. |
+| 2 | **Bounded file count** | Target resolves to ≤ `max_files` files (default 3) | Silent fallthrough |
+| 3 | **No exported-declaration overlap** | The edit's byte range does not overlap any `export` / `export default` / `module.exports` AST node, nor any symbol referenced by those nodes. Check is mechanical byte-range overlap — not a "flows outward" semantic analysis. | Silent fallthrough |
+| 4 | **Lexical-region rule** | Every proposed `old_string` byte range sits entirely inside one of: **(a)** Markdown prose outside `` ``` `` fences; **(b)** a string literal node in a code file that is **not** a syntactic argument to a `log.*` / `logger.*` / `console.*` call expression (walk up to nearest `CallExpression`; if callee matches case-insensitively, fail); **(c)** a line or block comment node. Identifiers, keywords, imports, type annotations, decorators, numeric/boolean literals, operators always fail. Unsupported languages (not Markdown/TypeScript/JavaScript/Python) conservatively fail. Multiple `old_string` ranges: all must pass individually. | Silent fallthrough |
+| 5 | **Test impact bounded** | Grep `tests/` (and `spec/`, `__tests__/`, `*.test.*`, `*.spec.*`) for the edited symbol or file basename. Pass if: no test match AND edit region is prose/comment/non-log string (untestable); OR a test match is found (existing tests cover it). Fail if a test match is found and the edit region is a code identifier (Gate 4 would have already failed — so ordering is always consistent). | Silent fallthrough |
+
+**Gate 4 log-call exclusion detail:** From the matched string-literal node, walk up to the nearest enclosing `CallExpression`. If the callee (any member-access depth, case-insensitive) matches `log.*` / `logger.*` / `console.*`, Gate 4 **fails**. This is an AST ancestor walk, not a heuristic.
+
+**Gate 4 whitespace tolerance:** If a proposed `old_string` region, extended by leading/trailing whitespace to the nearest non-whitespace character, would cross out of the confirmed lexical region, Gate 4 **fails** (fail-closed).
+
+**Budget exhaustion:** If the 5-tool-call budget is reached before all gates finish evaluating, silently fall through to heuristic scoring. The change is not quick by definition.
+
+**On all-pass:** Set `quick_path_confirmed = true`. Record confirmed scope: the set of file paths and their confirmed lexical regions (held in working context only — no state file). Proceed to Step 5 (⚡ band) and then Step 6 quick-path execution branch.
+
+---
+
 Analyze user's project description using heuristics:
 1. Extract feature count (using regex for action verbs)
 2. Check for scope keywords ("from scratch", "complete app", etc.)
