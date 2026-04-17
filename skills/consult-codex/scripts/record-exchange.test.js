@@ -59,7 +59,7 @@ assert('recordVerdict updates state and rewrites pending section', (() => {
 assert('rewriting c2 verdict does not touch c1 pending', (() => {
   const tmp = mkTmp();
   state.load(tmp, 'sess', 'feat');
-  const c1 = record.recordConsultation(tmp, {
+  record.recordConsultation(tmp, {
     mode: 'review-design', strict: false, trigger: 'proactive',
     brief: 'b', codex_response: 'r1', codex_thread_id: 't1'
   });
