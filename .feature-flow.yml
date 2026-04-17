@@ -34,6 +34,18 @@ gotchas:
 #     escape_hatch_window_minutes: 30
 #
 # See docs/plans/2026-04-14-codex-consultation.md for the full design.
+
+# Optional: advisor tool integration
+# Controls the SessionStart hint that prompts to enable the advisor beta header.
+# advisor.enabled: master kill switch (true = show hints, false = never show)
+# hints.advisor.dismissed: permanent dismiss flag (true = never show again)
+# See docs/advisor.md for setup instructions.
+#
+# advisor:
+#   enabled: true
+# hints:
+#   advisor:
+#     dismissed: false
 notifications:
   on_stop: bell
 standards:

@@ -17,6 +17,60 @@ Interactive dashboard for viewing and editing all feature-flow configuration val
 - When the user mentions a specific setting by name (notifications, YOLO, default branch, etc.)
 - When the user wants to reset or review design preferences
 
+## Advisor Sub-Actions
+
+If invoked with args `advisor` or `advisor dismiss`, handle as a direct command — do not show the dashboard.
+
+**`feature-flow:settings advisor`** (no further args, or args == `advisor`):
+
+Print the following block verbatim (substituting actual paths):
+
+```
+Advisor Beta Header — feature-flow integration
+
+The Claude advisor tool (beta) provides automatic per-turn second-opinion checks on
+complex tasks. To enable it, add the beta header to your Claude Code settings.json.
+
+Settings file location:
+  macOS:  ~/.claude/settings.json
+  Linux:  ${XDG_CONFIG_HOME:-~/.config}/claude/settings.json
+  Windows: %APPDATA%\claude\settings.json
+
+Add this to your settings.json under the "env" key:
+  {
+    "env": {
+      "ANTHROPIC_BETA": "advisor-tool-2026-03-01"
+    }
+  }
+
+If you already have other ANTHROPIC_BETA values, append with a comma:
+  "ANTHROPIC_BETA": "other-header,advisor-tool-2026-03-01"
+
+For full details, see docs/advisor.md in the feature-flow plugin source.
+
+To stop the daily tip: feature-flow:settings advisor dismiss
+```
+
+Exit the skill after printing. Do not show the settings dashboard.
+
+---
+
+**`feature-flow:settings advisor dismiss`**:
+
+1. Read `.feature-flow.yml`. If it does not exist, create it with default content (same as Step 1 default).
+2. Set `hints.advisor.dismissed: true` in the YAML. If a `hints:` block exists, add `advisor: {dismissed: true}` under it. If the block does not exist, append:
+   ```yaml
+   hints:
+     advisor:
+       dismissed: true
+   ```
+3. Write the updated file using the Edit tool (or Write tool if Edit fails).
+4. Print: `"Advisor hint dismissed. The daily tip will no longer appear. Re-enable with: feature-flow:settings advisor (then re-add the header)."`
+
+Exit the skill after the confirmation. Do not show the settings dashboard.
+
+---
+
 ## Process
 
 ### Step 1: Load Configuration

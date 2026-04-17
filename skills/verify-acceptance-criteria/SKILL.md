@@ -137,6 +137,8 @@ Task M: [Title]
 - [ ] Criterion 1
 ...
 
+If a criterion is ambiguous to evaluate mechanically, call `advisor()` before manual interpretation. Advisor can disambiguate what the criterion is actually asking for.
+
 For criteria prefixed with [MANUAL], mark as CANNOT_VERIFY with reason "Requires manual testing".
 
 Produce a verification report with a results table and verdict (VERIFIED / INCOMPLETE / BLOCKED).

@@ -17,6 +17,8 @@ Claude-orchestrated three-phase skill: **subprocess Phase 1 → direct MCP call 
 **Reactive (manual or auto-suggested):**
 - `mode: stuck` — user typed `stuck:` or a signal-collector hook emitted a stuck suggestion *(deferred — follow-up plan)*
 
+If invoking `mode: stuck`, consider calling `advisor()` first for a fast same-family check before spending a codex call.
+
 ## Orchestration — follow these phases in order
 
 ### Phase 1 — `consult.js start`
@@ -36,6 +38,8 @@ Parse the JSON on stdout. Possible statuses:
 - `"skipped"` → stop. A precondition (budget, escape-hatch, model-unresolvable) rejected this call. Report the reason.
 - `"ready"` → proceed to Phase 2 with the returned `{ brief, model, timeout_ms, worktree, mode, signal_key }`.
 - `"error"` → stop. The CLI rejected the call (e.g., unknown mode). Surface the message to the user; do not proceed.
+
+Optional: call `advisor()` to sanity-check the brief for missing context before invoking codex. Cheap same-family review prevents wasting a codex call on an ambiguous brief.
 
 ### Phase 2 — Call `mcp__codex__codex` directly (your own tool call)
 

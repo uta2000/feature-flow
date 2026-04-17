@@ -277,6 +277,8 @@ Present a structured report:
 | 4 | UI Components | PASS | All required components exist or are planned |
 | ... | ... | ... | ... |
 
+Before declaring a blocker, consider calling `advisor()` to sanity-check the blocker interpretation. Advisor sees the full design doc and codebase context.
+
 ### Blockers (FAIL — must fix before implementation)
 1. [specific issue with exact file paths and line numbers]
 2. [specific issue]
