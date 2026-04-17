@@ -14,7 +14,9 @@ function loadDoc(worktreeRoot, docPath) {
   const raw = fs.readFileSync(abs, 'utf8');
   if (Buffer.byteLength(raw, 'utf8') <= MAX_DOC_BYTES) return raw;
   const budget = MAX_DOC_BYTES - Buffer.byteLength(TRUNCATION_MARKER, 'utf8');
-  return Buffer.from(raw, 'utf8').subarray(0, budget).toString('utf8') + TRUNCATION_MARKER;
+  let sliced = Buffer.from(raw, 'utf8').subarray(0, budget).toString('utf8');
+  if (sliced.endsWith('\uFFFD')) sliced = sliced.slice(0, -1);
+  return sliced + TRUNCATION_MARKER;
 }
 
 function buildInputs({ worktreeRoot, state }) {

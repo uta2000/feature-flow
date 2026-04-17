@@ -80,8 +80,22 @@ async function start({ worktreeRoot, feature, mode, signalKey, introspect }) {
 
   // Build brief via per-mode module
   const modeModule = require(`./modes/${mode}`);
-  // Load a transient state snapshot for the brief builder without writing
+  // Load a transient state snapshot for the brief builder without writing.
+  // We read fields like design_doc_path and attempts_log from the persisted
+  // state file if it exists; the integrating skill (e.g. design-document) is
+  // responsible for calling state.setMetadata before invoking consult-codex.
   const transientState = { feature, worktree: worktreeRoot, attempts_log: [] };
+  const stateFilePath = state.statePath(worktreeRoot);
+  if (fs.existsSync(stateFilePath)) {
+    try {
+      const persisted = JSON.parse(fs.readFileSync(stateFilePath, 'utf8'));
+      if (persisted.design_doc_path) transientState.design_doc_path = persisted.design_doc_path;
+      if (persisted.plan_file_path) transientState.plan_file_path = persisted.plan_file_path;
+      if (Array.isArray(persisted.attempts_log)) transientState.attempts_log = persisted.attempts_log;
+    } catch {
+      console.error('[consult-codex] state file unreadable when building brief; using defaults');
+    }
+  }
   const inputs = modeModule.buildInputs({ worktreeRoot, state: transientState });
   const brief = buildBrief({
     mode,

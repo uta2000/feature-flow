@@ -60,7 +60,7 @@ assert('returns goal/currentState/signals/question from real doc', (() => {
          inputs.question.includes('unstated assumptions');
 })());
 
-assert('truncates very large design docs with marker', (() => {
+assert('truncates very large design docs with marker (ascii input)', (() => {
   const tmp = mkTmp();
   fs.mkdirSync(path.join(tmp, 'docs', 'plans'), { recursive: true });
   const huge = '# Huge\n' + 'x'.repeat(50000);
@@ -70,7 +70,23 @@ assert('truncates very large design docs with marker', (() => {
     state: { feature: 'f', design_doc_path: 'docs/plans/h.md' }
   });
   fs.rmSync(tmp, { recursive: true });
-  return inputs.currentState.length <= 10000 && inputs.currentState.includes('[truncated');
+  return Buffer.byteLength(inputs.currentState, 'utf8') <= 10240 &&
+         inputs.currentState.includes('[truncated');
+})());
+
+assert('truncates respecting utf-8 codepoint boundaries', (() => {
+  const tmp = mkTmp();
+  fs.mkdirSync(path.join(tmp, 'docs', 'plans'), { recursive: true });
+  const huge = '日'.repeat(20000); // 3 bytes/char — boundary exercise
+  fs.writeFileSync(path.join(tmp, 'docs', 'plans', 'h.md'), huge);
+  const inputs = reviewDesign.buildInputs({
+    worktreeRoot: tmp,
+    state: { feature: 'f', design_doc_path: 'docs/plans/h.md' }
+  });
+  fs.rmSync(tmp, { recursive: true });
+  return Buffer.byteLength(inputs.currentState, 'utf8') <= 10240 &&
+         inputs.currentState.includes('[truncated') &&
+         !inputs.currentState.includes('\uFFFD');
 })());
 
 console.log(`\n=== review-design mode: ${passed} passed, ${failed} failed ===`);

@@ -38,16 +38,26 @@ async function main() {
 
   await assertAsync(
     'start: returns ready JSON with brief and model on success',
-    consult.start({
-      worktreeRoot: (() => { const t = mkTmp(); writeYml(t, 'codex:\n  enabled: true\n  model: gpt-5.2\n'); return t; })(),
-      sessionId: 's', feature: 'f',
-      mode: 'review-design',
-      introspect: async () => []
-    }).then(r => r.status === 'ready' &&
-                 typeof r.brief === 'string' && r.brief.length > 0 &&
-                 r.model === 'gpt-5.2' &&
-                 r.mode === 'review-design' &&
-                 typeof r.timeout_ms === 'number')
+    (async () => {
+      const tmp = mkTmp();
+      writeYml(tmp, 'codex:\n  enabled: true\n  model: gpt-5.2\n');
+      fs.mkdirSync(path.join(tmp, 'docs', 'plans'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'docs', 'plans', 'd.md'), '# Design doc\n\nSome content.\n');
+      const state = require('./state');
+      state.load(tmp, 's', 'f');
+      state.setMetadata(tmp, { design_doc_path: 'docs/plans/d.md' });
+      const r = await consult.start({
+        worktreeRoot: tmp, sessionId: 's', feature: 'f',
+        mode: 'review-design',
+        introspect: async () => []
+      });
+      fs.rmSync(tmp, { recursive: true });
+      return r.status === 'ready' &&
+             typeof r.brief === 'string' && r.brief.length > 0 &&
+             r.model === 'gpt-5.2' &&
+             r.mode === 'review-design' &&
+             typeof r.timeout_ms === 'number';
+    })()
   );
 
   await assertAsync(
@@ -83,18 +93,24 @@ async function main() {
   );
 
   await assertAsync(
-    'start: does NOT touch session-state.json',
+    'start: does NOT modify session-state.json',
     (async () => {
       const tmp = mkTmp();
       writeYml(tmp, 'codex:\n  enabled: true\n  model: gpt-5.2\n');
+      fs.mkdirSync(path.join(tmp, 'docs', 'plans'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'docs', 'plans', 'd.md'), '# Design doc\n');
+      const state = require('./state');
+      state.load(tmp, 's', 'f');
+      state.setMetadata(tmp, { design_doc_path: 'docs/plans/d.md' });
+      const stateBefore = fs.readFileSync(path.join(tmp, '.feature-flow', 'session-state.json'), 'utf8');
       await consult.start({
         worktreeRoot: tmp, sessionId: 's', feature: 'f',
         mode: 'review-design',
         introspect: async () => []
       });
-      const stateExists = fs.existsSync(path.join(tmp, '.feature-flow', 'session-state.json'));
+      const stateAfter = fs.readFileSync(path.join(tmp, '.feature-flow', 'session-state.json'), 'utf8');
       fs.rmSync(tmp, { recursive: true });
-      return stateExists === false;
+      return stateBefore === stateAfter;
     })()
   );
 
