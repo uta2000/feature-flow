@@ -4,6 +4,9 @@ All notable changes to the feature-flow plugin.
 
 ## [Unreleased]
 
+### Added
+- **Quick-path triage with code-aware scope confirmation (#234)** — `start:` Triage section (renamed from "Tool Selection") is now a 3-way decision: **⚡ quick** / feature-flow / GSD. The quick path routes bounded trivial changes (prose edits, non-log string literals, comments) to a bare implement-and-commit flow, skipping brainstorm / design / verify / plan / acceptance criteria / handoff. Quick path is only taken when six ordered gates (0–5) confirm scope via a read-only pass (≤5 Bash/Grep/Read tool calls): Gate 0 (clean tree), Gate 1 (concrete target), Gate 2 (≤ `max_files` files, default 3), Gate 3 (no exported-declaration overlap), Gate 4 (lexical-region rule: Markdown prose outside fences, non-log-arg string literals, or comments; log-call string args excluded via AST ancestor walk), Gate 5 (test impact bounded). Any gate failure silently falls through to the existing feature-flow/GSD heuristic scoring, unchanged. A post-hook `git diff --numstat` budget check (≤ `max_changed_lines`, default 10, measured after Stop hook to include auto-format) and a hard-assertion escape hatch with Gate-0-safe multi-file atomic rollback guard against misclassification. New `tool_selector.quick_path` config sub-section (`enabled`, `max_confirmation_tool_calls`, `max_files`, `max_changed_lines`) with defaults that leave quick path on out of the box. New `--no-quick` CLI flag disables quick path for one invocation; no `--quick` flag is added. 14 test fixtures under `tests/start/quick_path/` cover all acceptance criteria. Language coverage: Markdown, TypeScript, JavaScript, Python; unsupported languages conservatively fail Gate 4.
+
 ## [1.35.0] - 2026-04-08
 
 ### Added
