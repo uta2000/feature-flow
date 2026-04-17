@@ -18,22 +18,12 @@ Each persona has a narrow lens and a **closed rule enum**. Phase 2's existing "d
 
 ## Finding schema
 
-Phase 1c findings use the Phase 1b structured format plus two additional fields (`finding_type`, `persona`). Everything else is identical, so Phase 2 handles the output without branching:
+Phase 1c findings **extend** the base Phase 1b structured format — they do not redefine it. The canonical base schema (`file`, `line`, `rule`, `severity`, `description`, `fix`) lives in `skills/start/references/code-review-pipeline.md` under Phase 1b's "Structured output requirement" section. Phase 1c adds **two fields** to that base:
 
-```
-- file: [exact file path]
-  line: [line number]
-  rule: [name from the persona's closed enum]
-  severity: critical | important | minor
-  finding_type: rule | architectural | operability | product_fit
-  persona: staff_eng | sre | product_eng    # required when finding_type != rule
-  description: [what's wrong and why]
-  fix: |
-    [for rule findings: concrete code change]
-    [for non-rule findings: concrete discussion question or
-     proposed direction, e.g. "Consider extracting X to its own
-     module — current coupling blocks independent testing of Y"]
-```
+- `finding_type: rule | architectural | operability | product_fit`
+- `persona: staff_eng | sre | product_eng` (required when `finding_type != rule`)
+
+If the base schema ever changes (e.g., a field is renamed), only the Phase 1b section needs editing — Phase 1c automatically inherits.
 
 `finding_type` mapping by persona:
 - `staff_eng` → `architectural`
@@ -41,6 +31,24 @@ Phase 1c findings use the Phase 1b structured format plus two additional fields 
 - `product_eng` → `product_fit`
 
 A persona MAY emit `finding_type: rule` if it identifies a genuine rule-based defect outside its lens; this is discouraged but allowed.
+
+**Complete example** (all base fields plus the two extensions):
+
+```
+- file: src/queue.ts
+  line: 42
+  rule: wrong-abstraction
+  severity: important
+  finding_type: architectural
+  persona: staff_eng
+  description: FIFO queue used where a mutex would suffice — only one
+    producer and one consumer, ordering is irrelevant, but the queue's
+    memory footprint scales with backlog.
+  fix: |
+    Consider replacing `Queue` with `Mutex`. The current coupling
+    between producer rate and consumer rate is implicit in the queue
+    depth; a mutex makes the contention explicit and bounded.
+```
 
 ## Subagent dispatch
 
@@ -65,7 +73,7 @@ Task(
 The subagent prompt MUST contain:
 
 1. **Context block:** base branch, HEAD SHA, changed files, acceptance criteria, Phase 0 pre-filter results, anti-patterns and reference examples from Study Existing Patterns.
-2. **Orchestration instruction:** "You will run three reviews sequentially — Staff Engineer, then SRE, then Product Engineer. Each produces at most 5 findings. Do not duplicate across personas; a later persona that sees a finding already covered by an earlier persona must skip it."
+2. **Orchestration instruction:** "You will run three reviews sequentially — Staff Engineer, then SRE, then Product Engineer. Each produces at most 5 findings. Do not duplicate across personas; a later persona that sees a finding already covered by an earlier persona must skip it. **Tiebreaker for boundary cases:** when a concern straddles two persona lenses (e.g., `incidental-complexity` vs `premature-generalization`), the earlier-running persona in the sequence (Staff Engineer → SRE → Product Engineer) claims it; later personas skip and may note internally that they deferred, but do not emit a finding. This keeps output deterministic across runs."
 3. **Per persona, the prompt MUST include:**
    - The lens statement (see table above).
    - The closed rule enum (verbatim).
@@ -84,6 +92,8 @@ After the subagent returns, the orchestrator validates each finding against the 
 If the overall response is not parseable, OR contains zero valid findings on a non-trivial diff (>50 changed lines), treat as subagent failure: announce `"senior panel subagent returned a malformed response — findings skipped"` and proceed with Phase 1b findings only.
 
 This guard is distinct from (and parallel to) Phase 1a's malformed-response guard in `code-review-pipeline.md` — Phase 1a's guard checks section headers, this one checks schema fields.
+
+**Test fixtures:** See `skills/start/references/senior-panel-fixtures.md` for the canonical set of response payloads (well-formed, missing `finding_type`, off-enum `rule`, unparseable, zero-findings on trivial vs. non-trivial diff, mixed valid/invalid, persona-type drift) and the expected guard disposition for each. When changing this guard's behavior, update the fixtures alongside to keep parity.
 
 ## Failure handling
 

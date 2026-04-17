@@ -213,6 +213,8 @@ Collect and merge findings from up to three sources:
 
 All sources use the same structured format. Merge into a single list before deduplication. Phase 1c may be absent (sub-Major scope); that is not a merge error.
 
+**Normalize `finding_type` on ingress:** During merge, set `finding_type = "rule"` explicitly on every Phase 1a and Phase 1b finding that does not already carry the field. Do **not** rely on downstream consumers to infer "missing `finding_type` means rule finding" — the default belongs at the merge boundary, not scattered across Phase 2 Step 4 (orthogonality), Phase 3 (partition), or Phase 5 (report). Every finding flowing out of Step 1 has a non-null `finding_type`.
+
 **Malformed subagent response guard:** If the pr-review-toolkit subagent response is missing any of the required sections (`### Auto-Fixed`, `### Critical`, `### Important`, `### Minor`), treat it as a subagent failure: announce "pr-review-toolkit subagent returned a malformed summary — findings from that subagent skipped." and proceed with Phase 1b findings only.
 
 **Step 2 — Reject non-compliant findings:**
@@ -241,8 +243,8 @@ Apply all conflict-free Critical and Important findings in a single coordinated 
 
 **Partition step (runs first):**
 
-- `rule_findings` = findings with `finding_type == "rule"` (or findings with no `finding_type` field — i.e., findings from Phase 1a/1b, which are implicitly rule findings).
-- `judgment_findings` = findings with `finding_type` in `{architectural, operability, product_fit}`. These come from Phase 1c.
+- `rule_findings` = findings with `finding_type == "rule"`. These come from Phase 1a, Phase 1b, and any Phase 1c finding that a persona explicitly tagged as rule-based. Phase 2 Step 1's ingress normalization guarantees every finding has `finding_type` set, so there is no "missing field" case to handle here.
+- `judgment_findings` = findings with `finding_type` in `{architectural, operability, product_fit}`. These come exclusively from Phase 1c.
 
 **For `rule_findings` (current behavior):**
 
