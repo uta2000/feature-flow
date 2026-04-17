@@ -7,12 +7,15 @@
  * Reads the user's Claude Code settings.json (OS-specific path) and the local
  * .feature-flow.yml to determine advisor configuration state.
  *
- * Outputs a single JSON object to stdout:
+ * As a CLI, outputs a single JSON object to stdout:
  *   { sonnet: boolean|null, header_present: boolean, dismissed: boolean }
  *
+ * Also exports helper functions so other scripts (e.g. hooks/scripts/advisor-hint.js)
+ * can share detection logic without duplicating it.
+ *
  * Fields:
- *   sonnet        — true if CLAUDE_MODEL env suggests Sonnet 4.x; null if undetectable
- *                   (fail-open: treat null as eligible for hint)
+ *   sonnet        — true if CLAUDE_MODEL env suggests Sonnet; false if detected and
+ *                   non-Sonnet; null if undetectable (fail-open: eligible for hint)
  *   header_present — true if any SUPPORTED_ADVISOR_HEADERS entry found in ANTHROPIC_BETA
  *   dismissed     — true if hints.advisor.dismissed: true in .feature-flow.yml
  *
@@ -40,7 +43,6 @@ function getSettingsPath() {
     const xdgPath = path.join(xdgConfig, 'claude', 'settings.json');
     if (fs.existsSync(xdgPath)) return xdgPath;
   }
-  // macOS and linux fallback
   return path.join(home, '.claude', 'settings.json');
 }
 
@@ -61,25 +63,75 @@ function readSettings() {
 function detectHeaderPresent(settings) {
   if (!settings || typeof settings !== 'object') return false;
   const env = settings.env || {};
-  // ANTHROPIC_BETA may be a comma-separated string of header values
   const betaValue = env.ANTHROPIC_BETA || env.anthropic_beta || '';
   if (typeof betaValue !== 'string' || !betaValue) return false;
   const parts = betaValue.split(',').map((s) => s.trim());
   return SUPPORTED_ADVISOR_HEADERS.some((h) => parts.includes(h));
 }
 
-// ─── Read .feature-flow.yml for dismissed flag ────────────────────────────────
+// ─── YAML parser: hints.advisor.dismissed ─────────────────────────────────────
+
+/**
+ * Line-by-line parser for `hints.advisor.dismissed: true` in YAML text.
+ * Avoids unbounded-capture regex bugs where sibling keys under `hints:` with
+ * a `dismissed` field would falsely match.
+ */
+function parseHintsAdvisorDismissed(yamlText) {
+  if (typeof yamlText !== 'string') return false;
+  const lines = yamlText.split('\n');
+  let inHints = false;
+  let hintsIndent = -1;
+  let inAdvisor = false;
+  let advisorIndent = -1;
+
+  for (const raw of lines) {
+    if (!raw.trim() || raw.trim().startsWith('#')) continue;
+    const indentMatch = raw.match(/^[ \t]*/);
+    const indent = indentMatch ? indentMatch[0].length : 0;
+    const trimmed = raw.trim();
+
+    if (!inHints) {
+      if (trimmed === 'hints:') {
+        inHints = true;
+        hintsIndent = indent;
+      }
+      continue;
+    }
+
+    // We are inside `hints:`. Leave when we hit a line at the same or shallower indent.
+    if (indent <= hintsIndent) {
+      inHints = false;
+      inAdvisor = false;
+      continue;
+    }
+
+    if (!inAdvisor) {
+      if (trimmed === 'advisor:') {
+        inAdvisor = true;
+        advisorIndent = indent;
+      }
+      continue;
+    }
+
+    // Inside the advisor block. Leave when indent drops back to advisorIndent or less.
+    if (indent <= advisorIndent) {
+      inAdvisor = false;
+      // Re-evaluate this line against `hints:` bounds on next iteration.
+      // If this line is still deeper than hintsIndent, it's a sibling of advisor.
+      // Current loop iteration ends; the next line is checked fresh.
+      continue;
+    }
+
+    if (/^dismissed:\s*true\b/.test(trimmed)) return true;
+  }
+  return false;
+}
 
 function readDismissed() {
   const ymlPath = path.join(process.cwd(), '.feature-flow.yml');
   try {
     const raw = fs.readFileSync(ymlPath, 'utf8');
-    // Parse hints.advisor.dismissed: true without a full YAML parser
-    // Match:  dismissed: true   anywhere after "advisor:" section
-    const advisorBlock = raw.match(/hints:\s*\n(?:[ \t]+.*\n)*?[ \t]+advisor:\s*\n((?:[ \t]+.*\n)*)/);
-    if (!advisorBlock) return false;
-    const block = advisorBlock[1];
-    return /dismissed:\s*true/.test(block);
+    return parseHintsAdvisorDismissed(raw);
   } catch (_) {
     return false;
   }
@@ -89,7 +141,7 @@ function readDismissed() {
 
 function detectSonnet() {
   const model = process.env.CLAUDE_MODEL || '';
-  if (!model) return null; // undetectable — fail-open (treat as eligible)
+  if (!model) return null; // undetectable — fail-open
   return /sonnet/i.test(model);
 }
 
@@ -105,12 +157,22 @@ function main() {
   process.stdout.write(JSON.stringify(result) + '\n');
 }
 
-try {
-  main();
-} catch (e) {
-  const detail = e instanceof Error ? e.message : String(e);
-  process.stderr.write(`[feature-flow] check-advisor error: ${detail}\n`);
-  // Fail-open: output safe defaults
-  process.stdout.write(JSON.stringify({ sonnet: null, header_present: false, dismissed: false }) + '\n');
+module.exports = {
+  getSettingsPath,
+  readSettings,
+  detectHeaderPresent,
+  readDismissed,
+  detectSonnet,
+  parseHintsAdvisorDismissed,
+};
+
+if (require.main === module) {
+  try {
+    main();
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    process.stderr.write(`[feature-flow] check-advisor error: ${detail}\n`);
+    process.stdout.write(JSON.stringify({ sonnet: null, header_present: false, dismissed: false }) + '\n');
+  }
+  process.exit(0);
 }
-process.exit(0);

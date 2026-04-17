@@ -4,7 +4,7 @@
 /**
  * advisor-hint.js — SessionStart hook
  *
- * Runs on every session start. Checks five gate conditions; if all pass,
+ * Runs on every session start. Checks six gate conditions; if all pass,
  * writes one banner line to stdout and updates the daily rate-limiter.
  *
  * Gate conditions (ALL must be true to show hint):
@@ -12,10 +12,12 @@
  *   2. advisor.enabled is not explicitly false in .feature-flow.yml
  *   3. No SUPPORTED_ADVISOR_HEADERS entry found in settings.json ANTHROPIC_BETA
  *   4. hints.advisor.dismissed is not true in .feature-flow.yml
- *   5. hint was not already shown today (rate limiter: once per calendar day)
+ *   5. Active model is Sonnet, or undetectable (fail-open)
+ *   6. Hint was not already shown today (rate limiter: once per calendar day)
  *
- * Model check: CLAUDE_MODEL env is checked but result is fail-open — if the
- * model cannot be detected, the hint is still eligible to show (condition passes).
+ * Detection helpers (getSettingsPath, readSettings, detectHeaderPresent,
+ * parseHintsAdvisorDismissed, detectSonnet) are imported from check-advisor.js
+ * to avoid duplication.
  *
  * Always exits 0 — a hook failure must never block a session start.
  */
@@ -24,13 +26,17 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-// Resolve CLAUDE_PLUGIN_ROOT for the advisor-headers import
-const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT || path.join(__dirname, '../..');
-const { SUPPORTED_ADVISOR_HEADERS } = require(
-  path.join(pluginRoot, 'skills/settings/scripts/advisor-headers.js')
-);
+// Resolve CLAUDE_PLUGIN_ROOT for the check-advisor / advisor-headers imports
+const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT || path.join(__dirname, '..', '..');
+const checkAdvisorPath = path.join(pluginRoot, 'skills', 'settings', 'scripts', 'check-advisor.js');
+const {
+  readSettings,
+  detectHeaderPresent,
+  parseHintsAdvisorDismissed,
+  detectSonnet,
+} = require(checkAdvisorPath);
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── Local helpers ────────────────────────────────────────────────────────────
 
 function readYml() {
   const p = path.join(process.cwd(), '.feature-flow.yml');
@@ -39,46 +45,15 @@ function readYml() {
 }
 
 function isAdvisorEnabled(ymlContent) {
-  if (!ymlContent) return false; // No config → not a feature-flow project
-  // advisor.enabled: false → disabled
-  if (/^advisor:\s*\n(?:[ \t]+.*\n)*?[ \t]+enabled:\s*false/m.test(ymlContent)) return false;
-  return true;
-}
-
-function isDismissed(ymlContent) {
   if (!ymlContent) return false;
-  const advisorBlock = ymlContent.match(/hints:\s*\n(?:[ \t]+.*\n)*?[ \t]+advisor:\s*\n((?:[ \t]+.*\n)*)/);
-  if (!advisorBlock) return false;
-  return /dismissed:\s*true/.test(advisorBlock[1]);
+  // Treat `advisor.enabled: false` as explicit opt-out. Absence = enabled (default).
+  return !/^advisor:\s*\n(?:[ \t]+.*\n)*?[ \t]+enabled:\s*false\b/m.test(ymlContent);
 }
 
-function getSettingsPath() {
-  const platform = process.platform;
-  const home = os.homedir();
-  if (platform === 'win32') {
-    const appdata = process.env.APPDATA || path.join(home, 'AppData', 'Roaming');
-    return path.join(appdata, 'claude', 'settings.json');
-  }
-  if (platform === 'linux') {
-    const xdgConfig = process.env.XDG_CONFIG_HOME || path.join(home, '.config');
-    const xdgPath = path.join(xdgConfig, 'claude', 'settings.json');
-    if (fs.existsSync(xdgPath)) return xdgPath;
-  }
-  return path.join(home, '.claude', 'settings.json');
-}
-
-function isHeaderPresent() {
-  try {
-    const raw = fs.readFileSync(getSettingsPath(), 'utf8');
-    const settings = JSON.parse(raw);
-    const env = (settings && settings.env) || {};
-    const betaValue = env.ANTHROPIC_BETA || env.anthropic_beta || '';
-    if (typeof betaValue !== 'string' || !betaValue) return false;
-    const parts = betaValue.split(',').map((s) => s.trim());
-    return SUPPORTED_ADVISOR_HEADERS.some((h) => parts.includes(h));
-  } catch (_) {
-    return false;
-  }
+function isSonnetOrUnknown() {
+  // detectSonnet returns true | false | null. `null` = undetectable = fail-open.
+  const sonnet = detectSonnet();
+  return sonnet !== false;
 }
 
 function getHintStatePath() {
@@ -103,10 +78,9 @@ function markShownToday() {
   const p = getHintStatePath();
   try {
     fs.mkdirSync(path.dirname(p), { recursive: true });
-    const existing = (() => {
-      try { return JSON.parse(fs.readFileSync(p, 'utf8')); }
-      catch (_) { return {}; }
-    })();
+    let existing = {};
+    try { existing = JSON.parse(fs.readFileSync(p, 'utf8')); }
+    catch (_) { existing = {}; }
     existing.last_advisor_hint = todayStr();
     fs.writeFileSync(p, JSON.stringify(existing), 'utf8');
   } catch (_) {
@@ -118,11 +92,12 @@ function markShownToday() {
 
 function shouldShowAdvisorHint() {
   const yml = readYml();
-  if (!yml) return false;                   // Condition 1: feature-flow project
-  if (!isAdvisorEnabled(yml)) return false; // Condition 2: not explicitly disabled
-  if (isHeaderPresent()) return false;      // Condition 3: header already configured
-  if (isDismissed(yml)) return false;       // Condition 4: permanently dismissed
-  if (wasShownToday()) return false;        // Condition 5: daily rate-limiter
+  if (!yml) return false;                                      // Condition 1
+  if (!isAdvisorEnabled(yml)) return false;                    // Condition 2
+  if (detectHeaderPresent(readSettings())) return false;       // Condition 3
+  if (parseHintsAdvisorDismissed(yml)) return false;           // Condition 4
+  if (!isSonnetOrUnknown()) return false;                      // Condition 5
+  if (wasShownToday()) return false;                           // Condition 6
   return true;
 }
 

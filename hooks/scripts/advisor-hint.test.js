@@ -46,8 +46,16 @@ function writeSettings(homeDir, content) {
  */
 function run(env = {}, cwd = null) {
   const mergedEnv = { ...process.env, ...env };
-  // Remove CLAUDE_PLUGIN_ROOT if set to sentinel
   if (env.CLAUDE_PLUGIN_ROOT === '__UNSET__') delete mergedEnv.CLAUDE_PLUGIN_ROOT;
+  // Prevent bleed-through of the developer's real settings.json on Linux/Windows:
+  // delete XDG_CONFIG_HOME and APPDATA so getSettingsPath() falls back to HOME-relative.
+  // Callers can re-set these via the env arg if a specific test needs them.
+  if (!('XDG_CONFIG_HOME' in env)) delete mergedEnv.XDG_CONFIG_HOME;
+  if (!('APPDATA' in env)) delete mergedEnv.APPDATA;
+  // Also null out CLAUDE_MODEL unless explicitly set — the Sonnet gate should
+  // fail-open (null → eligible) when the env lacks it, not silently pick up
+  // the developer's machine setting.
+  if (!('CLAUDE_MODEL' in env)) delete mergedEnv.CLAUDE_MODEL;
   try {
     const stdout = execSync(`node "${SCRIPT}"`, {
       env: mergedEnv,
@@ -139,6 +147,26 @@ assert('no hint when .feature-flow.yml is absent (not a feature-flow project)', 
   const { stdout } = run({ HOME: home }, tmp);
   fs.rmSync(tmp, { recursive: true });
   return stdout.trim() === '';
+})());
+
+assert('no hint when CLAUDE_MODEL is a non-Sonnet model (e.g. Haiku)', (() => {
+  const tmp = mkTmp();
+  const home = path.join(tmp, 'home');
+  fs.mkdirSync(home, { recursive: true });
+  writeYml(tmp, 'advisor:\n  enabled: true\n');
+  const { stdout } = run({ HOME: home, CLAUDE_MODEL: 'claude-haiku-4-5' }, tmp);
+  fs.rmSync(tmp, { recursive: true });
+  return stdout.trim() === '';
+})());
+
+assert('shows hint when CLAUDE_MODEL is a Sonnet model', (() => {
+  const tmp = mkTmp();
+  const home = path.join(tmp, 'home');
+  fs.mkdirSync(home, { recursive: true });
+  writeYml(tmp, 'advisor:\n  enabled: true\n');
+  const { stdout } = run({ HOME: home, CLAUDE_MODEL: 'claude-sonnet-4-6' }, tmp);
+  fs.rmSync(tmp, { recursive: true });
+  return stdout.includes('[feature-flow]');
 })());
 
 // ─── Rate limiter: shows hint when last entry is yesterday ────────────────────

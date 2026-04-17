@@ -38,6 +38,11 @@ function writeYml(dir, content) {
 function run(env = {}, cwd = null) {
   const mergedEnv = { ...process.env, ...env };
   if (env.HOME === '__UNSET__') delete mergedEnv.HOME;
+  // Prevent bleed-through of the developer's real settings.json on Linux/Windows:
+  // delete XDG_CONFIG_HOME and APPDATA so getSettingsPath() falls back to HOME-relative.
+  // Callers can re-set these via the env arg if a specific test needs them.
+  if (!('XDG_CONFIG_HOME' in env)) delete mergedEnv.XDG_CONFIG_HOME;
+  if (!('APPDATA' in env)) delete mergedEnv.APPDATA;
   try {
     const stdout = execSync(`node "${CHECK_ADVISOR}"`, {
       env: mergedEnv,
@@ -155,11 +160,42 @@ assert('dismissed: false when hints.advisor block is absent', (() => {
   return result !== null && result.dismissed === false;
 })());
 
+assert('dismissed: false when a sibling hints.* key has dismissed: true (no cross-block capture)', (() => {
+  const tmp = mkTmp();
+  writeYml(tmp,
+    'hints:\n' +
+    '  advisor:\n' +
+    '    dismissed: false\n' +
+    '  other:\n' +
+    '    dismissed: true\n'
+  );
+  const { result } = run({ HOME: tmp }, tmp);
+  fs.rmSync(tmp, { recursive: true });
+  return result !== null && result.dismissed === false;
+})());
+
+assert('dismissed: true when hints.advisor.dismissed: true and sibling has dismissed: false', (() => {
+  const tmp = mkTmp();
+  writeYml(tmp,
+    'hints:\n' +
+    '  advisor:\n' +
+    '    dismissed: true\n' +
+    '  other:\n' +
+    '    dismissed: false\n'
+  );
+  const { result } = run({ HOME: tmp }, tmp);
+  fs.rmSync(tmp, { recursive: true });
+  return result !== null && result.dismissed === true;
+})());
+
 console.log('\n=== Integration: sonnet field ===');
 
 assert('sonnet: false when CLAUDE_MODEL env unset (fail-open: include hint)', (() => {
   const tmp = mkTmp();
   const mergedEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'CLAUDE_MODEL'));
+  delete mergedEnv.XDG_CONFIG_HOME;
+  delete mergedEnv.APPDATA;
+  mergedEnv.HOME = tmp;
   try {
     const stdout = execSync(`node "${CHECK_ADVISOR}"`, {
       env: mergedEnv, cwd: tmp, encoding: 'utf8'
