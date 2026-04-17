@@ -328,6 +328,9 @@ Output a summary:
 ### Fixed (report-only → single pass)
 - [severity] [file:line] [what was fixed]
 
+### Conflicts Resolved
+- [file:line] [kept agent] over [skipped agent] — [reason]
+
 ### Senior Panel — Judgment Findings
 
 *Section omitted entirely when Phase 1c did not run (scope < Major feature) or returned zero judgment findings.*
@@ -343,9 +346,6 @@ Output a summary:
 **Product Engineer:**
 - [file:line] [rule] — [description]
   Proposed direction: [fix content]
-
-### Conflicts Resolved
-- [file:line] [kept agent] over [skipped agent] — [reason]
 
 ### Remaining (Minor — not blocking)
 - [file:line] [description]
