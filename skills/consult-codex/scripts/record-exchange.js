@@ -5,13 +5,15 @@ const path = require('path');
 const state = require('./state');
 
 const LOG_FILE = path.join('.feature-flow', 'codex-log.md');
+const PENDING_MARKER = '### Verdict\n_pending_';
 
 function logPath(worktreeRoot) {
   return path.join(worktreeRoot, LOG_FILE);
 }
 
 function briefExcerpt(brief, maxLines = 8) {
-  return brief.split('\n').slice(0, maxLines).map(l => `> ${l}`).join('\n');
+  const text = typeof brief === 'string' ? brief : String(brief ?? '');
+  return text.split('\n').slice(0, maxLines).map(l => `> ${l}`).join('\n');
 }
 
 function appendLogSection(worktreeRoot, entry) {
@@ -51,12 +53,12 @@ function rewritePendingVerdict(worktreeRoot, id, decision, reason) {
   const header = `## Consultation ${id} —`;
   const headerIdx = content.indexOf(header);
   if (headerIdx === -1) return;
-  const pendingRegion = content.indexOf('### Verdict\n_pending_', headerIdx);
+  const pendingRegion = content.indexOf(PENDING_MARKER, headerIdx);
   if (pendingRegion === -1) return;
   const replacement = `### Verdict\n**VERDICT:** ${decision} — ${reason}`;
   const updated = content.slice(0, pendingRegion) +
                   replacement +
-                  content.slice(pendingRegion + '### Verdict\n_pending_'.length);
+                  content.slice(pendingRegion + PENDING_MARKER.length);
   fs.writeFileSync(p, updated);
 }
 

@@ -56,6 +56,31 @@ assert('recordVerdict updates state and rewrites pending section', (() => {
          !log.includes('_pending_');
 })());
 
+assert('rewriting c2 verdict does not touch c1 pending', (() => {
+  const tmp = mkTmp();
+  state.load(tmp, 'sess', 'feat');
+  const c1 = record.recordConsultation(tmp, {
+    mode: 'review-design', strict: false, trigger: 'proactive',
+    brief: 'b', codex_response: 'r1', codex_thread_id: 't1'
+  });
+  const c2 = record.recordConsultation(tmp, {
+    mode: 'review-plan', strict: false, trigger: 'proactive',
+    brief: 'b', codex_response: 'r2', codex_thread_id: 't2'
+  });
+  record.recordVerdict(tmp, c2.id, { decision: 'reject', reason: 'r2 reason', outcome: 'declined' });
+  const log = readLog(tmp);
+  fs.rmSync(tmp, { recursive: true });
+  const c1HeaderIdx = log.indexOf('## Consultation c1');
+  const c2HeaderIdx = log.indexOf('## Consultation c2');
+  if (c1HeaderIdx === -1 || c2HeaderIdx === -1) return false;
+  const c1Section = log.slice(c1HeaderIdx, c2HeaderIdx);
+  const c2Section = log.slice(c2HeaderIdx);
+  return c1Section.includes('_pending_') &&
+         !c1Section.includes('**VERDICT:** reject') &&
+         c2Section.includes('**VERDICT:** reject — r2 reason') &&
+         !c2Section.includes('_pending_');
+})());
+
 assert('recordVerdict on unknown id throws', (() => {
   const tmp = mkTmp();
   state.load(tmp, 'sess', 'feat');
