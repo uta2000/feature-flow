@@ -176,16 +176,57 @@ Agents must name the specific rule violated from their checklist. Findings witho
 
 **Agent failure handling:** If any agent fails, skip it and continue. Do not stall the pipeline for a single failure.
 
+**Phase 1c gated dispatch:** For Major-feature scope (Tier 3) only, dispatch the senior developer panel subagent (Phase 1c) in the **same parallel message** as the Phase 1b agents above — not sequentially, not after. See `skills/start/references/senior-panel.md` for the persona prompt contract, closed rule enums, and finding schema. The panel's findings flow into Phase 2 alongside Phase 1b findings.
+
+## Phase 1c: Senior Developer Panel (Major Feature only)
+
+**Scope gate:** Dispatched only when the lifecycle scope is **Major feature** (Tier 3). For Feature, Small enhancement, and Quick fix scopes, skip this phase entirely — do not dispatch, do not announce.
+
+**Dispatch:** Phase 1c runs **in parallel** with Phase 1b — both are dispatched in the **same single parallel message**. The panel reviews the same post-Phase-1a committed code Phase 1b reviews, so no new ordering constraint is introduced.
+
+**Subagent contract:** See `skills/start/references/senior-panel.md` for the full prompt template and dispatch contract. Summary:
+
+```
+Task(
+  subagent_type: "general-purpose",
+  model: "opus",
+  description: "Run senior developer panel review [session:$LIFECYCLE_SESSION]",
+  prompt: [persona-panel prompt from senior-panel.md]
+)
+```
+
+A single opus subagent orchestrates three personas sequentially (Staff Engineer → SRE → Product Engineer). Each persona has a closed rule enum (see `senior-panel.md`). The subagent returns findings in the Phase 1b structured format plus two extra fields: `finding_type` (`rule | architectural | operability | product_fit`) and `persona` (`staff_eng | sre | product_eng`, required when `finding_type != rule`).
+
+**Pre-dispatch diff-size cap:** If the reviewed branch diff exceeds 1500 changed lines, skip Phase 1c entirely — do not dispatch. Rationale: opus context-window risk on very large diffs. Announce: `"Phase 1c [session:$LIFECYCLE_SESSION]: diff size N lines exceeds 1500-line cap. Skipping panel; Phase 1b agents still run."`
+
+**Orchestrator-enforced timeout:** 5-minute wall-clock bound. The Task primitive has no native timeout — the orchestrator MUST abandon the Phase 1c dispatch if no response arrives within 5 minutes and treat it as a transport error.
+
+**Correlation ID:** every Phase 1c announcement, log line, and Phase 5 report entry MUST carry `[session:$LIFECYCLE_SESSION]`. The substituted value is the `lifecycle_session` slug (`YYYY-MM-DD-<kebab-slug>`) read from `.feature-flow/session.txt` — the same slug that appears in the PR's `feature-flow-metadata` block. Do NOT mint a new identifier for Phase 1c; reuse the existing lifecycle session slug so grep-correlation works across pipeline phases, Phase 5 report, and the PR body.
+
+**Phase 1c schema-level guard:** Before merging Phase 1c findings into Phase 2, validate each finding against the schema: (a) required fields present including `finding_type` and `persona` (when `finding_type != rule`), (b) `rule` is a member of the persona's closed enum. This guard is distinct from — and parallel to — Phase 1a's section-header guard (above at "Malformed subagent response guard"). See `skills/start/references/senior-panel-fixtures.md` for canonical test payloads (F1-F8).
+
+**Failure handling (four distinct dispositions — do NOT collapse):** See `senior-panel.md` → "Failure dispositions" for full spec. Summary:
+
+1. `transport_error` — network / rate-limit / timeout. Retry once with 30s backoff before failing.
+2. `parse_error` — response could not be parsed into structured findings.
+3. `all_findings_rejected` — response parsed but every finding dropped by guard. Announcement includes first rejection reason.
+4. `zero_findings_on_nontrivial_diff` — response parsed, zero findings, diff >50 lines. Treated as failure. Zero findings on a trivial (<50 line) diff is NOT a failure.
+
+All failure announcements include the `[session:$LIFECYCLE_SESSION]` correlation token.
+
 ## Phase 2: Conflict Detection
 
 After all Phase 1b agents complete, consolidate findings from both phases and detect conflicts before applying fixes.
 
 **Step 1 — Cross-Phase Finding Merge:**
-Collect and merge findings from two sources:
+Collect and merge findings from up to three sources:
 - **Phase 1a** pr-review-toolkit summary (Critical/Important/Minor sections only — Auto-Fixed already committed). These are findings the toolkit identified but did not auto-fix.
 - **Phase 1b** report-only agent results. These agents reviewed the code AFTER Phase 1a auto-fixes were committed, so their findings reflect the current state.
+- **Phase 1c** senior panel findings (Major-feature scope only). Standard structured format plus `finding_type` and `persona` fields — see `skills/start/references/senior-panel.md`.
 
-Both sources use the same structured format. Merge into a single list before deduplication.
+All sources use the same structured format. Merge into a single list before deduplication. Phase 1c may be absent (sub-Major scope); that is not a merge error.
+
+**Normalize `finding_type` on ingress:** During merge, set `finding_type = "rule"` explicitly on every Phase 1a and Phase 1b finding that does not already carry the field. Do **not** rely on downstream consumers to infer "missing `finding_type` means rule finding" — the default belongs at the merge boundary, not scattered across Phase 2 Step 4 (orthogonality), Phase 3 (partition), or Phase 5 (report). Every finding flowing out of Step 1 has a non-null `finding_type`.
 
 **Malformed subagent response guard:** If the pr-review-toolkit subagent response is missing any of the required sections (`### Auto-Fixed`, `### Critical`, `### Important`, `### Minor`), treat it as a subagent failure: announce "pr-review-toolkit subagent returned a malformed summary — findings from that subagent skipped." and proceed with Phase 1b findings only.
 
@@ -200,30 +241,45 @@ Both sources use the same structured format. Merge into a single list before ded
 
 **Step 4 — Detect conflicts:**
 Group all remaining findings by file path. Within each file, for each pair of findings:
-1. Calculate line range overlap: finding A covers lines `[A.line - 5, A.line + 5]`, finding B covers `[B.line - 5, B.line + 5]`
-2. If ranges overlap → conflict detected
-3. Resolution: keep the higher-severity finding. If same severity, use agent specificity order above.
-4. Log skipped findings: "Conflict at [file:line]: [Agent A] finding (severity) kept, [Agent B] finding (severity) skipped — overlapping line range"
+1. **Orthogonality check (runs first):** Compare `finding_type` on both findings. If they differ, the findings do **not** conflict regardless of line proximity — keep both. Rule findings and judgment findings are orthogonal concerns (an architectural concern anchored near a rule violation is not the same issue flagged twice).
+   - Only apply the remaining overlap/resolution/logging steps below when `finding_type` matches on both findings.
+2. Calculate line range overlap: finding A covers lines `[A.line - 5, A.line + 5]`, finding B covers `[B.line - 5, B.line + 5]`
+3. If ranges overlap → conflict detected
+4. Resolution: keep the higher-severity finding. If same severity, use agent specificity order above.
+5. Log skipped findings: "Conflict at [file:line]: [Agent A] finding (severity) kept, [Agent B] finding (severity) skipped — overlapping line range"
 
 **Output:** A conflict-free, ordered list of findings to apply (Critical first, then Important). Minor issues are logged as informational but not blocking.
 
 ## Phase 3: Single-Pass Fix Implementation
 
-Apply all conflict-free Critical and Important findings in a single coordinated pass:
+Apply all conflict-free Critical and Important findings in a single coordinated pass. Phase 3 partitions findings by `finding_type`:
+
+**Partition step (runs first):**
+
+- `rule_findings` = findings with `finding_type == "rule"`. These come from Phase 1a, Phase 1b, and any Phase 1c finding that a persona explicitly tagged as rule-based. Phase 2 Step 1's ingress normalization guarantees every finding has `finding_type` set, so there is no "missing field" case to handle here.
+- `judgment_findings` = findings with `finding_type` in `{architectural, operability, product_fit}`. These come exclusively from Phase 1c.
+
+**For `rule_findings` (current behavior):**
 
 1. Sort findings by file path, then by line number (descending — apply bottom-up to avoid line number shifts)
 2. For each finding, apply the concrete `fix:` code change
 3. After all fixes applied, commit as a single commit:
    ```bash
    git add -A
-   git commit -m "fix: apply code review fixes"
+   git commit -m "fix: apply rule-based code review fixes"
    ```
 
 If `git commit` fails (non-zero exit): stop. Announce: "Phase 3 commit failed: [error]. Manual intervention required — do not proceed to Phase 4 until resolved."
 
-If no Critical or Important findings exist (all clean or all Minor): skip this commit. Announce: "No review fixes to commit — code was already clean."
+**For `judgment_findings`:**
 
-Otherwise, announce: "Review fixes committed as single commit (N Critical, M Important findings addressed)."
+Do **not** edit files. Do **not** commit. Pass through to Phase 5 unchanged. These findings appear in the "Senior Panel — Judgment Findings" subsection of the Phase 5 report for the user to review, discuss, defer, or address manually.
+
+**Empty-branch announcements (choose exactly one):**
+
+- If both `rule_findings` and `judgment_findings` are empty → "No review fixes to commit — code was already clean."
+- If `rule_findings` is empty but `judgment_findings` is non-empty → "No auto-applicable fixes. N judgment findings from the senior panel require human discussion — see Phase 5 report."
+- Otherwise → "Review fixes committed as single commit (N Critical, M Important findings addressed). K judgment findings passed through to Phase 5." (Omit the trailing sentence when `judgment_findings` is empty.)
 
 **Why bottom-up ordering:** When multiple fixes target the same file, applying from the bottom up ensures earlier line numbers remain valid.
 
@@ -265,7 +321,7 @@ Apply fixes for the remaining failures. Commit: `fix: address re-verification fa
 
 If still failing after this additional pass → report remaining issues to the developer with context for manual resolution. Proceed to Phase 5 — the developer decides whether to fix manually.
 
-**Maximum 2 total fix-verify iterations** after Phase 3 (targeted re-verify → optional 1 additional pass). Stop after 2 iterations — report remaining issues for manual resolution.
+**Maximum 2 total fix-verify iterations** after Phase 3 (targeted re-verify → optional 1 additional pass). Stop after 2 iterations — report remaining issues for manual resolution. This cap applies only to rule-based fix-verify loops. Judgment findings from Phase 1c are surfaced once in Phase 5 and do not re-enter the loop.
 
 ## Phase 5: Report
 
@@ -289,6 +345,22 @@ Output a summary:
 
 ### Conflicts Resolved
 - [file:line] [kept agent] over [skipped agent] — [reason]
+
+### Senior Panel — Judgment Findings
+
+*Section omitted entirely when Phase 1c did not run (scope < Major feature) or returned zero judgment findings.*
+
+**Staff Engineer:**
+- [file:line] [rule] — [description]
+  Proposed direction: [fix content]
+
+**SRE:**
+- [file:line] [rule] — [description]
+  Proposed direction: [fix content]
+
+**Product Engineer:**
+- [file:line] [rule] — [description]
+  Proposed direction: [fix content]
 
 ### Remaining (Minor — not blocking)
 - [file:line] [description]
