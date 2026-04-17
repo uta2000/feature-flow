@@ -10,9 +10,9 @@ Guide development work through the correct lifecycle steps, invoking the right s
 
 **Announce at start:** "Starting the feature lifecycle. Analyzing your project to recommend the right tool..."
 
-## Tool Selection
+## Triage
 
-Before brainstorming, analyze your project description to recommend feature-flow or GSD.
+Before brainstorming, analyze your project description to determine the correct path: **quick** (bounded trivial edit confirmed by code), **feature-flow** (standard lifecycle), or **GSD** (multi-feature project).
 
 ### Step 1: Check if tool selection is enabled
 
