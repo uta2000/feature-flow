@@ -4,6 +4,18 @@ A Claude Code plugin that enforces a full feature development lifecycle — from
 
 The upfront design adds ~20-30 minutes but typically saves 2-4 hours of mid-implementation debugging per feature. It works with any tech stack — Next.js, Supabase, Django, Rails, Flutter, whatever — and gets smarter over time by writing discovered gotchas (like "PostgREST silently caps queries at 1000 rows") back into your project config so every future feature is checked against past lessons.
 
+## What's New in 1.36.0 (2026-04-17)
+
+Five features bundled into this release — all addressing gaps in design review and mid-lifecycle judgment that the existing gate chain missed. See [CHANGELOG.md](CHANGELOG.md#1360---2026-04-17) for the detailed entries.
+
+| PR | Issue | What it adds |
+|----|-------|--------------|
+| [#243](https://github.com/uta2000/feature-flow/pull/243) | [#238](https://github.com/uta2000/feature-flow/issues/238) | **Scope-critique pass** — new Step 4.5 in `design-verification` asks five strategic-shape questions (scope, dependencies, simpler alternatives, observability, config surface) before a design reaches `create-issue`. Catches oversized scope, phantom dependencies, and unobservable capability bets. |
+| [#242](https://github.com/uta2000/feature-flow/pull/242) | [#236](https://github.com/uta2000/feature-flow/issues/236) | **Advisor tool integration** — four soft advisor-call hints at judgment-heavy moments, plus a one-line SessionStart onboarding nudge for Sonnet users missing the beta header. Opt-in; see [`docs/advisor.md`](docs/advisor.md). |
+| [#241](https://github.com/uta2000/feature-flow/pull/241) | [#239](https://github.com/uta2000/feature-flow/issues/239) | **Senior developer panel (Phase 1c)** — Major-feature code review gains a judgment-review phase with three personas (Staff Engineer, SRE, Product Engineer). Surfaces wrong abstractions, operability risk, and scope creep. Findings are report-only — you decide whether to address, defer, or reject. |
+| [#240](https://github.com/uta2000/feature-flow/pull/240) | [#235](https://github.com/uta2000/feature-flow/issues/235) | **Codex consultation (Phase 1+2, opt-in)** — new `consult-codex` skill for second-opinion AI reviews via the existing `codex` MCP server. Ships `review-design` proactive mode wired into `design-document`; later modes (`review-plan`, `review-code`, `stuck`) deferred. Disabled by default; enable via `codex.enabled: true`. |
+| [#237](https://github.com/uta2000/feature-flow/pull/237) | [#234](https://github.com/uta2000/feature-flow/issues/234) | **Quick-path triage** — `start:` now routes trivial changes (prose edits, non-log string literals, comments) to a bare implement-and-commit flow, skipping brainstorm / design / verify / plan / handoff. Gated by five code-aware confirmation gates (clean tree, concrete target, file/line budgets, exported-declaration overlap, lexical-region rule). |
+
 ## Requirements
 
 - [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI
@@ -122,6 +134,14 @@ Use `/settings` to configure stop points interactively with a multi-select UI.
 
 The Claude advisor tool provides automatic per-turn second-opinion checks. When enabled, feature-flow surfaces advisor hints at judgment-heavy moments (design verification, AC evaluation, codex consultation). Requires an Anthropic beta header — see [`docs/advisor.md`](docs/advisor.md) for setup, or run `feature-flow:settings advisor` for a guided walkthrough.
 
+### Codex Consultation (opt-in)
+
+The `consult-codex` skill makes lifecycle-checkpoint calls to the `codex` MCP server for a second-opinion AI review — today at design-document creation (`review-design` mode), with `review-plan`, `review-code`, and `stuck` modes on the roadmap. Disabled by default; set `codex.enabled: true` in `.feature-flow.yml` and configure the `codex` MCP server to opt in. Every consultation forces a recorded verdict, and the PR `feature-flow-metadata` block surfaces `<not recorded>` audit defects if Claude skips recording. See `docs/plans/2026-04-14-codex-consultation.md` for the full design.
+
+### Quick-path triage
+
+For bounded trivial changes (prose edits, non-log string literals, comments) `start:` auto-detects and skips brainstorm / design / verify / plan / handoff — going straight to implement-and-commit. Five ordered gates (clean tree, concrete target, file/line budgets, exported-declaration overlap, lexical-region rule) confirm scope via a read-only inspection pass; any gate failure silently falls through to the standard lifecycle. Enabled by default; use `--no-quick` for one invocation to disable, or set `tool_selector.quick_path.enabled: false` in `.feature-flow.yml` to disable globally.
+
 ## How It Works with Superpowers and Context7
 
 feature-flow owns the design and verification phases. superpowers owns implementation and delivery. Context7 provides live documentation lookups. The `start` orchestrator coordinates all three:
@@ -166,8 +186,9 @@ feature-flow owns the design and verification phases. superpowers owns implement
 |-------|------|---------|
 | `spike` | 3 | De-risk technical unknowns with time-boxed experiments before committing to a design |
 | `design-document` | 4 | Turn brainstorming decisions into structured, implementable design docs |
-| `design-verification` | 5 | Verify a design against the actual codebase — schema, types, pipelines, routes, dependencies, plus stack and platform-specific checks |
+| `design-verification` | 5 | Verify a design against the actual codebase — schema, types, pipelines, routes, dependencies, plus stack and platform-specific checks; runs a scope-critique pass (Step 4.5) for strategic-shape questions |
 | `create-issue` | 6 | Create well-structured GitHub issues from verified designs |
+| `consult-codex` | 4+ | Second-opinion AI review via codex MCP at lifecycle checkpoints (opt-in; `review-design` mode shipped) |
 
 ### Post-Implementation (Verification Phase)
 
