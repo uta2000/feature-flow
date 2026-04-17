@@ -51,9 +51,9 @@ User types `start: <description> [--no-quick | --feature-flow | --gsd]`. Flag pr
 
 ### Step 2 — Triage (renamed from "Tool Selection")
 
-The `skills/start/SKILL.md` heading at line 13 is renamed from `## Tool Selection` to `## Triage`. The section now documents a 3-way decision: **quick / feature-flow / GSD**. Step 3 of the skill body ("Run heuristic detection") gains a new **Quick-Path Confirmation** subsection that runs **before** the existing GSD heuristic scoring.
+The `skills/start/SKILL.md` heading at line 13 is renamed from `## Tool Selection` to `## Triage`. The section now documents a 3-way decision: **quick / feature-flow / GSD**. Quick-Path Confirmation is its own Step 3; heuristic detection moves to Step 4.
 
-### Step 3 — Quick-Path Confirmation (new subsection, read-only)
+### Step 3 — Quick-Path Confirmation (own step, read-only)
 
 Five gates run in strict order 0 → 4. **First failure short-circuits and halts budget spend.** The pass budget is ≤5 tool calls (Bash / Grep / Read / Glob only); in-process AST tokenization and byte-range overlap checks do **not** count against the budget. If confirmation needs more than 5 tool calls, the change is not quick by definition — abort confirmation and fall through.
 
@@ -69,7 +69,7 @@ Five gates run in strict order 0 → 4. **First failure short-circuits and halts
 
 **Gate 4 semantics.** The log-call exclusion is an AST ancestor walk: from the matched string-literal node, walk up to the nearest enclosing `CallExpression` or `TaggedTemplateExpression`; resolve the callee to its root identifier (leftmost name in `a.b.c.d()` is `a`; for `this.x.y()`, look one level in: `x`). If the root identifier (case-insensitive) is exactly `log`, `logger`, `console`, or `logging` (Python stdlib), Gate 4 **fails**. Numeric literals, boolean literals, identifiers, keywords, imports, type annotations, decorators, and operators always fail Gate 4. Rationale: triviality of a numeric/boolean literal depends on call-site semantics that can't be confirmed locally, and log-call string arguments can silently change observability contracts or mask PII-masking logic.
 
-### Step 4 — Display recommendation (existing Step 5, extended)
+### Step 6 — Display recommendation (renumbered from Step 5)
 
 A fourth band is prepended to the recommendation UI: **⚡ quick path**, reached **only** via confirmation gates, never via heuristic scoring. Announcement format (single line, pre-edit, auditable):
 
@@ -79,9 +79,9 @@ A fourth band is prepended to the recommendation UI: **⚡ quick path**, reached
 
 Example region-kind strings: `prose edit in Markdown`, `comment edit in TypeScript`, `string-literal edit in Python`.
 
-### Step 5 — Quick-Path Execution (new branch in existing Step 6)
+### Step 7 — Quick-Path Execution (new branch in Step 7)
 
-See `skills/start/SKILL.md` Step 6 quick-path branch for the canonical 8-step execution flow. This doc mirrors that flow; if they diverge, SKILL.md wins.
+See `skills/start/SKILL.md` Step 7 quick-path branch for the canonical 8-step execution flow. This doc mirrors that flow; if they diverge, SKILL.md wins.
 
 **Key Decisions (for traceability):**
 - Escape hatch uses `git clean -f -- <paths>` before `git checkout -- <paths>` to handle newly-created files; multi-file atomic across tracked + untracked cases because Gate 0 proved the pre-state clean.
@@ -160,9 +160,9 @@ Specific edits to the Command-Line Flag Parsing section of `skills/start/SKILL.m
 Specific edits required (no changes to the parts listed in **Out of Scope**):
 
 1. **Rename** heading `## Tool Selection` (line 13) → `## Triage`. Update the section's one-line description to "3-way decision: quick / feature-flow / GSD".
-2. **Step 3 ("Run heuristic detection")** — prepend a new subsection **"Quick-Path Confirmation"** documenting all 5 gates in strict order 0–4, the ≤5 tool-call budget, the rule that in-process AST work does not count, and the boolean short-circuit to quick path on all-pass / silent fallthrough on any fail.
-3. **Step 5 ("Display recommendation")** — add a fourth band at the top: **⚡ quick path**, reached only via confirmation gates (not scoring). Document the auditable one-line announcement format.
-4. **Step 6 ("Execute user choice")** — add a quick-path execution branch with the 8-step execution flow above, including the Gate-0-safe multi-file atomic rollback and the post-hook `max_changed_lines` check.
+2. **Step 3 ("Quick-Path Confirmation")** — own top-level step documenting all 5 gates in strict order 0–4, the ≤5 tool-call budget, the rule that in-process AST work does not count, and the boolean short-circuit to Step 7 quick-path branch on all-pass / continue to Step 4 on any fail. (Renumbers old Step 3 → Step 4, Step 4 → Step 5, Step 5 → Step 6, Step 6 → Step 7.)
+3. **Step 6 ("Display recommendation")** — add a fourth band at the top: **⚡ quick path**, reached only via confirmation gates (not scoring). Document the auditable one-line announcement format.
+4. **Step 7 ("Execute user choice")** — add a quick-path execution branch with the 8-step execution flow above, including the Gate-0-safe multi-file atomic rollback and the post-hook `max_changed_lines` check.
 5. **Command-Line Flag Parsing section** (line 109) — add `--no-quick` to the usage grammar and priority list. Do not add `--quick`.
 6. **Configuration Loading section** (line 136) — document the new `tool_selector.quick_path.*` keys, defaults, and precedence.
 

@@ -14,17 +14,8 @@ When `skills/start/SKILL.md` quick-path prose changes, update the corresponding 
 - Announcement format template changes → update every fixture's "Expected surfaced message" block.
 - Verbatim user-facing hints (Gate 0, Gate 1) change → update fixtures that reproduce them.
 
-## Drift check (manual, pre-release)
+## Drift check
 
-```bash
-# Gate count consistency
-grep -c '^| [0-4] |' tests/start/quick_path/*.md | awk -F: '$2 != 5 { print "DRIFT:", $0 }'
+Run `bash tests/start/quick_path/check-drift.sh` from the repo root. The script verifies gate count, fixture count, verbatim hints, budget rule, and escape-hatch command. Exits non-zero on any drift.
 
-# Announcement format consistency
-grep -l '⚡ Quick path confirmed:' tests/start/quick_path/*.md | wc -l  # should equal fixture count that exercises pass paths
-
-# Verbatim Gate 0 hint
-grep -l 'Working tree is dirty — running normal lifecycle' tests/start/quick_path/dirty-tree.md  # must match
-```
-
-If a future PR adds a CI job that runs these greps and fails on drift, move this maintenance contract into the job config.
+Wire into CI by calling it from a GitHub Actions workflow; this repo has no CI configured today, so the check is pre-merge manual.

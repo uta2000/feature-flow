@@ -29,13 +29,9 @@ Did the user include `--feature-flow`, `--gsd`, or `--no-quick` flag?
 - If `--quick` or any other `--foo` token is present that is NOT in `--feature-flow` / `--gsd` / `--no-quick` → surface: *"Unknown flag `--foo`. Quick path is opt-out only (`--no-quick`); there is no `--quick` flag. Continuing with auto-detection."* Strip the token from description and continue to step 3.
 - If no flags → continue to step 3
 
-### Step 3: Run heuristic detection
+### Step 3: Quick-Path Confirmation
 
-**Before running heuristic scoring, run Quick-Path Confirmation** (a read-only gate sequence). If all gates pass, take the quick path (Step 5 → Step 6 quick-path branch) and skip heuristic scoring entirely. If any gate fails, fall through to heuristic scoring below — unchanged.
-
-#### Quick-Path Confirmation
-
-Quick path is available when `tool_selector.quick_path.enabled` is `true` (default) and `no_quick_override` is not set (see Step 2 — set by the `--no-quick` flag). If either condition is false, skip this subsection entirely and proceed to heuristic scoring.
+Quick path is available when `tool_selector.quick_path.enabled` is `true` (default) and `no_quick_override` is not set (see Step 2 — set by the `--no-quick` flag). If either condition is false, skip this step entirely and continue to Step 4.
 
 Run gates in strict order 0 → 4. **First failure short-circuits immediately** — do not run later gates. Pass budget: **≤5 Bash/Grep/Read/Glob tool calls total across all gates**. In-process AST tokenization and byte-range overlap checks are free (do not count). If you reach 5 tool calls before all gates pass, abort confirmation and fall through silently.
 
@@ -59,9 +55,13 @@ Once a file is Read (1 budget call), Claude may reason over its contents freely 
 
 **Budget exhaustion:** If the 5-tool-call budget is reached before all gates finish evaluating, silently fall through to heuristic scoring. The change is not quick by definition.
 
-**On all-pass:** Set `quick_path_confirmed = true`. Record confirmed scope: the set of file paths and their confirmed lexical regions (held in working context only — no state file). Proceed to Step 5 (⚡ band) and then Step 6 quick-path execution branch.
+**On all-pass:** Set `quick_path_confirmed = true`. Record confirmed scope: the set of file paths and their confirmed lexical regions (held in working context only — no state file). Jump to Step 7 quick-path execution branch.
+
+**On any fail or skip:** Continue to Step 4.
 
 ---
+
+### Step 4: Run heuristic detection
 
 Analyze user's project description using heuristics:
 1. Extract feature count (using regex for action verbs)
@@ -71,34 +71,34 @@ Analyze user's project description using heuristics:
 
 Calculate weighted confidence score (0.0–1.0) using scoring table.
 
-### Step 4: Check confidence threshold
+### Step 5: Check confidence threshold
 
-**If `quick_path_confirmed` is set** (from Step 3), skip this step entirely and proceed to Step 5. Confidence threshold applies only to the heuristic-scoring path.
+**If `quick_path_confirmed` is set** (from Step 3), skip this step entirely and proceed to Step 6. Confidence threshold applies only to the heuristic-scoring path.
 
 Read `tool_selector.confidence_threshold` from .feature-flow.yml (default: 0.7):
 - If calculated_confidence < threshold → skip recommendation, proceed with feature-flow
-- If calculated_confidence >= threshold → continue to step 5
+- If calculated_confidence >= threshold → continue to step 6
 
-### Step 5: Display recommendation
+### Step 6: Display recommendation
 
 Show recommendation based on path or confidence band:
 
-- **⚡ quick path** — reached only via Quick-Path Confirmation gates (Step 3), never via heuristic scoring. Emit the announcement line HERE, immediately before Step 6 begins. Announce in a single auditable line before making any edits:
+- **⚡ quick path** — reached only via Quick-Path Confirmation gates (Step 3), never via heuristic scoring. Emit the announcement line HERE, immediately before Step 7 begins. Announce in a single auditable line before making any edits:
   ```
   ⚡ Quick path confirmed: <path>:<line> — <region kind> in <language>, <N> file(s), budget: ≤<max_changed_lines> lines. Editing directly.
   ```
-  Where `<region kind>` is one of: `prose edit in Markdown`, `comment edit in TypeScript`, `string-literal edit in Python`, etc. `<max_changed_lines>` is the configured cap, not the actual diff size — actual post-edit line count is recorded in the commit message body. Then proceed immediately to Step 6 quick-path execution branch.
+  Where `<region kind>` is one of: `prose edit in Markdown`, `comment edit in TypeScript`, `string-literal edit in Python`, etc. `<max_changed_lines>` is the configured cap, not the actual diff size — actual post-edit line count is recorded in the commit message body. Then proceed immediately to Step 7 quick-path execution branch.
 - **🟢 feature-flow** (0.0–0.4): Skip display, proceed silently
 - **🟡 GSD-recommended** (0.4–0.7): Display recommendation, ask user to choose
 - **🔴 GSD-strongly-recommended** (0.7+): Display recommendation, ask user to choose
 
-### Step 6: Execute user choice
+### Step 7: Execute user choice
 
 **If `quick_path_confirmed` is set (from Step 3 Quick-Path Confirmation):** Execute the quick-path flow below. Do not prompt the user for a choice — the confirmation gates already verified the scope.
 
 #### Quick-Path Execution (8-step flow)
 
-1. **The announcement has already been emitted at Step 5.** Step 6 step 1 is a reference-only placeholder; do not re-emit.
+1. **The announcement has already been emitted at Step 6.** Step 7 step 1 is a reference-only placeholder; do not re-emit.
 2. **Record confirmed scope** — note the set of confirmed file paths and their confirmed lexical regions in working context. **No state file. No `.feature-flow/session-state.json`.** Scope set lifetime is this single skill invocation.
 3. **Edit the file(s) in the confirmed set** via the Edit tool.
 4. **Run Stop-hook checks** (tsc, lint, type-sync). Stop hook may auto-format / auto-fix, changing diff size.
