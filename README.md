@@ -116,6 +116,12 @@ Available stop points: `brainstorming`, `design`, `verification`, `plan`, `imple
 
 Use `/settings` to configure stop points interactively with a multi-select UI.
 
+## Optional Enhancements
+
+### Advisor Tool (beta)
+
+The Claude advisor tool provides automatic per-turn second-opinion checks. When enabled, feature-flow surfaces advisor hints at judgment-heavy moments (design verification, AC evaluation, codex consultation). Requires an Anthropic beta header — see [`docs/advisor.md`](docs/advisor.md) for setup, or run `feature-flow:settings advisor` for a guided walkthrough.
+
 ## How It Works with Superpowers and Context7
 
 feature-flow owns the design and verification phases. superpowers owns implementation and delivery. Context7 provides live documentation lookups. The `start` orchestrator coordinates all three:
