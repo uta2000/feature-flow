@@ -75,9 +75,20 @@ function save(worktreeRoot, state) {
   fs.renameSync(tmp, p);
 }
 
+function readOrThrow(p) {
+  try {
+    return JSON.parse(fs.readFileSync(p, 'utf8'));
+  } catch (err) {
+    if (err && err.code === 'ENOENT') {
+      throw new Error('state not initialized — call load() first');
+    }
+    throw err;
+  }
+}
+
 function setMetadata(worktreeRoot, patch) {
   const p = statePath(worktreeRoot);
-  const current = JSON.parse(fs.readFileSync(p, 'utf8'));
+  const current = readOrThrow(p);
   Object.assign(current, patch);
   save(worktreeRoot, current);
   return current;
@@ -85,7 +96,7 @@ function setMetadata(worktreeRoot, patch) {
 
 function appendConsultation(worktreeRoot, partial) {
   const p = statePath(worktreeRoot);
-  const current = JSON.parse(fs.readFileSync(p, 'utf8'));
+  const current = readOrThrow(p);
   const id = `c${current.consultations.length + 1}`;
   const entry = {
     id,
@@ -108,7 +119,7 @@ function appendConsultation(worktreeRoot, partial) {
 
 function setVerdict(worktreeRoot, id, { decision, reason, outcome }) {
   const p = statePath(worktreeRoot);
-  const current = JSON.parse(fs.readFileSync(p, 'utf8'));
+  const current = readOrThrow(p);
   const entry = current.consultations.find(c => c.id === id);
   if (!entry) throw new Error(`consultation ${id} not found`);
   entry.verdict = decision;

@@ -112,6 +112,33 @@ assert('setVerdict updates verdict, reason, outcome', (() => {
          reloaded.consultations[0].outcome === 'applied';
 })());
 
+// setVerdict throws when consultation id does not exist
+assert('setVerdict throws when consultation id does not exist', (() => {
+  const tmp = mkTmp();
+  state.load(tmp, 'sess', 'feat');
+  let threw = false;
+  try {
+    state.setVerdict(tmp, 'c999', { decision: 'accept', reason: 'x', outcome: 'applied' });
+  } catch (e) {
+    threw = /consultation c999 not found/.test(e.message);
+  }
+  fs.rmSync(tmp, { recursive: true });
+  return threw;
+})());
+
+// mutators throw clear error when load() was never called
+assert('appendConsultation throws clear error when load() was never called', (() => {
+  const tmp = mkTmp();
+  let threw = false;
+  try {
+    state.appendConsultation(tmp, { mode: 'review-design', strict: false });
+  } catch (e) {
+    threw = /state not initialized/.test(e.message);
+  }
+  fs.rmSync(tmp, { recursive: true });
+  return threw;
+})());
+
 // pending strict consultation detection
 assert('findPendingStrict returns a strict consultation with null verdict', (() => {
   const tmp = mkTmp();
