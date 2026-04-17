@@ -904,3 +904,24 @@ None blocking v1. Items deferred for v2 consideration:
 - **Direct-editor tier** — codex writes files in the worktree. Deferred indefinitely pending real evidence of value over patch-proposer.
 - **Cross-session memory for codex** — e.g. passing a summary of prior consultations from previous feature-flow sessions so codex can see patterns. Currently each consultation is stateless from codex's point of view beyond the worktree contents.
 - **Selective logging into PR body** — if the `codex-log.md` gets long on a complex feature, we may want to truncate or summarize before embedding. Not a v1 issue because the 3-interactive / 10-yolo caps bound the size.
+
+## Relationship to advisor tool
+
+The advisor tool (`advisor-tool-2026-03-01` beta) is a separate, complementary Anthropic capability introduced after this design was written. See issue #236 and `docs/advisor.md` for the full design.
+
+**How they differ:**
+
+| | Codex-consultation | Advisor |
+|---|---|---|
+| **Invocation** | Explicit lifecycle checkpoint (skills invoke `consult.js`) | Automatic per-turn (Claude invokes at discretion) |
+| **External call** | Yes — `mcp__codex__codex` (separate model/service) | No — same-family sub-inference |
+| **Audit log** | Yes — `.feature-flow/consultations.json` + PR body | No |
+| **Verdict required** | Yes (strict: blocking; soft: recommended) | No |
+| **Budget tracking** | Yes — `interactive_cap`, `yolo_cap`, escape hatch | No |
+| **Best for** | Proactive reviews, stuck recovery with a durable record | Quick judgment sanity checks, pre-codex brief validation |
+
+**Interaction pattern:** advisor is suggested at the two codex decision points where a quick same-family check adds value before committing to a full codex call:
+- Before declaring `mode: stuck` (fast same-family check first)
+- Before constructing the codex brief (sanity-check brief completeness)
+
+These soft hints are added to `skills/consult-codex/SKILL.md` as part of issue #236. Codex remains the scripted gate; advisor is discretionary.
