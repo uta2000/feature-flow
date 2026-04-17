@@ -226,10 +226,12 @@ All sources use the same structured format. Merge into a single list before dedu
 
 **Step 4 — Detect conflicts:**
 Group all remaining findings by file path. Within each file, for each pair of findings:
-1. Calculate line range overlap: finding A covers lines `[A.line - 5, A.line + 5]`, finding B covers `[B.line - 5, B.line + 5]`
-2. If ranges overlap → conflict detected
-3. Resolution: keep the higher-severity finding. If same severity, use agent specificity order above.
-4. Log skipped findings: "Conflict at [file:line]: [Agent A] finding (severity) kept, [Agent B] finding (severity) skipped — overlapping line range"
+1. **Orthogonality check (runs first):** Compare `finding_type` on both findings. If they differ, the findings do **not** conflict regardless of line proximity — keep both. Rule findings and judgment findings are orthogonal concerns (an architectural concern anchored near a rule violation is not the same issue flagged twice).
+   - Only apply steps 2–4 below when `finding_type` matches on both findings.
+2. Calculate line range overlap: finding A covers lines `[A.line - 5, A.line + 5]`, finding B covers `[B.line - 5, B.line + 5]`
+3. If ranges overlap → conflict detected
+4. Resolution: keep the higher-severity finding. If same severity, use agent specificity order above.
+5. Log skipped findings: "Conflict at [file:line]: [Agent A] finding (severity) kept, [Agent B] finding (severity) skipped — overlapping line range"
 
 **Output:** A conflict-free, ordered list of findings to apply (Critical first, then Important). Minor issues are logged as informational but not blocking.
 
