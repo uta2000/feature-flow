@@ -23,7 +23,7 @@
 - Create: `skills/settings/scripts/check-advisor.js` — reads settings.json by platform, returns `{ sonnet, header_present, dismissed }`
 - Create: `hooks/scripts/advisor-hint.js` — gate + banner output
 - Create: `hooks/scripts/advisor-hint.test.js` — integration tests for `advisor-hint.js`
-- Create: `hooks/scripts/check-advisor.test.js` — unit + integration tests for `check-advisor.js`
+- Create: `skills/settings/scripts/check-advisor.test.js` — unit + integration tests for `check-advisor.js`
 - Modify: `hooks/hooks.json` — add third command to existing SessionStart hooks array (lines 96–107)
 - Modify: `skills/settings/SKILL.md` — add `advisor` to Step 3 category list and `5I` edit UI section
 - Create: `docs/advisor.md` — full onboarding content
@@ -294,11 +294,11 @@ git commit -m "feat(advisor): add SUPPORTED_ADVISOR_HEADERS constant"
 
 **Files:**
 - Create: `skills/settings/scripts/check-advisor.js`
-- Create: `hooks/scripts/check-advisor.test.js`
+- Create: `skills/settings/scripts/check-advisor.test.js` (colocated with source — matches `version-check.js` / `version-check.test.js` convention)
 
 **Acceptance Criteria:**
 - [ ] AC-5 (completion): `skills/settings/scripts/check-advisor.js` exists and exports a function that returns `{ sonnet, header_present, dismissed }`
-- [ ] `node hooks/scripts/check-advisor.test.js` exits 0 with all tests passing
+- [ ] `node skills/settings/scripts/check-advisor.test.js` exits 0 with all tests passing
 
 **Quality Constraints:**
 - Error handling: Script must NEVER throw or exit non-zero. Missing settings.json, unreadable file, invalid JSON → return `{ sonnet: null, header_present: false, dismissed: false }` with no stderr output. Silent failure is the correct behavior — this script runs at SessionStart and must not block session start.
@@ -308,7 +308,7 @@ git commit -m "feat(advisor): add SUPPORTED_ADVISOR_HEADERS constant"
 
 - [ ] **Step 1: Write the failing test file first**
 
-Create `/Users/weee/Dev/feature-flow/hooks/scripts/check-advisor.test.js`:
+Create `/Users/weee/Dev/feature-flow/skills/settings/scripts/check-advisor.test.js`:
 
 ```js
 #!/usr/bin/env node
@@ -324,7 +324,7 @@ const path = require('path');
 const os = require('os');
 const { execSync } = require('child_process');
 
-const CHECK_ADVISOR = path.resolve(__dirname, '../../skills/settings/scripts/check-advisor.js');
+const CHECK_ADVISOR = path.resolve(__dirname, 'check-advisor.js');
 
 let passed = 0, failed = 0;
 
@@ -504,7 +504,7 @@ process.exit(failed > 0 ? 1 : 0);
 
 Run:
 ```bash
-node hooks/scripts/check-advisor.test.js
+node skills/settings/scripts/check-advisor.test.js
 ```
 Expected: Error — `Cannot find module '…/check-advisor.js'`
 
@@ -635,14 +635,14 @@ process.exit(0);
 
 Run:
 ```bash
-node hooks/scripts/check-advisor.test.js
+node skills/settings/scripts/check-advisor.test.js
 ```
 Expected: `=== Results: 12 passed, 0 failed ===` (all tests pass)
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add skills/settings/scripts/check-advisor.js hooks/scripts/check-advisor.test.js
+git add skills/settings/scripts/check-advisor.js skills/settings/scripts/check-advisor.test.js
 git commit -m "feat(advisor): add check-advisor.js with platform-aware settings.json detection"
 ```
 
@@ -1586,7 +1586,7 @@ Expected: no output (empty stdout). Exit code 0.
 
 Run:
 ```bash
-node hooks/scripts/advisor-hint.test.js && node hooks/scripts/check-advisor.test.js && node hooks/scripts/version-check.test.js
+node hooks/scripts/advisor-hint.test.js && node skills/settings/scripts/check-advisor.test.js && node hooks/scripts/version-check.test.js
 ```
 Expected: all suites pass with 0 failures.
 
@@ -1603,7 +1603,7 @@ git commit --allow-empty -m "test(advisor): verify end-to-end dismiss flow suppr
 
 **Acceptance Criteria:**
 - [ ] All 11 ACs from issue #236 return PASS when Step 1 script runs
-- [ ] All JS test suites pass: `node hooks/scripts/advisor-hint.test.js && node hooks/scripts/check-advisor.test.js` exits 0
+- [ ] All JS test suites pass: `node hooks/scripts/advisor-hint.test.js && node skills/settings/scripts/check-advisor.test.js` exits 0
 - [ ] Baseline tests unchanged: `node hooks/scripts/version-check.test.js && node hooks/scripts/verdict-gate.test.js` exits 0 (no regressions)
 
 - [ ] **Step 1: Run all 11 AC checks**
@@ -1659,7 +1659,7 @@ Expected: all 11 checks output `PASS` or the expected value.
 
 ```bash
 node hooks/scripts/advisor-hint.test.js
-node hooks/scripts/check-advisor.test.js
+node skills/settings/scripts/check-advisor.test.js
 node hooks/scripts/version-check.test.js
 node hooks/scripts/verdict-gate.test.js
 ```
