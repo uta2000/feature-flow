@@ -39,6 +39,8 @@ Parse the JSON on stdout. Possible statuses:
 - `"ready"` → proceed to Phase 2 with the returned `{ brief, model, timeout_ms, worktree, mode, signal_key }`.
 - `"error"` → stop. The CLI rejected the call (e.g., unknown mode). Surface the message to the user; do not proceed.
 
+Optional: call `advisor()` to sanity-check the brief for missing context before invoking codex. Cheap same-family review prevents wasting a codex call on an ambiguous brief.
+
 ### Phase 2 — Call `mcp__codex__codex` directly (your own tool call)
 
 Do NOT run a subprocess for this. Claude invokes the MCP tool in its own context:
