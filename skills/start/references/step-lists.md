@@ -10,6 +10,18 @@ Reference file for the start skill lifecycle orchestrator.
 
 ## Step Lists
 
+### Quick path (all platforms, all scopes)
+
+The quick path is an alternate route that bypasses all scope-based step lists below. It is taken **only** when Quick-Path Confirmation gates (in `SKILL.md` Step 3) all pass. It produces no brainstorming output, no design doc, no implementation plan, no acceptance criteria, and no handoff.
+
+See `skills/start/SKILL.md` Step 7 quick-path branch for the canonical 8-step execution flow. This doc mirrors that flow; if they diverge, SKILL.md wins.
+
+Key escape-hatch note (mirrors SKILL.md step 6): rollback uses `git clean -f -- <paths>` before `git checkout -- <paths>` to handle newly-created files; `git clean` first removes untracked (newly-created) files; `git checkout` then restores tracked modifications. Multi-file atomic across both cases because Gate 0 proved the pre-state clean.
+
+Skipped lifecycle phases: brainstorm → design → verify → plan → acceptance criteria → worktree → code review → CHANGELOG → final verification → sync → PR → wait for CI → harden PR → post-implementation comment → handoff.
+
+---
+
 ### Quick fix (all platforms)
 
 ```

@@ -10,7 +10,7 @@
 
 ## Overview
 
-Extend `skills/start/SKILL.md`'s existing Tool Selection step from a 2-way decision (feature-flow / GSD) into a 3-way triage (**quick** / feature-flow / GSD) that can route bounded, code-confirmed trivial changes to a bare implement-and-commit path — skipping brainstorm, design, verify, plan, acceptance criteria, and handoff. The quick path is reached only when a read-only confirmation pass (≤5 Bash/Grep/Read tool calls) proves, via six ordered gates, that the edit is inside Markdown prose / non-log-call string literals / comments and stays within configured file and line budgets. All gate failures silently fall through to the existing feature-flow/GSD scoring, unchanged.
+Extend `skills/start/SKILL.md`'s existing Tool Selection step from a 2-way decision (feature-flow / GSD) into a 3-way triage (**quick** / feature-flow / GSD) that can route bounded, code-confirmed trivial changes to a bare implement-and-commit path — skipping brainstorm, design, verify, plan, acceptance criteria, and handoff. The quick path is reached only when a read-only confirmation pass (≤5 Bash/Grep/Read/Glob tool calls) proves, via five ordered gates, that the edit is inside Markdown prose / non-log-call string literals / comments and stays within configured file and line budgets. All gate failures silently fall through to the existing feature-flow/GSD scoring, unchanged.
 
 ## Example
 
@@ -29,8 +29,7 @@ start: fix typo in skills/start/SKILL.md line 15 — "Teh" should be "The"
 2. Grep `"Teh "` in `skills/start/SKILL.md` → 1 hit at line 15 (Gates 1, 2 pass)
 3. In-process AST: byte range does not overlap any `export`/`module.exports` node (Gate 3 pass — no code exports in a Markdown file, trivially pass)
 4. In-process AST: byte range is inside Markdown prose outside fenced code blocks (Gate 4 pass)
-5. Grep `tests/` for the target symbol → no code-symbol change, untestable prose → Gate 5 pass
-6. Edit file → Stop-hook runs (tsc / lint / type-sync) → `git diff --numstat` sums to ≤10 added+removed → commit with model-authored imperative message `docs: fix typo in start SKILL.md (1 line changed)` → no Claude co-author trailer → no design doc, no plan, no handoff.
+5. Edit file → Stop-hook runs (tsc / lint / type-sync) → `git diff --numstat` sums to ≤10 added+removed → commit with model-authored imperative message `docs: fix typo in start SKILL.md (1 line changed)` → no Claude co-author trailer → no design doc, no plan, no handoff.
 
 **Counter-example — Gate 1 failure:**
 ```
@@ -52,28 +51,25 @@ User types `start: <description> [--no-quick | --feature-flow | --gsd]`. Flag pr
 
 ### Step 2 — Triage (renamed from "Tool Selection")
 
-The `skills/start/SKILL.md` heading at line 13 is renamed from `## Tool Selection` to `## Triage`. The section now documents a 3-way decision: **quick / feature-flow / GSD**. Step 3 of the skill body ("Run heuristic detection") gains a new **Quick-Path Confirmation** subsection that runs **before** the existing GSD heuristic scoring.
+The `skills/start/SKILL.md` heading at line 13 is renamed from `## Tool Selection` to `## Triage`. The section now documents a 3-way decision: **quick / feature-flow / GSD**. Quick-Path Confirmation is its own Step 3; heuristic detection moves to Step 4.
 
-### Step 3 — Quick-Path Confirmation (new subsection, read-only)
+### Step 3 — Quick-Path Confirmation (own step, read-only)
 
-Six gates run in strict order 0 → 5. **First failure short-circuits and halts budget spend.** The pass budget is ≤5 tool calls (Bash / Grep / Read only); in-process AST tokenization and byte-range overlap checks do **not** count against the budget. If confirmation needs more than 5 tool calls, the change is not quick by definition — abort confirmation and fall through.
+Five gates run in strict order 0 → 4. **First failure short-circuits and halts budget spend.** The pass budget is ≤5 tool calls (Bash / Grep / Read / Glob only); in-process AST tokenization and byte-range overlap checks do **not** count against the budget. If confirmation needs more than 5 tool calls, the change is not quick by definition — abort confirmation and fall through.
 
 | # | Gate | Pass condition | Fail surface |
 |---|------|----------------|--------------|
 | 0 | Clean working tree | `git status --porcelain` returns empty | *"Working tree is dirty — running normal lifecycle to avoid trampling in-progress work."* |
 | 1 | Concrete target identifiable | Description names a file path, function name, symbol, or string literal | *"No specific target named — running normal lifecycle. If you meant a specific file, say `start: fix typo in X.ts line 42`."* |
 | 2 | Bounded file count | Target resolves to ≤ `max_files` (default 3) | silent fallthrough |
-| 3 | No exported-declaration overlap | Edit byte range does not overlap any `export` / `export default` / `module.exports` AST node, nor any symbol referenced by those nodes | silent fallthrough |
-| 4 | Lexical-region rule | Every proposed `old_string` byte range sits entirely inside one of: (a) Markdown prose outside `` ``` `` fences; (b) a string literal in a code file that is **not** a syntactic argument to a `log.*` / `logger.*` / `console.*` call expression; (c) a line or block comment | silent fallthrough |
-| 5 | Test impact bounded | Existing tests cover the symbol OR the change is untestable (prose / comment / non-log string) | silent fallthrough |
+| 3 | No exported-declaration overlap | Edit byte range does not overlap any `export` / `export default` / `module.exports` AST node. Check is mechanical byte-range overlap; edits to the body of a re-exported internal symbol pass (byte range does not overlap the export node itself). | silent fallthrough |
+| 4 | Lexical-region rule | Every proposed `old_string` byte range sits entirely inside one of: (a) Markdown prose outside `` ``` `` fences; (b) a string literal in a code file that is **not** a syntactic argument to a log/logger/console/logging call expression (root-identifier match); (c) a line or block comment | silent fallthrough |
 
-**Gate 3 semantics.** Mechanical byte-range overlap against AST export nodes. Not a "flows outward" semantic check — cross-file type analysis would reintroduce the taxonomy-by-vibes failure mode Gate 4 was redesigned to eliminate.
+**Gate 3 semantics.** Mechanical byte-range overlap against AST export nodes. Not a "flows outward" semantic check — cross-file type analysis would reintroduce the taxonomy-by-vibes failure mode Gate 4 was redesigned to eliminate. Edits to the body of a re-exported internal symbol pass Gate 3 (byte range does not overlap the `export` node itself); Gate 4 catches such edits via identifier-position exclusion.
 
-**Gate 4 semantics.** The log-call exclusion is an AST ancestor walk: from the matched string-literal node, walk up to the nearest enclosing `CallExpression`; if the callee (case-insensitive, any member-access depth) matches `log.*` / `logger.*` / `console.*`, Gate 4 **fails**. Numeric literals, boolean literals, identifiers, keywords, imports, type annotations, decorators, and operators always fail Gate 4. Rationale: triviality of a numeric/boolean literal depends on call-site semantics that can't be confirmed locally, and log-call string arguments can silently change observability contracts or mask PII-masking logic.
+**Gate 4 semantics.** The log-call exclusion is an AST ancestor walk: from the matched string-literal node, walk up to the nearest enclosing `CallExpression` or `TaggedTemplateExpression`; resolve the callee to its root identifier (leftmost name in `a.b.c.d()` is `a`; for `this.x.y()`, look one level in: `x`). If the root identifier (case-insensitive) is exactly `log`, `logger`, `console`, or `logging` (Python stdlib), Gate 4 **fails**. Numeric literals, boolean literals, identifiers, keywords, imports, type annotations, decorators, and operators always fail Gate 4. Rationale: triviality of a numeric/boolean literal depends on call-site semantics that can't be confirmed locally, and log-call string arguments can silently change observability contracts or mask PII-masking logic.
 
-**Gate 5 detection.** Grep `tests/` (and language-conventional test directories) for the edited symbol or file basename. If no match and the edit region is prose/comment/non-log string → treat as untestable → pass. If match found, pass (existing tests cover it). If match found but the region is a code identifier, Gate 4 would have already failed — so this ordering is correct.
-
-### Step 4 — Display recommendation (existing Step 5, extended)
+### Step 6 — Display recommendation (renumbered from Step 5)
 
 A fourth band is prepended to the recommendation UI: **⚡ quick path**, reached **only** via confirmation gates, never via heuristic scoring. Announcement format (single line, pre-edit, auditable):
 
@@ -83,19 +79,14 @@ A fourth band is prepended to the recommendation UI: **⚡ quick path**, reached
 
 Example region-kind strings: `prose edit in Markdown`, `comment edit in TypeScript`, `string-literal edit in Python`.
 
-### Step 5 — Quick-Path Execution (new branch in existing Step 6)
+### Step 7 — Quick-Path Execution (new branch in Step 7)
 
-8-step flow:
+See `skills/start/SKILL.md` Step 7 quick-path branch for the canonical 8-step execution flow. This doc mirrors that flow; if they diverge, SKILL.md wins.
 
-1. **Announce confirmation** (single auditable line above).
-2. **Record confirmed scope** — set of file paths + confirmed lexical regions — **inline in the skill's working context only**. No state file. No `.feature-flow/session-state.json`. The scope set's lifetime is this single skill invocation.
-3. **Edit the file(s) in the confirmed set** via the Edit tool.
-4. **Run Stop-hook checks** (tsc, lint, type-sync). Hook may auto-format / auto-fix, changing diff size.
-5. **Post-hook pre-commit budget check:** `git diff --numstat` summed across confirmed files (added + removed) must be ≤ `max_changed_lines` (default 10). Runs **after** Stop hook so auto-format is included in the measurement. Exceeds → escape hatch.
-6. **Hard-assertion escape hatch:** If the edit touched any file outside the confirmed set, introduced a new exported symbol, exceeded `max_changed_lines`, or the Stop hook failed → **hard stop**, run `git checkout -- <all confirmed files>` (multi-file atomic: all confirmed files are restored even if only one was edited — safe because of Gate 0), tell the user:
-   > `⚠ Quick path misclassified this change (<reason>). No commit made, working tree restored. Re-run with \`start: <description>\` for the full lifecycle.`
-7. **Commit.** Model-authored message in imperative mood following the existing convention observed from `git log --oneline -20` (first-line prefixes like `docs:`, `fix:`, `feat:`, `refactor:`). Body includes actual post-edit line count (e.g. `3 lines changed`). **No Claude co-author trailer.**
-8. **Skip everything else.** No design doc, no design verification, no implementation plan, no acceptance criteria doc, no handoff. The commit and the auditable announcement line are the only artifacts.
+**Key Decisions (for traceability):**
+- Escape hatch uses `git clean -f -- <paths>` before `git checkout -- <paths>` to handle newly-created files; multi-file atomic across tracked + untracked cases because Gate 0 proved the pre-state clean.
+- Commit style observed from `git log --oneline -10` (not -20 — commit style is set in the last handful of commits).
+- **No Claude co-author trailer** — quick-path commits are deterministic, top-to-bottom model edits, not human-model collaborations; adding a co-author trailer would misrepresent their authorship.
 
 ## Patterns & Constraints
 
@@ -103,8 +94,8 @@ Example region-kind strings: `prose edit in Markdown`, `comment edit in TypeScri
 
 - **Gate failures are silent fallthrough**, with two documented exceptions that surface verbatim user hints: Gate 0 ("dirty tree") and Gate 1 ("no specific target"). All other failures fall through without surfacing.
 - **Budget exhaustion** (>5 confirmation tool calls reached) is a silent fallthrough — the change is not quick by definition.
-- **Escape-hatch rollback is best-effort-safe by precondition.** Gate 0 guarantees the working tree was clean before quick path wrote anything; therefore `git checkout -- <confirmed files>` can only discard what quick path itself wrote. This is the load-bearing safety invariant.
-- **Escape hatch is multi-file atomic.** If any confirmed file fails the post-conditions, **all** confirmed files are restored via a single `git checkout -- <all confirmed paths>`, even if only one was edited. No partial commits.
+- **Escape-hatch rollback is best-effort-safe by precondition.** Gate 0 guarantees the working tree was clean before quick path wrote anything; therefore `git clean -f -- <confirmed files> && git checkout -- <confirmed files>` can only discard what quick path itself wrote. `git clean` removes newly-created files first; `git checkout` restores tracked modifications. This is the load-bearing safety invariant.
+- **Escape hatch is multi-file atomic.** If any confirmed file fails the post-conditions, **all** confirmed files are restored via `git clean -f -- <all confirmed paths>` followed by `git checkout -- <all confirmed paths>`, even if only one was edited. No partial commits.
 - **Stop-hook failures** → escape hatch fires, no commit.
 - **Confirmation is read-only.** Grep + Read only. No edits, no writes, no commits, until all gates pass.
 
@@ -169,9 +160,9 @@ Specific edits to the Command-Line Flag Parsing section of `skills/start/SKILL.m
 Specific edits required (no changes to the parts listed in **Out of Scope**):
 
 1. **Rename** heading `## Tool Selection` (line 13) → `## Triage`. Update the section's one-line description to "3-way decision: quick / feature-flow / GSD".
-2. **Step 3 ("Run heuristic detection")** — prepend a new subsection **"Quick-Path Confirmation"** documenting all 6 gates in strict order 0–5, the ≤5 tool-call budget, the rule that in-process AST work does not count, and the boolean short-circuit to quick path on all-pass / silent fallthrough on any fail.
-3. **Step 5 ("Display recommendation")** — add a fourth band at the top: **⚡ quick path**, reached only via confirmation gates (not scoring). Document the auditable one-line announcement format.
-4. **Step 6 ("Execute user choice")** — add a quick-path execution branch with the 8-step execution flow above, including the Gate-0-safe multi-file atomic rollback and the post-hook `max_changed_lines` check.
+2. **Step 3 ("Quick-Path Confirmation")** — own top-level step documenting all 5 gates in strict order 0–4, the ≤5 tool-call budget, the rule that in-process AST work does not count, and the boolean short-circuit to Step 7 quick-path branch on all-pass / continue to Step 4 on any fail. (Renumbers old Step 3 → Step 4, Step 4 → Step 5, Step 5 → Step 6, Step 6 → Step 7.)
+3. **Step 6 ("Display recommendation")** — add a fourth band at the top: **⚡ quick path**, reached only via confirmation gates (not scoring). Document the auditable one-line announcement format.
+4. **Step 7 ("Execute user choice")** — add a quick-path execution branch with the 8-step execution flow above, including the Gate-0-safe multi-file atomic rollback and the post-hook `max_changed_lines` check.
 5. **Command-Line Flag Parsing section** (line 109) — add `--no-quick` to the usage grammar and priority list. Do not add `--quick`.
 6. **Configuration Loading section** (line 136) — document the new `tool_selector.quick_path.*` keys, defaults, and precedence.
 
@@ -215,7 +206,7 @@ These are named in the design doc so the implementation plan answers them rather
 
 1. **Whitespace tolerance for Gate 4 `old_string` ranges.** Default: **fail-closed.** If the proposed `old_string` region, extended by trailing/leading whitespace to the nearest non-whitespace char, would cross out of the confirmed lexical region, Gate 4 fails. Implementation may revisit after fixture-driven experience.
 2. **Multiple `old_string` ranges in one Edit call.** All proposed ranges must pass Gate 4 **individually**. A single failing range fails the gate.
-3. **Gate 5 ambiguity.** When grep for the edited symbol finds a test file but the edit region is prose/comment/string, treat as untestable → pass. (Captured above in Step 3, surfaced here to make the decision discoverable from the plan.)
+3. ~~**Test impact ambiguity.**~~ This open question is moot — the "test impact bounded" gate was removed (PR #237) because its fail branch was unreachable under strict-order evaluation (Gate 4 always short-circuits first when the region is a code identifier).
 4. **`--no-quick` × `quick_path.enabled: false`.** Documented no-op: CLI flag confirms config; no error, no fallthrough change. (Captured above in Configuration, surfaced here for completeness.)
 
 ## Scope
@@ -223,8 +214,8 @@ These are named in the design doc so the implementation plan answers them rather
 **In scope:**
 
 - 3-way triage (quick / feature-flow / GSD) in `skills/start/SKILL.md`'s renamed "Triage" section.
-- Six ordered gates (0–5) with strict short-circuit evaluation.
-- Tool-call budget of ≤5 Bash/Grep/Read calls (in-process AST free).
+- Five ordered gates (0–4) with strict short-circuit evaluation.
+- Tool-call budget of ≤5 Bash/Grep/Read/Glob calls (in-process AST free).
 - 8-step quick-path execution flow with Gate-0-safe multi-file atomic rollback.
 - `tool_selector.quick_path.{enabled, max_confirmation_tool_calls, max_files, max_changed_lines}` config.
 - `--no-quick` CLI flag.
@@ -254,7 +245,7 @@ These are named in the design doc so the implementation plan answers them rather
 - **D9 — Hard-assertion escape hatch.** Soft escalation is theater once execution starts; a hard stop is the only reliable signal.
 - **D11 — Post-hook `git diff --numstat` for the line-budget check.** Catches Stop-hook auto-format expansion.
 - **D17 — No state file for the scope set.** Scope is needed only between confirmation and commit within one invocation; persistence creates cleanup/staleness problems with no benefit.
-- **D19 — Model-authored commit message, imperative mood, post-edit line count, no Claude trailer.** Matches existing repo convention from `git log --oneline -20`.
+- **D19 — Model-authored commit message, imperative mood, post-edit line count, no Claude trailer.** Style observed from `git log --oneline -10`. No co-author trailer because quick-path commits are deterministic, top-to-bottom model edits — not human-model collaborations. Adding the trailer would misrepresent authorship.
 - **Autonomous — AST mechanism.** Skills are prose markdown executed by Claude; no runtime library to bind. Claude performs gates mentally, the same primitive used elsewhere in feature-flow. Tree-sitter preferred if ever externalized.
 - **Autonomous — Language coverage.** Markdown, TS/JS, Python in v1; unsupported → conservative fail.
 - **Autonomous — Fixture location.** `tests/start/quick_path/`, one markdown fixture per acceptance criterion.

@@ -174,6 +174,28 @@ Optional configuration for the Tool Selector — the Step 0 pre-flight check tha
 | `confidence_threshold` | float (0–1) | `0.7` | Minimum confidence score required before a tool recommendation is surfaced. Recommendations below this threshold are suppressed. |
 | `auto_launch_gsd` | boolean | `false` | When `true`, automatically launches the GSD toolset without prompting the user if confidence meets the threshold. When `false`, the user is shown the recommendation and must confirm. |
 
+#### `tool_selector.quick_path`
+
+Optional sub-section controlling the Quick-Path Confirmation gate sequence. When absent, all four keys use their defaults and quick path is **on** out of the box.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `enabled` | boolean | `true` | When `false`, Quick-Path Confirmation is disabled for all invocations (equivalent to always passing `--no-quick`). |
+| `max_confirmation_tool_calls` | integer ≥ 1 | `5` | Maximum Bash/Grep/Read tool calls during Quick-Path Confirmation. In-process AST work does not count. Budget exhaustion → silent fallthrough. |
+| `max_files` | integer ≥ 1 | `3` | Gate 2 passes when the target resolves to ≤ this many files. Default 3 allows multi-file prose fixes (e.g., README + CHANGELOG). |
+| `max_changed_lines` | integer ≥ 1 | `10` | Post-hook pre-commit budget: `git diff --numstat` total (added + removed) across confirmed files must be ≤ this value. Measured after Stop hook runs (catches auto-format expansion). The primary scale guardrail — binds total edit size regardless of file count. |
+
+**CLI × config precedence:**
+1. `--gsd` (highest, existing)
+2. `--feature-flow` (existing)
+3. `--no-quick` (new) — forces quick-path off for this invocation
+4. `tool_selector.quick_path.enabled` (config file)
+5. Built-in default (`enabled: true`)
+
+`--no-quick` × `quick_path.enabled: false` is a no-op: the CLI flag confirms the config. No error.
+
+**Consumed by:** `start` skill (Step 3 Quick-Path Confirmation gates). Also consumed by the `settings` skill when displaying current configuration.
+
 **Format:**
 
 ```yaml
@@ -181,11 +203,16 @@ tool_selector:
   enabled: true
   confidence_threshold: 0.7   # suppress low-confidence recommendations
   auto_launch_gsd: false       # true = auto-launch without prompting
+  quick_path:
+    enabled: true
+    max_confirmation_tool_calls: 5
+    max_files: 3
+    max_changed_lines: 10
 ```
 
 **When needed:** Only when you want to change Tool Selector behaviour from its defaults. Most projects can omit this section.
 
-**When absent:** All three fields use their defaults silently — Tool Selector runs, uses a 0.7 confidence threshold, and prompts before launching GSD. The field is never auto-written; it is only used when manually added.
+**When absent:** All three top-level fields and all four `quick_path` fields use their defaults silently — Tool Selector runs, uses a 0.7 confidence threshold, prompts before launching GSD, and quick path is on. The field is never auto-written; it is only used when manually added.
 
 ### `types_path`
 

@@ -10,9 +10,9 @@ Guide development work through the correct lifecycle steps, invoking the right s
 
 **Announce at start:** "Starting the feature lifecycle. Analyzing your project to recommend the right tool..."
 
-## Tool Selection
+## Triage
 
-Before brainstorming, analyze your project description to recommend feature-flow or GSD.
+Before brainstorming, analyze your project description to determine the correct path: **quick** (bounded trivial edit confirmed by code), **feature-flow** (standard lifecycle), or **GSD** (multi-feature project).
 
 ### Step 1: Check if tool selection is enabled
 
@@ -22,12 +22,46 @@ Read `.feature-flow.yml` and look for `tool_selector.enabled`:
 
 ### Step 2: Check for command-line overrides
 
-Did the user include `--feature-flow` or `--gsd` flag?
+Did the user include `--feature-flow`, `--gsd`, or `--no-quick` flag?
 - If `--feature-flow` present → remove flag from description, skip detection, use feature-flow
 - If `--gsd` present → remove flag from description, skip detection, launch GSD
+- If `--no-quick` present → remove flag from description, record `no_quick_override = true`, continue to step 3 (Quick-Path Confirmation will be skipped; heuristic scoring runs normally)
+- If `--quick` or any other `--foo` token is present that is NOT in `--feature-flow` / `--gsd` / `--no-quick` → surface: *"Unknown flag `--foo`. Quick path is opt-out only (`--no-quick`); there is no `--quick` flag. Continuing with auto-detection."* Strip the token from description and continue to step 3.
 - If no flags → continue to step 3
 
-### Step 3: Run heuristic detection
+### Step 3: Quick-Path Confirmation
+
+Quick path is available when `tool_selector.quick_path.enabled` is `true` (default) and `no_quick_override` is not set (see Step 2 — set by the `--no-quick` flag). If either condition is false, skip this step entirely and continue to Step 4.
+
+Run gates in strict order 0 → 4. **First failure short-circuits immediately** — do not run later gates. Pass budget: **≤5 Bash/Grep/Read/Glob tool calls total across all gates**. In-process AST tokenization and byte-range overlap checks are free (do not count). If you reach 5 tool calls before all gates pass, abort confirmation and fall through silently.
+
+Once a file is Read (1 budget call), Claude may reason over its contents freely for Gate 3 and Gate 4 without further cost — but *re-reading* the same file counts as an additional call.
+
+| # | Gate | Pass condition | Fail surface |
+|---|------|----------------|--------------|
+| 0 | **Clean working tree** | `git status --porcelain` returns empty | Surface to user: *"Working tree is dirty — running normal lifecycle to avoid trampling in-progress work."* Then fall through to heuristic scoring. |
+| 1 | **Concrete target identifiable** | Description names a file path, function name, symbol, or string literal | Surface to user: *"No specific target named — running normal lifecycle. If you meant a specific file, say `start: fix typo in X.ts line 42`."* Then fall through. |
+| 2 | **Bounded file count** | Target resolves to ≤ `max_files` files (default 3) | Silent fallthrough |
+| 3 | **No exported-declaration overlap** | The edit's byte range does not overlap any `export` / `export default` / `module.exports` AST node. Check is mechanical byte-range overlap — not a "flows outward" semantic analysis. Edits to the body of a re-exported internal symbol pass Gate 3 (byte range does not overlap the `export` node itself); Gate 4 catches such edits via identifier-position exclusion. | Silent fallthrough |
+| 4 | **Lexical-region rule** | Every proposed `old_string` byte range sits entirely inside one of: **(a)** Markdown prose outside `` ``` `` fences; **(b)** a string literal node in a code file that is **not** a syntactic argument to a `log.*` / `logger.*` / `console.*` call expression (walk up to nearest `CallExpression` or `TaggedTemplateExpression`; if callee root identifier matches case-insensitively, fail); **(c)** a line or block comment node. Identifiers, keywords, imports, type annotations, decorators, numeric/boolean literals, operators always fail. Unsupported languages (not Markdown/TypeScript/JavaScript/Python) conservatively fail. Multiple `old_string` ranges: all must pass individually. | Silent fallthrough |
+
+**Gate 4 log-call exclusion detail:** From the matched string-literal node, walk up to the nearest enclosing `CallExpression` or `TaggedTemplateExpression`. Resolve the callee to its **root identifier** (the leftmost name in `a.b.c.d(...)` is `a`; for `this.x.y(...)`, the root is `this` — in which case look one level in: `x`). If the root identifier (case-insensitive) is exactly `log`, `logger`, or `console` → Gate 4 **fails**. Does NOT match `logging` (Python stdlib) — Python's `logging` module is a separate exclusion documented under Gate 4 edge cases below.
+
+**Python `logging.*` exclusion:** Python `logging.*` calls (e.g. `logging.info(...)`, `logging.warning(...)`) are also excluded via the same CallExpression ancestor walk — if the root identifier case-insensitively equals `logging`, Gate 4 fails.
+
+**Gate 4 whitespace tolerance:** If a proposed `old_string` region, extended by leading/trailing whitespace to the nearest non-whitespace character, would cross out of the confirmed lexical region, Gate 4 **fails** (fail-closed).
+
+**Edge cases — Gate 4 fails when in doubt.** The following all fail Gate 4 regardless of surface appearance: (a) TypeScript type-position string literals (`const x: "foo" = ...` — the first `"foo"` is a type, not a value); (b) expressions inside f-strings / template literals (`f"hello {user.name}"`, `` `hello ${user.name}` `` — the `{user.name}` / `${user.name}` region is an expression, not string content); (c) JSX attribute values that are identifiers or expressions rather than string literals; (d) any string-like syntax Claude cannot confidently classify to an AST node kind in a single pass. When the region kind is not unambiguously string-literal / comment / MD-prose, Gate 4 fails.
+
+**Budget exhaustion:** If the 5-tool-call budget is reached before all gates finish evaluating, silently fall through to heuristic scoring. The change is not quick by definition.
+
+**On all-pass:** Set `quick_path_confirmed = true`. Record confirmed scope: the set of file paths and their confirmed lexical regions (held in working context only — no state file). Jump to Step 7 quick-path execution branch.
+
+**On any fail or skip:** Continue to Step 4.
+
+---
+
+### Step 4: Run heuristic detection
 
 Analyze user's project description using heuristics:
 1. Extract feature count (using regex for action verbs)
@@ -37,20 +71,58 @@ Analyze user's project description using heuristics:
 
 Calculate weighted confidence score (0.0–1.0) using scoring table.
 
-### Step 4: Check confidence threshold
+### Step 5: Check confidence threshold
+
+**If `quick_path_confirmed` is set** (from Step 3), skip this step entirely and proceed to Step 6. Confidence threshold applies only to the heuristic-scoring path.
 
 Read `tool_selector.confidence_threshold` from .feature-flow.yml (default: 0.7):
 - If calculated_confidence < threshold → skip recommendation, proceed with feature-flow
-- If calculated_confidence >= threshold → continue to step 5
+- If calculated_confidence >= threshold → continue to step 6
 
-### Step 5: Display recommendation
+### Step 6: Display recommendation
 
-Show recommendation based on confidence band:
+Show recommendation based on path or confidence band:
+
+- **⚡ quick path** — reached only via Quick-Path Confirmation gates (Step 3), never via heuristic scoring. Emit the announcement line HERE, immediately before Step 7 begins. Announce in a single auditable line before making any edits:
+  ```
+  ⚡ Quick path confirmed: <path>:<line> — <region kind> in <language>, <N> file(s), budget: ≤<max_changed_lines> lines. Editing directly.
+  ```
+  Where `<region kind>` is one of: `prose edit in Markdown`, `comment edit in TypeScript`, `string-literal edit in Python`, etc. `<max_changed_lines>` is the configured cap, not the actual diff size — actual post-edit line count is recorded in the commit message body. Then proceed immediately to Step 7 quick-path execution branch.
 - **🟢 feature-flow** (0.0–0.4): Skip display, proceed silently
 - **🟡 GSD-recommended** (0.4–0.7): Display recommendation, ask user to choose
 - **🔴 GSD-strongly-recommended** (0.7+): Display recommendation, ask user to choose
 
-### Step 6: Execute user choice
+### Step 7: Execute user choice
+
+**If `quick_path_confirmed` is set (from Step 3 Quick-Path Confirmation):** Execute the quick-path flow below. Do not prompt the user for a choice — the confirmation gates already verified the scope.
+
+#### Quick-Path Execution (8-step flow)
+
+1. **The announcement has already been emitted at Step 6.** Step 7 step 1 is a reference-only placeholder; do not re-emit.
+2. **Record confirmed scope** — note the set of confirmed file paths and their confirmed lexical regions in working context. **No state file. No `.feature-flow/session-state.json`.** Scope set lifetime is this single skill invocation.
+3. **Edit the file(s) in the confirmed set** via the Edit tool.
+4. **Run Stop-hook checks** (tsc, lint, type-sync). Stop hook may auto-format / auto-fix, changing diff size.
+5. **Post-hook pre-commit budget check:** run `git diff --numstat` summed across confirmed files (added + removed lines). If total > `max_changed_lines` (default 10) → escape hatch (step 6). This runs **after** Stop hook so auto-format changes are included.
+6. **Hard-assertion escape hatch:** If the edit touched any file **outside** the confirmed set, introduced a new exported symbol, exceeded `max_changed_lines`, or the Stop hook failed → hard stop. Run:
+   ```bash
+   # Remove any newly-created files in the confirmed set (git checkout -- does not)
+   git clean -f -- <all confirmed file paths>
+   # Restore modifications to tracked files in the confirmed set
+   git checkout -- <all confirmed file paths>
+   ```
+   `git clean` first removes untracked (newly-created) files; `git checkout` then restores tracked modifications. Multi-file atomic across both cases because Gate 0 proved the pre-state clean.
+
+   (Safe because Gate 0 guarantees the tree was clean before quick path wrote anything — this only discards what quick path itself wrote. Restore is multi-file atomic: all confirmed files, even if only one was edited.) Then tell the user:
+   > `⚠ Quick path misclassified this change (<reason>). No commit made, working tree restored. Re-run with \`start: <description>\` for the full lifecycle.`
+   Stop. Do not commit, do not fall through.
+7. **Commit.** Check `git log --oneline -10` to observe the project's existing commit prefix style (e.g., `docs:`, `fix:`, `feat:`, `refactor:`). Write the commit message in imperative mood, following that style. Include the actual post-edit line count in the message body (`N lines changed`). **No Claude co-author trailer** — quick-path commits are deterministic, top-to-bottom model edits, not human-model collaborations; adding a co-author trailer would misrepresent their authorship.
+8. **Skip everything else.** No design doc, no design verification, no implementation plan, no acceptance criteria doc, no handoff. The commit and the auditable announcement line are the only artifacts.
+
+**Interrupted-turn recovery.** Scope set lives in working context only (no state file, by design). If the turn is interrupted between step 3 (edit applied) and step 6 (escape-hatch assertion) — e.g., context overflow, user `Ctrl+C`, mid-hook error — the scope set is lost and edits remain on disk. No automatic cleanup runs. The next `start:` invocation's Gate 0 check will detect the dirty tree and route to normal lifecycle; the user can commit or revert manually from there. This is the documented recovery path.
+
+---
+
+**If `quick_path_confirmed` is not set (normal paths):**
 
 - If user chooses "Use feature-flow" → proceed with brainstorming
 - If user chooses "Launch GSD" → execute GSD handoff (see below)
@@ -112,24 +184,31 @@ The `start:` command accepts optional flags to override tool selection:
 
 **Usage:**
 ```bash
-start: <description> [--feature-flow | --gsd]
+start: <description> [--feature-flow | --gsd | --no-quick]
 ```
 
 **Parsing logic:**
 1. Extract user input after `start:` keyword
-2. Check for `--feature-flow` or `--gsd` flags at the end
+2. Check for `--feature-flow`, `--gsd`, or `--no-quick` flags at the end
 3. If flag found, remove it from description and set override
 4. If no flag, proceed with automatic detection
+
+**Flag: `--no-quick`** — disables quick-path confirmation for this invocation. Quick-Path Confirmation (Step 3) is skipped entirely; the lifecycle falls directly into heuristic scoring. There is **no `--quick` flag** — quick path is opt-out, not opt-in.
 
 **Examples:**
 - `start: add logout button --feature-flow` → description: "add logout button", override: feature-flow
 - `start: build complete app --gsd` → description: "build complete app", override: gsd
+- `start: fix typo in README.md --no-quick` → quick path disabled for this run, normal lifecycle
 - `start: build payments system` → description: "build payments system", override: none (auto-detect)
 
-**Priority:**
-1. Command-line flags (highest priority)
-2. Config file settings (tool_selector section)
-3. Automatic heuristic detection (default)
+**Priority (highest to lowest):**
+1. `--gsd` (highest — existing)
+2. `--feature-flow` (existing)
+3. `--no-quick` (new — disables quick path for this invocation)
+4. Config file `tool_selector.quick_path.enabled`
+5. Automatic heuristic detection / built-in default (`enabled: true`)
+
+`--no-quick` × `quick_path.enabled: false` is a documented no-op: the CLI flag confirms the config. No error.
 
 If flag is present, skip all other logic and use that flag's value.
 
@@ -160,13 +239,37 @@ The start skill reads tool_selector config from `.feature-flow.yml`:
   - If true: Launch GSD automatically when GSD is recommended
   - If false: Ask user "Launch GSD or use feature-flow?" first
 
+- `tool_selector.quick_path.enabled` (boolean, default: true)
+  - If false: Quick-Path Confirmation is skipped for all invocations (same effect as always passing `--no-quick`)
+  - If true: Quick-Path Confirmation runs before heuristic scoring
+
+- `tool_selector.quick_path.max_confirmation_tool_calls` (integer ≥ 1, default: 5)
+  - Maximum Bash/Grep/Read/Glob tool calls during Quick-Path Confirmation. In-process AST work does not count.
+  - If budget is exhausted before all gates pass, fall through silently.
+
+- `tool_selector.quick_path.max_files` (integer ≥ 1, default: 3)
+  - Gate 2 passes if the target resolves to ≤ this many files.
+  - Default 3 (not 1) so multi-file prose fixes like "fix typos in README and CHANGELOG" can take the quick path.
+
+- `tool_selector.quick_path.max_changed_lines` (integer ≥ 1, default: 10)
+  - Post-hook pre-commit budget: total added + removed lines across confirmed files must be ≤ this value.
+  - Measured after the Stop hook runs (catches auto-format expansion).
+  - The stronger scale guardrail — binds total edit size regardless of file count.
+
 **Default values:**
 ```yaml
 tool_selector:
   enabled: true
   confidence_threshold: 0.7
   auto_launch_gsd: false
+  quick_path:
+    enabled: true
+    max_confirmation_tool_calls: 5
+    max_files: 3
+    max_changed_lines: 10
 ```
+
+Defaults if the `quick_path` sub-section is missing: all four keys use the values above. Quick path is **on** out of the box.
 
 ## Recommendation Display
 
