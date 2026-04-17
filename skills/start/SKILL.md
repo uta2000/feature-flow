@@ -168,24 +168,31 @@ The `start:` command accepts optional flags to override tool selection:
 
 **Usage:**
 ```bash
-start: <description> [--feature-flow | --gsd]
+start: <description> [--feature-flow | --gsd | --no-quick]
 ```
 
 **Parsing logic:**
 1. Extract user input after `start:` keyword
-2. Check for `--feature-flow` or `--gsd` flags at the end
+2. Check for `--feature-flow`, `--gsd`, or `--no-quick` flags at the end
 3. If flag found, remove it from description and set override
 4. If no flag, proceed with automatic detection
+
+**Flag: `--no-quick`** — disables quick-path confirmation for this invocation. Quick-Path Confirmation (Step 3) is skipped entirely; the lifecycle falls directly into heuristic scoring. There is **no `--quick` flag** — quick path is opt-out, not opt-in.
 
 **Examples:**
 - `start: add logout button --feature-flow` → description: "add logout button", override: feature-flow
 - `start: build complete app --gsd` → description: "build complete app", override: gsd
+- `start: fix typo in README.md --no-quick` → quick path disabled for this run, normal lifecycle
 - `start: build payments system` → description: "build payments system", override: none (auto-detect)
 
-**Priority:**
-1. Command-line flags (highest priority)
-2. Config file settings (tool_selector section)
-3. Automatic heuristic detection (default)
+**Priority (highest to lowest):**
+1. `--gsd` (highest — existing)
+2. `--feature-flow` (existing)
+3. `--no-quick` (new — disables quick path for this invocation)
+4. Config file `tool_selector.quick_path.enabled`
+5. Automatic heuristic detection / built-in default (`enabled: true`)
+
+`--no-quick` × `quick_path.enabled: false` is a documented no-op: the CLI flag confirms the config. No error.
 
 If flag is present, skip all other logic and use that flag's value.
 
@@ -216,13 +223,37 @@ The start skill reads tool_selector config from `.feature-flow.yml`:
   - If true: Launch GSD automatically when GSD is recommended
   - If false: Ask user "Launch GSD or use feature-flow?" first
 
+- `tool_selector.quick_path.enabled` (boolean, default: true)
+  - If false: Quick-Path Confirmation is skipped for all invocations (same effect as always passing `--no-quick`)
+  - If true: Quick-Path Confirmation runs before heuristic scoring
+
+- `tool_selector.quick_path.max_confirmation_tool_calls` (integer ≥ 1, default: 5)
+  - Maximum Bash/Grep/Read tool calls during Quick-Path Confirmation. In-process AST work does not count.
+  - If budget is exhausted before all gates pass, fall through silently.
+
+- `tool_selector.quick_path.max_files` (integer ≥ 1, default: 3)
+  - Gate 2 passes if the target resolves to ≤ this many files.
+  - Default 3 (not 1) so multi-file prose fixes like "fix typos in README and CHANGELOG" can take the quick path.
+
+- `tool_selector.quick_path.max_changed_lines` (integer ≥ 1, default: 10)
+  - Post-hook pre-commit budget: total added + removed lines across confirmed files must be ≤ this value.
+  - Measured after the Stop hook runs (catches auto-format expansion).
+  - The stronger scale guardrail — binds total edit size regardless of file count.
+
 **Default values:**
 ```yaml
 tool_selector:
   enabled: true
   confidence_threshold: 0.7
   auto_launch_gsd: false
+  quick_path:
+    enabled: true
+    max_confirmation_tool_calls: 5
+    max_files: 3
+    max_changed_lines: 10
 ```
+
+Defaults if the `quick_path` sub-section is missing: all four keys use the values above. Quick path is **on** out of the box.
 
 ## Recommendation Display
 
