@@ -129,3 +129,14 @@ Every announcement carries the `[session:$SESSION_ID]` correlation token.
 ## Stack affinity
 
 `stack_affinity: ["*"]` — personas apply to any language/stack. Phase 1c is not filtered by `.feature-flow.yml` stack list.
+
+## How to verify Phase 1c fired
+
+Phase 1c is pipeline-integrated — there is no standalone user-invocation path in v1. To observe it running end-to-end:
+
+1. Start a **Major feature** task: `start: [description]` and select "Major feature" at the scope classification prompt (or let heuristics pick it). Phase 1c does not run at Feature / Small enhancement / Quick fix scope.
+2. Let the lifecycle proceed through design → plan → implement until it reaches the **Code Review Pipeline** step.
+3. During dispatch, look for the Phase 1b availability announcement: `"Running N report-only agents in parallel (Tier 3 — major feature, ...)"`. If Phase 1c dispatches in the same parallel message, the orchestrator adds a line: `"Phase 1c [session:$SESSION_ID]: senior panel dispatched (3 personas, opus, 5-min deadline)."`
+4. If the diff exceeds 1500 changed lines, you'll instead see the skip announcement: `"Phase 1c [session:$SESSION_ID]: diff size N lines exceeds 1500-line cap. Skipping panel..."`
+5. If Phase 1c ran and produced findings, the Phase 5 report's `### Senior Panel — Judgment Findings` subsection lists them grouped by persona. If the subsection is absent, either (a) Phase 1c was skipped (scope or diff cap), (b) Phase 1c failed (see failure-disposition announcement upstream in the log), or (c) Phase 1c returned zero valid findings on a trivial diff.
+6. For ad-hoc testing of the schema guard without invoking opus, point at `senior-panel-fixtures.md` and mentally walk each F1–F8 payload through the guard rules in "Phase 1c schema-level guard" above.

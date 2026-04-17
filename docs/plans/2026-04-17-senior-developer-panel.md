@@ -22,6 +22,8 @@ They do not catch:
 
 The memory `feedback_self_review_passes.md` (added 2026-04-17) codifies this gap explicitly: *"self-review without frame-switching misses strategic issues; use advisor/code-reviewer when possible."* A persona panel is frame-switching built into the pipeline.
 
+**Scope of this v1 — implementer-side advisor, not a production gate.** The original user ask framed this as "review code changes as a panel of senior developers to approve to push to production." The v1 implementation is narrower: Phase 1c fires during the local code-review step of `start:`, which runs BEFORE PR creation — well before anything approaches production. The panel is an **implementer-side advisor** that surfaces judgment findings for the implementer to address locally; it is NOT a merge-time gate, a deploy-time gate, or a PR-review bot. A future iteration could extend the panel to run on PR open (via a separate hook that posts the findings as PR comments), which would more literally match the "approve to push" framing — but that is out of scope for v1. This framing is important because it sets the right expectation about WHEN the panel's opinion shows up in the lifecycle.
+
 ## User Flow
 
 ### Step 1 — Scope gate
@@ -240,6 +242,32 @@ At line 144 (Phase 1b header area), add a note:
 > For Major-feature scope (Tier 3), also dispatch the senior panel subagent (Phase 1c) in the same parallel message. See the Phase 1c section below for the subagent contract.
 
 Then add the new **Phase 1c — Senior Developer Panel (Gated, Parallel with 1b)** section immediately after Phase 1b. Contents: scope gate, subagent prompt contract, persona rule enums, output format including `finding_type` and `persona`, failure and timeout handling (all already specified in this design doc's Architecture and Patterns & Constraints sections).
+
+## Rejected Alternatives
+
+### RA1 — "Keep Phase 1c findings in a separate list, feed only Phase 5"
+
+**Alternative:** Phase 1c's findings live in their own collection that bypasses Phase 2 (dedup/conflict) and Phase 3 (apply) entirely, feeding only Phase 5's report.
+
+**Tradeoff:** Would eliminate 4 of the 6 pipeline edits required by the unified-list design (no P2-E1, P2-E2, P2-E3, P2-E4). Simpler mental model: judgment findings never interact with rule findings.
+
+**Why we chose unification instead:** Phase 2 dedup CAN catch legitimate overlap between a judgment finding and a rule finding when both anchor near the same line AND share `finding_type` after normalization. The orthogonality rule (P2-E2) makes the unified design safe: different `finding_type` values never conflict, so the rule-finding pipeline is unaffected by the presence of judgment findings. The cost is 4 extra edit points and 3 conceptual branches (orthogonality, partition, cap-is-rule-only) that every maintainer must hold in mind. On balance the unified design wins because it keeps Phase 2's dedup semantics consistent across all source phases — but the separate-list design remains a reasonable v2 simplification if maintenance cost outweighs the dedup benefit in practice.
+
+### RA2 — "Three parallel opus subagents, one per persona"
+
+**Alternative:** Dispatch three concurrent opus calls (one per persona) instead of a single opus call that orchestrates personas sequentially internally.
+
+**Tradeoff:** Parallel dispatch would cut wall-clock time roughly in half. Each persona call would have its own context window unencumbered by other personas' findings.
+
+**Why we chose single-subagent instead:** Later personas benefit from seeing earlier personas' findings to avoid duplicating work (this IS the tiebreaker mechanism defined in D4/SF#3). With three parallel calls, the orchestrator would have to dedup across persona outputs post-hoc, and there's no persona-level ordering to resolve ties. Sequential-in-single-subagent keeps ordering deterministic. If opus latency becomes a real pain point, switch to parallel + post-dedup in v2.
+
+### RA3 — "Standalone `/senior-panel` skill for ad-hoc review"
+
+**Alternative:** Ship Phase 1c AND a user-invokable skill that runs the same panel against an arbitrary diff outside the `start:` lifecycle.
+
+**Tradeoff:** Users could sanity-check a branch without completing the full feature-flow lifecycle. Handy for "can you panel-review this PR I'm about to push?" moments.
+
+**Why we chose pipeline-integrated only:** Two entry points = two sources of truth for the prompt contract, schema guard, failure handling. The `senior-panel-fixtures.md` would need to guard both invocation paths. v1 scope is "integrate with code-review-pipeline"; the standalone skill is a clean follow-up once the pipeline-integrated version has real usage data.
 
 ## Open Questions
 
