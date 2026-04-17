@@ -176,6 +176,31 @@ Agents must name the specific rule violated from their checklist. Findings witho
 
 **Agent failure handling:** If any agent fails, skip it and continue. Do not stall the pipeline for a single failure.
 
+**Phase 1c gated dispatch:** For Major-feature scope (Tier 3) only, dispatch the senior developer panel subagent (Phase 1c) in the **same parallel message** as the Phase 1b agents above — not sequentially, not after. See `skills/start/references/senior-panel.md` for the persona prompt contract, closed rule enums, and finding schema. The panel's findings flow into Phase 2 alongside Phase 1b findings.
+
+## Phase 1c: Senior Developer Panel (Major Feature only)
+
+**Scope gate:** Dispatched only when the lifecycle scope is **Major feature** (Tier 3). For Feature, Small enhancement, and Quick fix scopes, skip this phase entirely — do not dispatch, do not announce.
+
+**Dispatch:** Phase 1c runs **in parallel** with Phase 1b — both are dispatched in the **same single parallel message**. The panel reviews the same post-Phase-1a committed code Phase 1b reviews, so no new ordering constraint is introduced.
+
+**Subagent contract:** See `skills/start/references/senior-panel.md` for the full prompt template. Summary:
+
+```
+Task(
+  subagent_type: "general-purpose",
+  model: "opus",
+  description: "Run senior developer panel review",
+  prompt: [persona-panel prompt from senior-panel.md]
+)
+```
+
+A single opus subagent orchestrates three personas sequentially (Staff Engineer → SRE → Product Engineer). Each persona has a closed rule enum (see `senior-panel.md`). The subagent returns findings in the Phase 1b structured format plus two extra fields: `finding_type` (`rule | architectural | operability | product_fit`) and `persona` (`staff_eng | sre | product_eng`, required when `finding_type != rule`).
+
+**Phase 1c schema-level guard:** Before merging Phase 1c findings into Phase 2, validate each finding against the schema: (a) required fields present including `finding_type` and `persona` (when `finding_type != rule`), (b) `rule` is a member of the persona's closed enum. If the response is not parseable, or contains zero valid findings on a non-trivial diff (>50 changed lines), treat as subagent failure: announce `"senior panel subagent returned a malformed response — findings skipped"` and proceed with Phase 1b findings only. This guard is distinct from — and parallel to — Phase 1a's section-header guard (above at "Malformed subagent response guard").
+
+**Failure handling:** If the panel subagent fails or times out (>5 min), skip Phase 1c and continue with Phase 1b findings only. Announce: `"Senior panel subagent failed — skipping. Phase 1b findings only."`
+
 ## Phase 2: Conflict Detection
 
 After all Phase 1b agents complete, consolidate findings from both phases and detect conflicts before applying fixes.
