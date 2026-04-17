@@ -1,7 +1,6 @@
 // skills/consult-codex/scripts/consult.js
 'use strict';
 
-const fs = require('fs');
 const path = require('path');
 const state = require('./state');
 const config = require('./config');
@@ -36,38 +35,24 @@ async function start({ worktreeRoot, feature, mode, signalKey, introspect }) {
     return { status: 'error', message: `unknown mode: ${mode}` };
   }
 
-  // Proactive budget check — READ ONLY, does not touch state
-  if (PROACTIVE_MODES.has(mode)) {
-    const stateFilePath = state.statePath(worktreeRoot);
-    if (fs.existsSync(stateFilePath)) {
-      try {
-        const existing = JSON.parse(fs.readFileSync(stateFilePath, 'utf8'));
-        const key = MODE_TO_BUDGET_KEY[mode];
-        if (existing.budget && existing.budget.proactive && existing.budget.proactive[key] >= 1) {
-          return { status: 'skipped', reason: 'budget_exhausted', message: `proactive ${mode} already ran this session` };
-        }
-      } catch {
-        console.error('[consult-codex] state file unreadable in start; budget check skipped, recovery deferred to record-response');
-      }
+  // Single read of persisted state — read-only, does NOT touch state.json.
+  const persisted = state.peek(worktreeRoot);
+
+  // Proactive budget check
+  if (PROACTIVE_MODES.has(mode) && persisted && persisted.budget && persisted.budget.proactive) {
+    const key = MODE_TO_BUDGET_KEY[mode];
+    if (persisted.budget.proactive[key] >= 1) {
+      return { status: 'skipped', reason: 'budget_exhausted', message: `proactive ${mode} already ran this session` };
     }
   }
 
   // Reactive escape-hatch check (stuck mode only)
-  if (REACTIVE_MODES.has(mode) && signalKey) {
-    const stateFilePath = state.statePath(worktreeRoot);
-    if (fs.existsSync(stateFilePath)) {
-      try {
-        const existing = JSON.parse(fs.readFileSync(stateFilePath, 'utf8'));
-        const hatch = (existing.escape_hatch_state || {})[signalKey];
-        if (hatch && hatch.last_consulted_at) {
-          // v1: default 30-minute window, not yet configurable in this task
-          const windowMs = 30 * 60 * 1000;
-          if (Date.now() - new Date(hatch.last_consulted_at).getTime() < windowMs) {
-            return { status: 'skipped', reason: 'escape_hatch_active', message: `signal ${signalKey} is within the escape-hatch window` };
-          }
-        }
-      } catch {
-        console.error('[consult-codex] state file unreadable in start; escape-hatch check skipped, recovery deferred to record-response');
+  if (REACTIVE_MODES.has(mode) && signalKey && persisted) {
+    const hatch = (persisted.escape_hatch_state || {})[signalKey];
+    if (hatch && hatch.last_consulted_at) {
+      const windowMs = 30 * 60 * 1000;
+      if (Date.now() - new Date(hatch.last_consulted_at).getTime() < windowMs) {
+        return { status: 'skipped', reason: 'escape_hatch_active', message: `signal ${signalKey} is within the escape-hatch window` };
       }
     }
   }
@@ -75,26 +60,18 @@ async function start({ worktreeRoot, feature, mode, signalKey, introspect }) {
   // Resolve model
   const resolved = await resolveModel(cfg, introspect || (async () => []));
   if (!resolved.model) {
-    return { status: 'skipped', reason: resolved.reason || 'model_unresolvable', message: 'no codex model available' };
+    const baseMsg = 'no codex model available';
+    const message = resolved.detail ? `${baseMsg}: ${resolved.detail}` : baseMsg;
+    return { status: 'skipped', reason: resolved.reason || 'model_unresolvable', message };
   }
 
   // Build brief via per-mode module
   const modeModule = require(`./modes/${mode}`);
-  // Load a transient state snapshot for the brief builder without writing.
-  // We read fields like design_doc_path and attempts_log from the persisted
-  // state file if it exists; the integrating skill (e.g. design-document) is
-  // responsible for calling state.setMetadata before invoking consult-codex.
   const transientState = { feature, worktree: worktreeRoot, attempts_log: [] };
-  const stateFilePath = state.statePath(worktreeRoot);
-  if (fs.existsSync(stateFilePath)) {
-    try {
-      const persisted = JSON.parse(fs.readFileSync(stateFilePath, 'utf8'));
-      if (persisted.design_doc_path) transientState.design_doc_path = persisted.design_doc_path;
-      if (persisted.plan_file_path) transientState.plan_file_path = persisted.plan_file_path;
-      if (Array.isArray(persisted.attempts_log)) transientState.attempts_log = persisted.attempts_log;
-    } catch {
-      console.error('[consult-codex] state file unreadable when building brief; using defaults');
-    }
+  if (persisted) {
+    if (persisted.design_doc_path) transientState.design_doc_path = persisted.design_doc_path;
+    if (persisted.plan_file_path) transientState.plan_file_path = persisted.plan_file_path;
+    if (Array.isArray(persisted.attempts_log)) transientState.attempts_log = persisted.attempts_log;
   }
   const inputs = modeModule.buildInputs({ worktreeRoot, state: transientState });
   const brief = buildBrief({
@@ -148,11 +125,13 @@ async function recordResponse({ worktreeRoot, sessionId, feature, mode, signalKe
       reason: null,
       outcome: `skipped:${reason}`
     });
-    // Reset verdict back to null (skipped entries are not verdict-pending)
+    // Reset verdict back to null (skipped entries are not verdict-pending) and
+    // persist error_detail so post-mortem audit can recover the underlying cause.
     const s = state.load(worktreeRoot, sessionId, feature);
     const target = s.consultations.find(c => c.id === entry.id);
     target.verdict = null;
     target.verdict_reason = null;
+    target.error_detail = detail || null;
     state.save(worktreeRoot, s);
 
     return {

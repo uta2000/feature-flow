@@ -52,9 +52,10 @@ function load(worktreeRoot, sessionId, feature) {
   let parsed;
   try {
     parsed = JSON.parse(fs.readFileSync(p, 'utf8'));
-  } catch {
+  } catch (err) {
     const bak = `${p}.bak-${Date.now()}`;
     fs.renameSync(p, bak);
+    process.stderr.write(`[consult-codex] state file unreadable (${err && err.message}); renamed to ${bak} and re-initialized — prior consultations and budget counters are lost\n`);
     const fresh = freshState(sessionId, feature);
     save(worktreeRoot, fresh);
     return fresh;
@@ -102,6 +103,20 @@ function setMetadata(worktreeRoot, patch) {
   Object.assign(current, patch);
   save(worktreeRoot, current);
   return current;
+}
+
+// peek returns parsed state, or null if the file is missing/corrupt. Read-only —
+// never writes, never throws, never triggers GC. Used by `consult.js start` for
+// the budget/escape-hatch/brief-context reads that must NOT touch state.
+function peek(worktreeRoot) {
+  const p = statePath(worktreeRoot);
+  if (!fs.existsSync(p)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(p, 'utf8'));
+  } catch (err) {
+    process.stderr.write(`[consult-codex] state file unreadable in peek: ${err.message}\n`);
+    return null;
+  }
 }
 
 function appendConsultation(worktreeRoot, partial) {
@@ -155,6 +170,7 @@ module.exports = {
   load,
   save,
   setMetadata,
+  peek,
   appendConsultation,
   setVerdict,
   findPendingStrict,

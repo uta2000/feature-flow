@@ -160,6 +160,22 @@ async function main() {
   );
 
   await assertAsync(
+    'record-response: error path persists error_detail in state',
+    (async () => {
+      const tmp = mkTmp();
+      writeYml(tmp, 'codex:\n  enabled: true\n  model: gpt-5.2\n');
+      await consult.recordResponse({
+        worktreeRoot: tmp, sessionId: 's', feature: 'f',
+        mode: 'review-design', signalKey: null,
+        mcpResult: { error: { reason: 'codex_call_failed', detail: 'connection refused after 30s' } }
+      });
+      const stateFile = JSON.parse(fs.readFileSync(path.join(tmp, '.feature-flow', 'session-state.json'), 'utf8'));
+      fs.rmSync(tmp, { recursive: true });
+      return stateFile.consultations[0].error_detail === 'connection refused after 30s';
+    })()
+  );
+
+  await assertAsync(
     'record-response: reactive stuck mode records strict consultation with signal_key',
     (async () => {
       const tmp = mkTmp();
@@ -214,6 +230,45 @@ async function main() {
       const r = await consult.verdict({ worktreeRoot: tmp, id: 'c1', decision: null, reason: 'x' });
       fs.rmSync(tmp, { recursive: true });
       return r.status === 'error' && r.message.includes('--decision');
+    })()
+  );
+
+  await assertAsync(
+    'start: rejects mode containing path traversal',
+    consult.start({
+      worktreeRoot: (() => { const t = mkTmp(); writeYml(t, 'codex:\n  enabled: true\n  model: gpt-5.2\n'); return t; })(),
+      sessionId: 's', feature: 'f',
+      mode: '../../../etc/passwd',
+      introspect: async () => []
+    }).then(r => r.status === 'error' && r.message.includes('unknown mode'))
+  );
+
+  await assertAsync(
+    'CLI: verdict subcommand returns valid JSON via execSync',
+    (async () => {
+      const { execSync } = require('child_process');
+      const tmp = mkTmp();
+      writeYml(tmp, 'codex:\n  enabled: true\n  model: gpt-5.2\n');
+      fs.mkdirSync(path.join(tmp, 'docs', 'plans'), { recursive: true });
+      fs.writeFileSync(path.join(tmp, 'docs', 'plans', 'd.md'), '# D\n');
+      const stateMod = require('./state');
+      stateMod.load(tmp, 'cli-session', path.basename(tmp));
+      stateMod.setMetadata(tmp, { design_doc_path: 'docs/plans/d.md' });
+      // First create a consultation via record-response so verdict has something to update
+      await consult.recordResponse({
+        worktreeRoot: tmp, sessionId: 'cli-session', feature: path.basename(tmp),
+        mode: 'review-design', signalKey: null,
+        mcpResult: { threadId: 't', content: 'x' }
+      });
+      // Now invoke verdict via the CLI
+      const SCRIPT = path.resolve(__dirname, 'consult.js');
+      const out = execSync(
+        `FEATURE_FLOW_WORKTREE=${tmp} FEATURE_FLOW_SESSION_ID=cli-session FEATURE_FLOW_FEATURE=${path.basename(tmp)} node ${SCRIPT} verdict --id c1 --decision accept --reason cli-test`,
+        { encoding: 'utf8', shell: '/bin/bash' }
+      );
+      fs.rmSync(tmp, { recursive: true });
+      const parsed = JSON.parse(out);
+      return parsed.status === 'verdict_recorded' && parsed.consultation_id === 'c1';
     })()
   );
 

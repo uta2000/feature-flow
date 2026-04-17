@@ -119,5 +119,21 @@ assert('truncates respecting utf-8 codepoint boundaries', (() => {
          !inputs.currentState.includes('\uFFFD');
 })());
 
+assert('truncates respecting surrogate pairs (4-byte utf-8)', (() => {
+  const tmp = mkTmp();
+  fs.mkdirSync(path.join(tmp, 'docs', 'plans'), { recursive: true });
+  // 😀 is U+1F600, encoded as a surrogate pair in JS strings (4 UTF-8 bytes).
+  const huge = '😀'.repeat(5000);
+  fs.writeFileSync(path.join(tmp, 'docs', 'plans', 'h.md'), huge);
+  const inputs = reviewDesign.buildInputs({
+    worktreeRoot: tmp,
+    state: { feature: 'f', design_doc_path: 'docs/plans/h.md' }
+  });
+  fs.rmSync(tmp, { recursive: true });
+  return Buffer.byteLength(inputs.currentState, 'utf8') <= 10240 &&
+         inputs.currentState.includes('[truncated') &&
+         !inputs.currentState.includes('\uFFFD');
+})());
+
 console.log(`\n=== review-design mode: ${passed} passed, ${failed} failed ===`);
 process.exit(failed > 0 ? 1 : 0);

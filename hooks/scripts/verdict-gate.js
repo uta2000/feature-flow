@@ -13,13 +13,17 @@ function loadState(cwd) {
   const p = path.join(cwd, '.feature-flow', 'session-state.json');
   if (!fs.existsSync(p)) return null;
   try { return JSON.parse(fs.readFileSync(p, 'utf8')); }
-  catch { return null; }
+  catch (err) {
+    try { process.stderr.write(`[verdict-gate] state file unreadable: ${err && err.message}; fail-open\n`); } catch (_) { /* stderr unavailable */ }
+    return null;
+  }
 }
 
 function isVerdictCallForPending(args, pendingId) {
   if (typeof args !== 'string') return false;
-  if (!/^verdict\b/.test(args)) return false;
-  const match = /--id\s+(\S+)/.exec(args);
+  const trimmed = args.trim();
+  if (!/^verdict\b/.test(trimmed)) return false;
+  const match = /--id[=\s]+(\S+)/.exec(trimmed);
   return match && match[1] === pendingId;
 }
 
@@ -28,7 +32,10 @@ function main() {
   if (!raw) process.exit(0);
 
   let payload;
-  try { payload = JSON.parse(raw); } catch { process.exit(0); }
+  try { payload = JSON.parse(raw); } catch (err) {
+    try { process.stderr.write(`[verdict-gate] hook payload not valid JSON: ${err && err.message}; fail-open\n`); } catch (_) { /* stderr unavailable */ }
+    process.exit(0);
+  }
 
   const toolName = payload.tool_name || '';
   if (toolName !== 'Skill') process.exit(0);

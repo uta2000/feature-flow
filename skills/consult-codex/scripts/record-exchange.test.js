@@ -91,5 +91,27 @@ assert('recordVerdict on unknown id throws', (() => {
   return threw;
 })());
 
+assert('recordVerdict no-ops on log when pending marker is hand-edited away', (() => {
+  const tmp = mkTmp();
+  state.load(tmp, 'sess', 'feat');
+  const c = record.recordConsultation(tmp, {
+    mode: 'review-design', strict: false, trigger: 'p',
+    brief: 'b', codex_response: 'r', codex_thread_id: 't'
+  });
+  // Simulate hand-edit: replace the pending marker with something else
+  const logFile = path.join(tmp, '.feature-flow', 'codex-log.md');
+  let log = fs.readFileSync(logFile, 'utf8');
+  log = log.replace('### Verdict\n_pending_', '### Verdict\n[manually edited]');
+  fs.writeFileSync(logFile, log);
+  // Record verdict — should update state but log no-ops with stderr warning
+  record.recordVerdict(tmp, c.id, { decision: 'accept', reason: 'r', outcome: 'applied' });
+  const reloaded = state.load(tmp, 'sess', 'feat');
+  const finalLog = fs.readFileSync(logFile, 'utf8');
+  fs.rmSync(tmp, { recursive: true });
+  return reloaded.consultations[0].verdict === 'accept' &&
+         finalLog.includes('[manually edited]') &&
+         !finalLog.includes('**VERDICT:** accept');
+})());
+
 console.log(`\n=== record-exchange.js: ${passed} passed, ${failed} failed ===`);
 process.exit(failed > 0 ? 1 : 0);

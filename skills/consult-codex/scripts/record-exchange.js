@@ -48,13 +48,19 @@ function appendLogSection(worktreeRoot, entry) {
 
 function rewritePendingVerdict(worktreeRoot, id, decision, reason) {
   const p = logPath(worktreeRoot);
-  if (!fs.existsSync(p)) return;
+  if (!fs.existsSync(p)) return;  // first write — acceptable, silent
   const content = fs.readFileSync(p, 'utf8');
   const header = `## Consultation ${id} —`;
   const headerIdx = content.indexOf(header);
-  if (headerIdx === -1) return;
+  if (headerIdx === -1) {
+    process.stderr.write(`[consult-codex] codex-log.md header for ${id} not found — log/state divergence; verdict recorded in state but log not updated\n`);
+    return;
+  }
   const pendingRegion = content.indexOf(PENDING_MARKER, headerIdx);
-  if (pendingRegion === -1) return;
+  if (pendingRegion === -1) {
+    process.stderr.write(`[consult-codex] pending marker for ${id} not found in log — possibly hand-edited; verdict recorded in state but log not updated\n`);
+    return;
+  }
   const replacement = `### Verdict\n**VERDICT:** ${decision} — ${reason}`;
   const updated = content.slice(0, pendingRegion) +
                   replacement +

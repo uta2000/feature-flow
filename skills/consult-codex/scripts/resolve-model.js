@@ -8,8 +8,8 @@ async function resolveModel(config, introspect) {
   let advertised = [];
   try {
     advertised = await introspect();
-  } catch {
-    return { model: null, reason: 'model_unresolvable' };
+  } catch (err) {
+    return { model: null, reason: 'model_unresolvable', detail: err && err.message };
   }
 
   if (!Array.isArray(advertised) || advertised.length === 0) {

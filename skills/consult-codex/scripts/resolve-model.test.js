@@ -48,6 +48,12 @@ async function main() {
       .then(r => r.model === null && r.reason === 'model_unresolvable')
   );
 
+  await assertAsync(
+    'returns introspection error message in detail field',
+    resolveModel({ model: null }, async () => { throw new Error('mcp server unreachable'); })
+      .then(r => r.model === null && r.reason === 'model_unresolvable' && r.detail === 'mcp server unreachable')
+  );
+
   console.log(`\n=== resolve-model.js: ${passed} passed, ${failed} failed ===`);
   process.exit(failed > 0 ? 1 : 0);
 }

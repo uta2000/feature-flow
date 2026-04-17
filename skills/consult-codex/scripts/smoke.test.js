@@ -31,7 +31,9 @@ async function main() {
   console.log('=== smoke test — three-phase review-design end-to-end ===');
 
   const tmp = mkTmp();
+  const tmp2 = mkTmp();
 
+  try {
   // Setup: .feature-flow.yml + design doc + session state with design_doc_path
   fs.writeFileSync(
     path.join(tmp, '.feature-flow.yml'),
@@ -177,7 +179,6 @@ async function main() {
 
   // === Error path: Phase 3 records skipped consultation when MCP fails ===
   // Use a fresh tmp so budget is clean
-  const tmp2 = mkTmp();
   fs.writeFileSync(
     path.join(tmp2, '.feature-flow.yml'),
     'codex:\n  enabled: true\n  model: gpt-5.2\n'
@@ -207,8 +208,10 @@ async function main() {
     })())
   );
 
-  fs.rmSync(tmp, { recursive: true });
-  fs.rmSync(tmp2, { recursive: true });
+  } finally {
+    try { fs.rmSync(tmp, { recursive: true }); } catch (_) { /* already cleaned */ }
+    try { fs.rmSync(tmp2, { recursive: true }); } catch (_) { /* already cleaned */ }
+  }
 
   console.log(`\n=== smoke: ${passed} passed, ${failed} failed ===`);
   process.exit(failed > 0 ? 1 : 0);
