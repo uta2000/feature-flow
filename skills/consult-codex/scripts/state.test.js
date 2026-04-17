@@ -81,7 +81,7 @@ assert('load renames corrupt json to .bak and creates fresh', (() => {
 // setMetadata merges keys without touching others
 assert('setMetadata updates named keys only', (() => {
   const tmp = mkTmp();
-  const s = state.load(tmp, 'sess', 'feat');
+  state.load(tmp, 'sess', 'feat');
   state.setMetadata(tmp, { design_doc_path: 'docs/plans/foo.md' });
   const reloaded = state.load(tmp, 'sess', 'feat');
   fs.rmSync(tmp, { recursive: true });
