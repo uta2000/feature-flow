@@ -26,8 +26,7 @@ start: update log message in src/api/payments.ts line 22 — change "Processing 
 | 1 — Concrete target | PASS | File path, line, and string content named |
 | 2 — Bounded file count | PASS | 1 file ≤ max_files (3) |
 | 3 — No export overlap | PASS | String literal does not overlap any export declaration |
-| 4 — Lexical region | FAIL | `"Processing payment"` is a string literal node, but its enclosing `CallExpression` callee is `logger.info` — matches `logger.*` case-insensitively. Log-call string arguments are excluded. |
-| 5 — Test impact | (not evaluated) | Short-circuit after Gate 4 |
+| 4 — Lexical region | FAIL | `"Processing payment"` is a string literal node, but its enclosing `CallExpression` callee is `logger.info` — root identifier `logger` matches case-insensitively. Log-call string arguments are excluded. |
 
 ## Expected Outcome
 

@@ -15,7 +15,7 @@ start: fix typo in docs/README.md line 5
 
 ## Gate Evaluation
 
-All 6 gates pass for `docs/README.md` (1 file, prose, clean tree, no exports).
+All 5 gates pass for `docs/README.md` (1 file, prose, clean tree, no exports).
 
 | Gate | Result | Reason |
 |------|--------|--------|
@@ -24,7 +24,6 @@ All 6 gates pass for `docs/README.md` (1 file, prose, clean tree, no exports).
 | 2 — Bounded file count | PASS | 1 file ≤ max_files (3) |
 | 3 — No export overlap | PASS | Markdown file, no export nodes |
 | 4 — Lexical region | PASS | Prose outside code fence |
-| 5 — Test impact | PASS | Untestable prose → pass |
 
 ## Expected Outcome
 

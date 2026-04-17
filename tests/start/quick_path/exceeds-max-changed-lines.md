@@ -16,7 +16,7 @@ start: update the introductory paragraph in docs/overview.md
 
 ## Gate Evaluation
 
-All 6 gates pass on confirmation (prose, 1 file, clean tree).
+All 5 gates pass on confirmation (prose, 1 file, clean tree).
 
 | Gate | Result | Reason |
 |------|--------|--------|
@@ -25,7 +25,6 @@ All 6 gates pass on confirmation (prose, 1 file, clean tree).
 | 2 — Bounded file count | PASS | 1 file ≤ max_files (3) |
 | 3 — No export overlap | PASS | Markdown file, no export nodes |
 | 4 — Lexical region | PASS | Introductory paragraph is prose outside code fence |
-| 5 — Test impact | PASS | Untestable prose → pass |
 
 ## Expected Outcome
 

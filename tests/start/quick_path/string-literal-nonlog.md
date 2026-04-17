@@ -26,8 +26,7 @@ start: fix typo in error message in src/api/auth.ts line 8 — "Unauthorzied" sh
 | 1 — Concrete target | PASS | File path, line, and string content named |
 | 2 — Bounded file count | PASS | 1 file ≤ max_files (3) |
 | 3 — No export overlap | PASS | String literal does not overlap any export declaration |
-| 4 — Lexical region | PASS | `"Unauthorzied access"` is a string literal node; enclosing `CallExpression` callee is `Error`, which does not match `log.*` / `logger.*` / `console.*` |
-| 5 — Test impact | PASS | No test matches "Unauthorzied" (misspelled); edit is a string literal → untestable as a symbol → pass |
+| 4 — Lexical region | PASS | `"Unauthorzied access"` is a string literal node; enclosing `CallExpression` callee root identifier is `Error`, which does not match `log` / `logger` / `console` / `logging` |
 
 ## Expected Outcome
 

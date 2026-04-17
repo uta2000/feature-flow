@@ -1,6 +1,6 @@
 # Fixture: Trivial Targeted Typo in Markdown Prose
 
-**Scenario:** A typo fix in Markdown prose at a specific file and line — all 6 gates pass, quick path executes.
+**Scenario:** A typo fix in Markdown prose at a specific file and line — all 5 gates pass, quick path executes.
 
 **Command:**
 ```
@@ -25,7 +25,6 @@ start: fix typo in skills/start/SKILL.md line 15 — "Teh" should be "The"
 | 2 — Bounded file count | PASS | 1 file ≤ max_files (3) |
 | 3 — No export overlap | PASS | Markdown file has no export nodes |
 | 4 — Lexical region | PASS | "Teh" is in Markdown prose outside a code fence |
-| 5 — Test impact | PASS | No test file references this prose string; edit is untestable prose → pass |
 
 ## Expected Outcome
 

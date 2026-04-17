@@ -23,7 +23,7 @@ start: fix typo in src/utils/formatter.ts line 5 — "formated" → "formatted"
 
 ## Gate Evaluation
 
-All 6 gates pass on confirmation (comment region, 1 file, clean tree, no export overlap).
+All 5 gates pass on confirmation (comment region, 1 file, clean tree, no export overlap).
 
 | Gate | Result | Reason |
 |------|--------|--------|
@@ -32,7 +32,6 @@ All 6 gates pass on confirmation (comment region, 1 file, clean tree, no export 
 | 2 — Bounded file count | PASS | 1 file ≤ max_files (3) |
 | 3 — No export overlap | PASS | Comment does not overlap any export node |
 | 4 — Lexical region | PASS | `// formated result` is a line comment node |
-| 5 — Test impact | PASS | No test references this comment text → untestable → pass |
 
 ## Expected Outcome
 

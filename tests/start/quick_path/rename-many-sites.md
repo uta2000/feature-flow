@@ -29,7 +29,6 @@ start: rename processPayment to handlePayment
 | 2 — Bounded file count | FAIL | 8 files > max_files (3) |
 | 3 — No export overlap | (not evaluated) | Short-circuit after Gate 2 |
 | 4 — Lexical region | (not evaluated) | Short-circuit after Gate 2 |
-| 5 — Test impact | (not evaluated) | Short-circuit after Gate 2 |
 
 ## Expected Outcome
 

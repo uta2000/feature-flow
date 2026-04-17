@@ -21,7 +21,6 @@ start: fix typo in README.md line 3
 | 2 — Bounded file count | (not evaluated) | Short-circuit after Gate 0 |
 | 3 — No export overlap | (not evaluated) | Short-circuit after Gate 0 |
 | 4 — Lexical region | (not evaluated) | Short-circuit after Gate 0 |
-| 5 — Test impact | (not evaluated) | Short-circuit after Gate 0 |
 
 ## Expected Outcome
 
@@ -30,6 +29,6 @@ start: fix typo in README.md line 3
 **Expected action:** Gate 0 fails. Surface user hint. Normal feature-flow/GSD heuristic scoring runs.
 
 **Expected surfaced message (if any):**
-> `Working tree is dirty — running normal lifecycle to avoid trampling in-progress work.`
+> *"Working tree is dirty — running normal lifecycle to avoid trampling in-progress work."*
 
 **Acceptance criterion mapped:** Gate 0 fails on dirty tree; verbatim user hint surfaces.

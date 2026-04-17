@@ -21,7 +21,6 @@ start: fix typo in README.md line 3 --no-quick
 | 2 — Bounded file count | (not evaluated) | Skipped |
 | 3 — No export overlap | (not evaluated) | Skipped |
 | 4 — Lexical region | (not evaluated) | Skipped |
-| 5 — Test impact | (not evaluated) | Skipped |
 
 ## Expected Outcome
 

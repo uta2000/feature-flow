@@ -23,7 +23,6 @@ start: fix "occurence" → "occurrence" typo in README.md line 12 and CHANGELOG.
 | 2 — Bounded file count | PASS | 2 files ≤ max_files (3) |
 | 3 — No export overlap | PASS | Both are Markdown files — no export nodes |
 | 4 — Lexical region | PASS | Both `old_string` ranges are in Markdown prose outside code fences |
-| 5 — Test impact | PASS | No test files reference this prose string; edits are untestable prose → pass |
 
 ## Expected Outcome
 

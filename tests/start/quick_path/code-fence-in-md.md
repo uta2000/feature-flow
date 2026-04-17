@@ -32,7 +32,6 @@ start: update example command in README.md line 45 — change "npm install" to "
 | 2 — Bounded file count | PASS | 1 file ≤ max_files (3) |
 | 3 — No export overlap | PASS | Markdown file has no export nodes |
 | 4 — Lexical region | FAIL | `npm install` at line 45 sits inside a `` ``` `` fenced code block. Gate 4 rule (a) requires Markdown prose **outside** fences. Code fences are excluded. |
-| 5 — Test impact | (not evaluated) | Short-circuit after Gate 4 |
 
 ## Expected Outcome
 

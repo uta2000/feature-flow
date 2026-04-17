@@ -21,7 +21,6 @@ start: fix typos
 | 2 — Bounded file count | (not evaluated) | Short-circuit after Gate 1 |
 | 3 — No export overlap | (not evaluated) | Short-circuit after Gate 1 |
 | 4 — Lexical region | (not evaluated) | Short-circuit after Gate 1 |
-| 5 — Test impact | (not evaluated) | Short-circuit after Gate 1 |
 
 ## Expected Outcome
 

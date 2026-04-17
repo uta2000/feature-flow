@@ -27,7 +27,6 @@ start: rename exported function foo to bar in src/utils/helpers.ts line 3
 | 2 — Bounded file count | PASS | 1 file ≤ max_files (3) (confirmation looks at source file only; call sites not yet checked) |
 | 3 — No export overlap | FAIL | The byte range of `foo` at line 3 sits inside an `export function` declaration node. Direct overlap with export AST node. |
 | 4 — Lexical region | (not evaluated) | Short-circuit after Gate 3 |
-| 5 — Test impact | (not evaluated) | Short-circuit after Gate 3 |
 
 ## Expected Outcome
 

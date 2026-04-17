@@ -27,7 +27,6 @@ start: rename variable count to total in src/utils/counter.ts line 12
 | 2 — Bounded file count | PASS | 1 file ≤ max_files (3) |
 | 3 — No export overlap | PASS | `count` variable is not an export |
 | 4 — Lexical region | FAIL | `count` at line 12 is a TypeScript identifier node, not a string literal or comment |
-| 5 — Test impact | (not evaluated) | Short-circuit after Gate 4 |
 
 ## Expected Outcome
 
