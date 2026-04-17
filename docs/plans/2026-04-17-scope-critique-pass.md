@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a `## Scope critique` section to `skills/design-verification/SKILL.md` (and a supporting reference file) that runs five strategic-shape questions after the existing compatibility check, catching oversized scope, phantom dependencies, and unobservable capability bets before a design reaches `create-issue`.
+**Goal:** Add a `### Step 4.5: Scope critique` step to `skills/design-verification/SKILL.md` (and a supporting reference file) that runs five strategic-shape questions after the existing compatibility check, catching oversized scope, phantom dependencies, and unobservable capability bets before a design reaches `create-issue`.
 
-**Architecture:** Pure markdown edits — one new top-level section in SKILL.md, one new reference file, zero JS/config/hook changes. The scope-critique pass runs as Step 4.5 (between the existing verification-batch dispatch and Step 5 report output), so Claude's working memory already contains codebase context when strategic questions run.
+**Architecture:** Pure markdown edits — one new sub-step inside `## Process`, one new reference file, zero JS/config/hook changes. The scope-critique pass runs as Step 4.5 (between the existing verification-batch dispatch and Step 5 report output), so Claude's working memory already contains codebase context when strategic questions run. Post-review refinements: BLOCKER-promotion is explicitly owned by the Step 4 Consolidation call-out; `assumptions-only` mode is excluded; Q2 prefers `exploration_results` evidence before opening referenced files directly.
 
 **Tech Stack:** Markdown, grep (AC verification)
 
@@ -27,7 +27,7 @@ Holstein13's post-creation review of #236 surfaced these six issues (verbatim su
 
 | Action | Path | Responsibility |
 |--------|------|----------------|
-| Modify | `skills/design-verification/SKILL.md` | Add `## Scope critique` top-level section after `## Process`; add call-out at end of Step 4 dispatch instructions |
+| Modify | `skills/design-verification/SKILL.md` | Add `### Step 4.5: Scope critique` step inside `## Process` (between Step 4 and Step 5); add call-out at end of Step 4 Consolidation with explicit BLOCKERs-promotion and `assumptions-only` exclusion; add scope-independence Note to Verification Depth |
 | Create | `skills/design-verification/references/scope-critique.md` | Expanded prompt text, red-flag list, bias-resistance checklist |
 
 ---
@@ -40,7 +40,7 @@ Holstein13's post-creation review of #236 surfaced these six issues (verbatim su
 - [ ] **Step 1: Run AC-1 grep — confirm it returns 0 (red)**
 
 ```bash
-grep -c "^## Scope critique" /Users/weee/Dev/feature-flow/skills/design-verification/SKILL.md
+grep -c "^### Step 4.5: Scope critique" /Users/weee/Dev/feature-flow/skills/design-verification/SKILL.md
 ```
 
 Expected output: `0`
@@ -253,7 +253,7 @@ Run after Step 4 verification batches complete (codebase context already loaded)
 - [ ] **Step 3: Run AC-1 grep — confirm it now returns 1 (green)**
 
 ```bash
-grep -c "^## Scope critique" /Users/weee/Dev/feature-flow/skills/design-verification/SKILL.md
+grep -c "^### Step 4.5: Scope critique" /Users/weee/Dev/feature-flow/skills/design-verification/SKILL.md
 ```
 
 Expected output: `1`
@@ -390,7 +390,7 @@ Expected: 2 files changed, insertions only in SKILL.md, new file scope-critique.
 - [ ] **Step 3: Final AC sweep before commit**
 
 ```bash
-grep -c "^## Scope critique" /Users/weee/Dev/feature-flow/skills/design-verification/SKILL.md && \
+grep -c "^### Step 4.5: Scope critique" /Users/weee/Dev/feature-flow/skills/design-verification/SKILL.md && \
 grep -c "Should this exist\|Could it ship smaller\|simpler version\|Observability\|Config surface" /Users/weee/Dev/feature-flow/skills/design-verification/SKILL.md && \
 ls /Users/weee/Dev/feature-flow/skills/design-verification/references/scope-critique.md
 ```

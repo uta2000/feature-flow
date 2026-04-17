@@ -255,7 +255,23 @@ If an agent fails or crashes, retry it once. If it fails again, skip it and log 
 
 #### Consolidation
 
-After all agents complete, merge results into the unified report table (same format as Step 5). Sort by category number. If a batch was skipped due to failure, add each of its categories to the report as status "SKIPPED" with finding: "Verification agent failed after retry — this category was NOT checked." In the summary, count SKIPPED categories separately and add a warning: "N categories could not be verified. Review these areas manually before proceeding."
+After all agents complete, merge results into the unified report table (same format as Step 5). Sort by category number. If a batch was skipped due to failure, add each of its categories to the report as status "SKIPPED" with finding: "Verification agent failed after retry — this category was NOT checked." In the summary, count SKIPPED categories separately and add a warning: "N categories could not be verified. Review these areas manually before proceeding." After consolidation, run the **Scope critique** pass (see `### Step 4.5: Scope critique` below) — unless `assumptions-only` is active, in which case skip it (strategic critique is out of scope for assumption-only mode). Append the pass's findings block to the report, and for every row with status BLOCKER add one entry to the Step 5 `### Blockers` list formatted as `[Scope critique Q<N>] <finding>`, before proceeding to Step 5.
+
+### Step 4.5: Scope critique
+
+Run after Step 4 verification batches complete (codebase context already loaded). Ask five strategic-shape questions about the design's scope, dependencies, and observability. See `references/scope-critique.md` for the full prompt text, expanded red-flag list, and bias-resistance checklist.
+
+**When to run:** Always, except when `assumptions-only` is active (assumption verification is a targeted mode; strategic critique is out of scope).
+
+**Five checklist questions:**
+
+1. **Should this exist in its current shape?** Restate the problem in the reviewer's own words. Is it real and current, or speculative?
+2. **Could it ship smaller?** Count independent deliverables. For each declared dependency, verify by inspecting the referenced files — don't trust the description.
+3. **Is there a simpler version?** Documentation / config flag / soft hint / deletion that captures most of the value.
+4. **Observability sanity.** If the design gates on a capability unobservable from hooks/skills/APIs, flag for deferral or explicit proxy documentation.
+5. **Config surface review.** For each new config key: would anyone realistically flip this? If no, hardcode or drop.
+
+**Output:** Append a `### Scope critique findings` table to the design-verification report (format defined in `references/scope-critique.md`). Any BLOCKER-severity row is promoted to the top-level `### Blockers` list per the Step 4 Consolidation call-out above (labelled `[Scope critique Q<N>]`).
 
 ### Step 5: Report Findings
 
@@ -350,6 +366,8 @@ Adjust depth based on the design's scope:
 | Configuration or env change | Categories 7, 10-12, 14, 19-23 + stack/gotchas + Category 24 if design_preferences present |
 
 **Note:** Category 25 (External Assumptions) is scope-independent — it is triggered by content signals in the design document, not by design scope. Always evaluated if signals are present, regardless of which row above applies.
+
+**Note:** Step 4.5 (Scope critique) is also scope-independent — it runs for every design at every depth, except when `assumptions-only` is active. It is governed by its own run-condition, not by the table rows above.
 
 ## Quality Rules
 
