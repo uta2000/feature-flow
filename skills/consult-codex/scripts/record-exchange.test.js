@@ -1,0 +1,117 @@
+#!/usr/bin/env node
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const state = require('./state');
+const record = require('./record-exchange');
+
+let passed = 0, failed = 0;
+function assert(name, cond) {
+  if (cond) { console.log(`  ok — ${name}`); passed++; }
+  else { console.log(`  FAIL — ${name}`); failed++; }
+}
+function mkTmp() { return fs.mkdtempSync(path.join(os.tmpdir(), 'codex-rec-')); }
+function readLog(tmp) {
+  const p = path.join(tmp, '.feature-flow', 'codex-log.md');
+  return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : '';
+}
+
+console.log('=== record-exchange.js ===');
+
+assert('recordConsultation appends to state and writes pending log section', (() => {
+  const tmp = mkTmp();
+  state.load(tmp, 'sess', 'feat');
+  const c = record.recordConsultation(tmp, {
+    mode: 'review-design',
+    strict: false,
+    trigger: 'proactive',
+    brief: '# brief\nsome brief text',
+    codex_response: 'diagnosis: fine\nrecommendation: ship\nconfidence: high',
+    codex_thread_id: 'thread-1'
+  });
+  const log = readLog(tmp);
+  fs.rmSync(tmp, { recursive: true });
+  return c.id === 'c1' &&
+         log.includes('## Consultation c1') &&
+         log.includes('mode: review-design') &&
+         log.includes('thread-1') &&
+         log.includes('### Verdict\n_pending_');
+})());
+
+assert('recordVerdict updates state and rewrites pending section', (() => {
+  const tmp = mkTmp();
+  state.load(tmp, 'sess', 'feat');
+  const c = record.recordConsultation(tmp, {
+    mode: 'stuck', strict: true, trigger: 'reactive',
+    brief: '# brief', codex_response: 'diag', codex_thread_id: 't'
+  });
+  record.recordVerdict(tmp, c.id, { decision: 'accept', reason: 'spotted the replica mismatch', outcome: 'applied' });
+  const reloaded = state.load(tmp, 'sess', 'feat');
+  const log = readLog(tmp);
+  fs.rmSync(tmp, { recursive: true });
+  return reloaded.consultations[0].verdict === 'accept' &&
+         log.includes('**VERDICT:** accept — spotted the replica mismatch') &&
+         !log.includes('_pending_');
+})());
+
+assert('rewriting c2 verdict does not touch c1 pending', (() => {
+  const tmp = mkTmp();
+  state.load(tmp, 'sess', 'feat');
+  record.recordConsultation(tmp, {
+    mode: 'review-design', strict: false, trigger: 'proactive',
+    brief: 'b', codex_response: 'r1', codex_thread_id: 't1'
+  });
+  const c2 = record.recordConsultation(tmp, {
+    mode: 'review-plan', strict: false, trigger: 'proactive',
+    brief: 'b', codex_response: 'r2', codex_thread_id: 't2'
+  });
+  record.recordVerdict(tmp, c2.id, { decision: 'reject', reason: 'r2 reason', outcome: 'declined' });
+  const log = readLog(tmp);
+  fs.rmSync(tmp, { recursive: true });
+  const c1HeaderIdx = log.indexOf('## Consultation c1');
+  const c2HeaderIdx = log.indexOf('## Consultation c2');
+  if (c1HeaderIdx === -1 || c2HeaderIdx === -1) return false;
+  const c1Section = log.slice(c1HeaderIdx, c2HeaderIdx);
+  const c2Section = log.slice(c2HeaderIdx);
+  return c1Section.includes('_pending_') &&
+         !c1Section.includes('**VERDICT:** reject') &&
+         c2Section.includes('**VERDICT:** reject — r2 reason') &&
+         !c2Section.includes('_pending_');
+})());
+
+assert('recordVerdict on unknown id throws', (() => {
+  const tmp = mkTmp();
+  state.load(tmp, 'sess', 'feat');
+  let threw = false;
+  try { record.recordVerdict(tmp, 'c99', { decision: 'accept', reason: 'x', outcome: 'applied' }); }
+  catch { threw = true; }
+  fs.rmSync(tmp, { recursive: true });
+  return threw;
+})());
+
+assert('recordVerdict no-ops on log when pending marker is hand-edited away', (() => {
+  const tmp = mkTmp();
+  state.load(tmp, 'sess', 'feat');
+  const c = record.recordConsultation(tmp, {
+    mode: 'review-design', strict: false, trigger: 'p',
+    brief: 'b', codex_response: 'r', codex_thread_id: 't'
+  });
+  // Simulate hand-edit: replace the pending marker with something else
+  const logFile = path.join(tmp, '.feature-flow', 'codex-log.md');
+  let log = fs.readFileSync(logFile, 'utf8');
+  log = log.replace('### Verdict\n_pending_', '### Verdict\n[manually edited]');
+  fs.writeFileSync(logFile, log);
+  // Record verdict — should update state but log no-ops with stderr warning
+  record.recordVerdict(tmp, c.id, { decision: 'accept', reason: 'r', outcome: 'applied' });
+  const reloaded = state.load(tmp, 'sess', 'feat');
+  const finalLog = fs.readFileSync(logFile, 'utf8');
+  fs.rmSync(tmp, { recursive: true });
+  return reloaded.consultations[0].verdict === 'accept' &&
+         finalLog.includes('[manually edited]') &&
+         !finalLog.includes('**VERDICT:** accept');
+})());
+
+console.log(`\n=== record-exchange.js: ${passed} passed, ${failed} failed ===`);
+process.exit(failed > 0 ? 1 : 0);

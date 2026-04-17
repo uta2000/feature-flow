@@ -79,6 +79,31 @@ After reading `.feature-flow.yml`, check for version drift:
 
 5. Write `.feature-flow.yml` with confirmed values (include `plugin_version` set to the running plugin version; gotchas starts empty — skills will populate it as they discover issues)
 
+When emitting the file, append the following commented opt-in block after the `context7:` section and before any `notifications:` section so users discover the codex consultation option without it being active by default:
+
+```yaml
+# Optional: codex MCP consultation at four lifecycle checkpoints
+# (review-design, review-plan, review-code, stuck). Requires the
+# `codex` MCP server to be configured. OFF by default — uncomment
+# and set `enabled: true` to turn on.
+#
+# codex:
+#   enabled: true
+#   model: gpt-5.2                         # update when model names change
+#   timeout_seconds: 180
+#   proactive_reviews:
+#     design_doc: true
+#     plan_criteria: true
+#     pre_harden: true
+#   reactive:
+#     enabled: true
+#     interactive_cap: 3
+#     yolo_cap: 10
+#     escape_hatch_window_minutes: 30
+#
+# See docs/plans/2026-04-14-codex-consultation.md for the full design.
+```
+
 See `../../references/auto-discovery.md` for the full detection rules.
 See `../../references/project-context-schema.md` for the schema.
 
