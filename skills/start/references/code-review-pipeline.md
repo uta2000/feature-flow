@@ -237,21 +237,34 @@ Group all remaining findings by file path. Within each file, for each pair of fi
 
 ## Phase 3: Single-Pass Fix Implementation
 
-Apply all conflict-free Critical and Important findings in a single coordinated pass:
+Apply all conflict-free Critical and Important findings in a single coordinated pass. Phase 3 partitions findings by `finding_type`:
+
+**Partition step (runs first):**
+
+- `rule_findings` = findings with `finding_type == "rule"` (or findings with no `finding_type` field — i.e., findings from Phase 1a/1b, which are implicitly rule findings).
+- `judgment_findings` = findings with `finding_type` in `{architectural, operability, product_fit}`. These come from Phase 1c.
+
+**For `rule_findings` (current behavior):**
 
 1. Sort findings by file path, then by line number (descending — apply bottom-up to avoid line number shifts)
 2. For each finding, apply the concrete `fix:` code change
 3. After all fixes applied, commit as a single commit:
    ```bash
    git add -A
-   git commit -m "fix: apply code review fixes"
+   git commit -m "fix: apply rule-based code review fixes"
    ```
 
 If `git commit` fails (non-zero exit): stop. Announce: "Phase 3 commit failed: [error]. Manual intervention required — do not proceed to Phase 4 until resolved."
 
-If no Critical or Important findings exist (all clean or all Minor): skip this commit. Announce: "No review fixes to commit — code was already clean."
+**For `judgment_findings`:**
 
-Otherwise, announce: "Review fixes committed as single commit (N Critical, M Important findings addressed)."
+Do **not** edit files. Do **not** commit. Pass through to Phase 5 unchanged. These findings appear in the "Senior Panel — Judgment Findings" subsection of the Phase 5 report for the user to review, discuss, defer, or address manually.
+
+**Empty-branch announcements (choose exactly one):**
+
+- If both `rule_findings` and `judgment_findings` are empty → "No review fixes to commit — code was already clean."
+- If `rule_findings` is empty but `judgment_findings` is non-empty → "No auto-applicable fixes. N judgment findings from the senior panel require human discussion — see Phase 5 report."
+- Otherwise → "Review fixes committed as single commit (N Critical, M Important findings addressed). K judgment findings passed through to Phase 5." (Omit the trailing sentence when `judgment_findings` is empty.)
 
 **Why bottom-up ordering:** When multiple fixes target the same file, applying from the bottom up ensures earlier line numbers remain valid.
 
