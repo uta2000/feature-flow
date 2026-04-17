@@ -206,11 +206,12 @@ A single opus subagent orchestrates three personas sequentially (Staff Engineer 
 After all Phase 1b agents complete, consolidate findings from both phases and detect conflicts before applying fixes.
 
 **Step 1 — Cross-Phase Finding Merge:**
-Collect and merge findings from two sources:
+Collect and merge findings from up to three sources:
 - **Phase 1a** pr-review-toolkit summary (Critical/Important/Minor sections only — Auto-Fixed already committed). These are findings the toolkit identified but did not auto-fix.
 - **Phase 1b** report-only agent results. These agents reviewed the code AFTER Phase 1a auto-fixes were committed, so their findings reflect the current state.
+- **Phase 1c** senior panel findings (Major-feature scope only). Standard structured format plus `finding_type` and `persona` fields — see `skills/start/references/senior-panel.md`.
 
-Both sources use the same structured format. Merge into a single list before deduplication.
+All sources use the same structured format. Merge into a single list before deduplication. Phase 1c may be absent (sub-Major scope); that is not a merge error.
 
 **Malformed subagent response guard:** If the pr-review-toolkit subagent response is missing any of the required sections (`### Auto-Fixed`, `### Critical`, `### Important`, `### Minor`), treat it as a subagent failure: announce "pr-review-toolkit subagent returned a malformed summary — findings from that subagent skipped." and proceed with Phase 1b findings only.
 
