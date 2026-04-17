@@ -106,6 +106,20 @@ assert('setMetadata self-initializes state when file is missing', (() => {
          reloaded.budget && reloaded.budget.proactive;
 })());
 
+// Regression guard: when the integrating skill DOESN'T set env vars, the
+// auto-init session id must match consult.js's CLI default ('cli-session'),
+// otherwise the next state.load from consult.js GCs the metadata.
+assert('setMetadata auto-init survives a default consult.js-style load', (() => {
+  const tmp = mkTmp();
+  delete process.env.FEATURE_FLOW_SESSION_ID;
+  delete process.env.FEATURE_FLOW_FEATURE;
+  state.setMetadata(tmp, { design_doc_path: 'docs/plans/x.md' });
+  // Simulate consult.js CLI wrapper's default env resolution.
+  const reloaded = state.load(tmp, 'cli-session', path.basename(tmp));
+  fs.rmSync(tmp, { recursive: true });
+  return reloaded.design_doc_path === 'docs/plans/x.md';
+})());
+
 // appendConsultation increments id sequentially
 assert('appendConsultation assigns sequential ids starting at c1', (() => {
   const tmp = mkTmp();

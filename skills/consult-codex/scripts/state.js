@@ -90,10 +90,11 @@ function setMetadata(worktreeRoot, patch) {
   const p = statePath(worktreeRoot);
   // Self-initialize when state is missing — the integrating skill (e.g. design-document)
   // calls setMetadata before any consult.js subcommand runs, so state may not exist yet.
-  // We use env-var-derived defaults that match consult.js's CLI wrapper, so a subsequent
-  // state.load with the same session id won't trigger GC.
+  // Defaults MUST match consult.js's CLI wrapper exactly (`cli-session`, basename(cwd)),
+  // otherwise the next state.load from consult.js sees a session-id mismatch and GCs the
+  // metadata we just wrote.
   if (!fs.existsSync(p)) {
-    const sessionId = process.env.FEATURE_FLOW_SESSION_ID || `auto-${Date.now()}`;
+    const sessionId = process.env.FEATURE_FLOW_SESSION_ID || 'cli-session';
     const feature = process.env.FEATURE_FLOW_FEATURE || path.basename(worktreeRoot);
     save(worktreeRoot, freshState(sessionId, feature));
   }
