@@ -56,22 +56,36 @@ assert('renders non-empty attempts_log entries', (() => {
   return brief.includes('jsonb column') && brief.includes('migration failed');
 })());
 
-assert('truncates to 12 KB with marker', (() => {
+assert('truncates to 12 KB with marker (ascii input)', (() => {
   const hugeCurrent = 'x'.repeat(20000);
   const brief = buildBrief({
     mode: 'review-design', state: baseState, goal: 'g', currentState: hugeCurrent,
     signals: 's', question: 'q'
   });
-  return brief.length <= 12288 && brief.includes('[truncated');
+  return Buffer.byteLength(brief, 'utf8') <= 12288 && brief.includes('[truncated');
 })());
 
-assert('constraint block lists all four constraints', (() => {
+assert('truncates to 12 KB respecting utf-8 codepoint boundaries', (() => {
+  // Each '日' is 3 bytes — repeating produces a string whose byte boundary
+  // falls mid-codepoint at most byte budgets, exercising the U+FFFD strip path.
+  const hugeCurrent = '日'.repeat(20000);
+  const brief = buildBrief({
+    mode: 'review-design', state: baseState, goal: 'g', currentState: hugeCurrent,
+    signals: 's', question: 'q'
+  });
+  return Buffer.byteLength(brief, 'utf8') <= 12288 &&
+         brief.includes('[truncated') &&
+         !brief.includes('\uFFFD');
+})());
+
+assert('constraint block lists all five constraints', (() => {
   const brief = buildBrief({
     mode: 'stuck', state: baseState, goal: 'g', currentState: 'cs',
     signals: 's', question: 'q'
   });
   return brief.includes('You have read-only access') &&
          brief.includes("Do NOT suggest any approach listed") &&
+         brief.includes('If you think the goal itself is wrong') &&
          brief.includes('under 400 words') &&
          brief.includes('(1) diagnosis, (2) recommendation, (3) confidence');
 })());

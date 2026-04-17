@@ -16,7 +16,10 @@ function formatAttempts(attempts) {
 function truncate(brief) {
   if (Buffer.byteLength(brief, 'utf8') <= MAX_BRIEF_BYTES) return brief;
   const budget = MAX_BRIEF_BYTES - Buffer.byteLength(TRUNCATION_MARKER, 'utf8');
-  const sliced = Buffer.from(brief, 'utf8').subarray(0, budget).toString('utf8');
+  let sliced = Buffer.from(brief, 'utf8').subarray(0, budget).toString('utf8');
+  // If the slice landed mid-codepoint, Node substitutes U+FFFD. Strip it so
+  // the resulting brief is at most MAX_BRIEF_BYTES bytes (rather than +1 or +2).
+  if (sliced.endsWith('\uFFFD')) sliced = sliced.slice(0, -1);
   return sliced + TRUNCATION_MARKER;
 }
 
