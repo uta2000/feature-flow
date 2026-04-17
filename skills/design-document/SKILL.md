@@ -165,6 +165,40 @@ Use today's date. Use kebab-case for the feature name.
 
 If a design doc for this feature already exists (from a previous session), update it rather than creating a new file.
 
+### Step: Optional codex review
+
+If `.feature-flow.yml` has `codex.enabled: true` AND `codex.proactive_reviews.design_doc: true`:
+
+1. Record the design doc path in session state so the consult-codex skill can find it:
+
+   ```bash
+   node -e '
+     const state = require("./skills/consult-codex/scripts/state.js");
+     state.setMetadata(process.cwd(), { design_doc_path: process.argv[1] });
+   ' "<relative path to the design doc just written>"
+   ```
+
+2. Invoke consult-codex:
+
+   ```
+   Skill(skill: "feature-flow:consult-codex", args: "mode: review-design")
+   ```
+
+3. Read the returned diagnosis/recommendation/confidence block. Decide whether to incorporate any of codex's findings into the design doc. If you edit the doc, re-save it.
+
+4. **Record your verdict** via the one-liner at the bottom of the skill return:
+
+   ```
+   Skill(skill: "feature-flow:consult-codex", args: "verdict --id c1 --decision <accept|reject> --reason <specific text>")
+   ```
+
+   - `accept` means you applied at least one of codex's suggestions (or confirmed they were already covered)
+   - `reject` means you read the advice and chose not to apply any of it, for a reason that references the design or already-tried approaches
+
+5. If `codex.enabled` is false, the section at `codex.proactive_reviews.design_doc` is false, or the codex MCP server is unavailable, skip this step entirely. The skill invocation is a no-op in those cases — no lifecycle impact.
+
+This step does NOT halt the lifecycle on a reject verdict. The verdict is an audit record, not a gate. Proceed to verification either way.
+
 ### Step 5: Present for Review
 
 Present the document section by section (200-300 words per section). After each section, confirm with the user:

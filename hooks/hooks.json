@@ -44,6 +44,16 @@
           }
         ],
         "description": "BLOCK Task/Agent dispatches missing explicit model parameter"
+      },
+      {
+        "matcher": "Skill",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/verdict-gate.js"
+          }
+        ],
+        "description": "BLOCK non-verdict Skill calls when a strict codex consultation has a pending verdict"
       }
     ],
     "PostToolUse": [
