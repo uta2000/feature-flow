@@ -72,12 +72,41 @@ Read `tool_selector.confidence_threshold` from .feature-flow.yml (default: 0.7):
 
 ### Step 5: Display recommendation
 
-Show recommendation based on confidence band:
+Show recommendation based on path or confidence band:
+
+- **⚡ quick path** — reached only via Quick-Path Confirmation gates (Step 3), never via heuristic scoring. Announce in a single auditable line before making any edits:
+  ```
+  ⚡ Quick path confirmed: <path>:<line> — <region kind> in <language>, <N> file(s), budget: ≤<max_changed_lines> lines. Editing directly.
+  ```
+  Where `<region kind>` is one of: `prose edit in Markdown`, `comment edit in TypeScript`, `string-literal edit in Python`, etc. `<max_changed_lines>` is from config (default 10). Then proceed immediately to Step 6 quick-path execution branch.
 - **🟢 feature-flow** (0.0–0.4): Skip display, proceed silently
 - **🟡 GSD-recommended** (0.4–0.7): Display recommendation, ask user to choose
 - **🔴 GSD-strongly-recommended** (0.7+): Display recommendation, ask user to choose
 
 ### Step 6: Execute user choice
+
+**If `quick_path_confirmed` is set (from Step 3 Quick-Path Confirmation):** Execute the quick-path flow below. Do not prompt the user for a choice — the confirmation gates already verified the scope.
+
+#### Quick-Path Execution (8-step flow)
+
+1. **Announce confirmation** — output the single auditable line from Step 5 ⚡ band.
+2. **Record confirmed scope** — note the set of confirmed file paths and their confirmed lexical regions in working context. **No state file. No `.feature-flow/session-state.json`.** Scope set lifetime is this single skill invocation.
+3. **Edit the file(s) in the confirmed set** via the Edit tool.
+4. **Run Stop-hook checks** (tsc, lint, type-sync). Stop hook may auto-format / auto-fix, changing diff size.
+5. **Post-hook pre-commit budget check:** run `git diff --numstat` summed across confirmed files (added + removed lines). If total > `max_changed_lines` (default 10) → escape hatch (step 6). This runs **after** Stop hook so auto-format changes are included.
+6. **Hard-assertion escape hatch:** If the edit touched any file **outside** the confirmed set, introduced a new exported symbol, exceeded `max_changed_lines`, or the Stop hook failed → hard stop. Run:
+   ```bash
+   git checkout -- <all confirmed file paths>
+   ```
+   (Safe because Gate 0 guarantees the tree was clean before quick path wrote anything — this only discards what quick path itself wrote. Restore is multi-file atomic: all confirmed files, even if only one was edited.) Then tell the user:
+   > `⚠ Quick path misclassified this change (<reason>). No commit made, working tree restored. Re-run with \`start: <description>\` for the full lifecycle.`
+   Stop. Do not commit, do not fall through.
+7. **Commit.** Check `git log --oneline -20` to observe the project's existing commit prefix style (e.g., `docs:`, `fix:`, `feat:`, `refactor:`). Write the commit message in imperative mood, following that style. Include the actual post-edit line count in the message body (`N lines changed`). **No Claude co-author trailer.**
+8. **Skip everything else.** No design doc, no design verification, no implementation plan, no acceptance criteria doc, no handoff. The commit and the auditable announcement line are the only artifacts.
+
+---
+
+**If `quick_path_confirmed` is not set (normal paths):**
 
 - If user chooses "Use feature-flow" → proceed with brainstorming
 - If user chooses "Launch GSD" → execute GSD handoff (see below)
