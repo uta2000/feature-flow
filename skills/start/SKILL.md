@@ -22,9 +22,10 @@ Read `.feature-flow.yml` and look for `tool_selector.enabled`:
 
 ### Step 2: Check for command-line overrides
 
-Did the user include `--feature-flow` or `--gsd` flag?
+Did the user include `--feature-flow`, `--gsd`, or `--no-quick` flag?
 - If `--feature-flow` present → remove flag from description, skip detection, use feature-flow
 - If `--gsd` present → remove flag from description, skip detection, launch GSD
+- If `--no-quick` present → remove flag from description, record `no_quick_override = true`, continue to step 3 (Quick-Path Confirmation will be skipped; heuristic scoring runs normally)
 - If no flags → continue to step 3
 
 ### Step 3: Run heuristic detection
@@ -33,12 +34,12 @@ Did the user include `--feature-flow` or `--gsd` flag?
 
 #### Quick-Path Confirmation
 
-Quick path is available when `tool_selector.quick_path.enabled` is `true` (default) and `--no-quick` was not passed. If either condition is false, skip this subsection entirely and proceed to heuristic scoring.
+Quick path is available when `tool_selector.quick_path.enabled` is `true` (default) and `no_quick_override` is not set (see Step 2 — set by the `--no-quick` flag). If either condition is false, skip this subsection entirely and proceed to heuristic scoring.
 
 Run gates in strict order 0 → 5. **First failure short-circuits immediately** — do not run later gates. Pass budget: **≤5 Bash/Grep/Read tool calls total across all gates**. In-process AST tokenization and byte-range overlap checks are free (do not count). If you reach 5 tool calls before all gates pass, abort confirmation and fall through silently.
 
-| # | Gate | Pass condition | Fail action |
-|---|------|----------------|-------------|
+| # | Gate | Pass condition | Fail surface |
+|---|------|----------------|--------------|
 | 0 | **Clean working tree** | `git status --porcelain` returns empty | Surface to user: *"Working tree is dirty — running normal lifecycle to avoid trampling in-progress work."* Then fall through to heuristic scoring. |
 | 1 | **Concrete target identifiable** | Description names a file path, function name, symbol, or string literal | Surface to user: *"No specific target named — running normal lifecycle. If you meant a specific file, say `start: fix typo in X.ts line 42`."* Then fall through. |
 | 2 | **Bounded file count** | Target resolves to ≤ `max_files` files (default 3) | Silent fallthrough |

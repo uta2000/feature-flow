@@ -30,6 +30,6 @@ start: fix typos
 **Expected action:** Gate 1 fails. Surface user hint. Proceed with normal feature-flow/GSD heuristic scoring.
 
 **Expected surfaced message (if any):**
-> `No specific target named — running normal lifecycle. If you meant a specific file, say \`start: fix typo in X.ts line 42\`.`
+> *"No specific target named — running normal lifecycle. If you meant a specific file, say `start: fix typo in X.ts line 42`."*
 
 **Acceptance criterion mapped:** Gate 1 fails on untargeted ask; user hint surfaces verbatim.

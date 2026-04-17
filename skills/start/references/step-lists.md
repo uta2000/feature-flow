@@ -14,14 +14,16 @@ Reference file for the start skill lifecycle orchestrator.
 
 The quick path is an alternate route that bypasses all scope-based step lists below. It is taken **only** when Quick-Path Confirmation gates (in `SKILL.md` Step 3) all pass. It produces no brainstorming output, no design doc, no implementation plan, no acceptance criteria, and no handoff.
 
-Quick-path steps (executed inline within the Triage section — no task list is built):
+Quick-path steps (executed inline within the Triage section — no task list is built). Matches the 8-step execution flow in `SKILL.md` Step 6 quick-path branch:
 ```
 1. Announce: ⚡ Quick path confirmed: <path>:<line> — <region kind> in <language>, <N> file(s), budget: ≤<max_changed_lines> lines. Editing directly.
-2. Edit the confirmed file(s).
-3. Run Stop-hook checks (tsc, lint, type-sync).
-4. Post-hook budget check: git diff --numstat summed across confirmed files ≤ max_changed_lines.
-5. Escape hatch if post-conditions fail (restore all confirmed files, no commit).
-6. Commit (model-authored, imperative mood, no Claude co-author trailer).
+2. Record confirmed scope (file paths + lexical regions) in working context. No state file.
+3. Edit the confirmed file(s).
+4. Run Stop-hook checks (tsc, lint, type-sync).
+5. Post-hook budget check: git diff --numstat summed across confirmed files ≤ max_changed_lines.
+6. Escape hatch if post-conditions fail (restore all confirmed files with `git checkout -- <paths>`, no commit).
+7. Commit (model-authored, imperative mood, project style, post-edit line count in body, no Claude co-author trailer).
+8. Skip everything else: no design doc, no plan, no acceptance criteria doc, no handoff.
 ```
 
 Skipped lifecycle phases: brainstorm → design → verify → plan → acceptance criteria → worktree → code review → CHANGELOG → final verification → sync → PR → wait for CI → harden PR → post-implementation comment → handoff.
