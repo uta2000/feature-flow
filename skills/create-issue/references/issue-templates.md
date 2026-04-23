@@ -9,9 +9,9 @@
 
 **Example:** [Concrete input → output example]
 
-## Design Doc
+## Design
 
-See `docs/plans/YYYY-MM-DD-feature-name.md`
+See the `## Design (feature-flow)` section below (populated by `feature-flow:design-document` between `<!-- feature-flow:design:start -->` markers).
 
 ## User Flow
 
@@ -70,9 +70,9 @@ N DB column changes + type updates. See design doc for full list.
 
 Integrate [API name] to [purpose]. [Key constraint].
 
-## Design Doc
+## Design
 
-See `docs/plans/YYYY-MM-DD-feature-name.md`
+See the `## Design (feature-flow)` section below (populated by `feature-flow:design-document` between `<!-- feature-flow:design:start -->` markers).
 
 ## API Details
 
@@ -111,9 +111,9 @@ See `docs/plans/YYYY-MM-DD-feature-name.md`
 
 [What the UI change does and why]
 
-## Design Doc
+## Design
 
-See `docs/plans/YYYY-MM-DD-feature-name.md`
+See the `## Design (feature-flow)` section below (populated by `feature-flow:design-document` between `<!-- feature-flow:design:start -->` markers).
 
 ## User Flow
 
@@ -172,9 +172,9 @@ See `docs/plans/YYYY-MM-DD-feature-name.md`
 
 [What data needs to change and why]
 
-## Design Doc
+## Design
 
-See `docs/plans/YYYY-MM-DD-feature-name.md`
+See the `## Design (feature-flow)` section below (populated by `feature-flow:design-document` between `<!-- feature-flow:design:start -->` markers).
 
 ## Migration Details
 
@@ -210,9 +210,9 @@ See `docs/plans/YYYY-MM-DD-feature-name.md`
 
 **Example:** [Concrete input → output example]
 
-## Design Doc
+## Design
 
-See `docs/plans/YYYY-MM-DD-feature-name.md`
+See the `## Design (feature-flow)` section below (populated by `feature-flow:design-document` between `<!-- feature-flow:design:start -->` markers).
 
 ## User Flow
 
