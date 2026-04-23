@@ -42,41 +42,6 @@ This step queries Context7 for current patterns relevant to the feature being bu
 - Keep queries specific to the feature, not generic
 - If the docs contradict the stack reference file, note the discrepancy
 
----
-
-## Commit Planning Artifacts Step
-
-This step runs after verify-plan-criteria and before worktree setup. It commits design documents and project config to the base branch so the worktree inherits them via git history, preventing untracked file clutter.
-
-**Process:**
-1. Run inline: `git status --porcelain docs/plans/*.md .feature-flow.yml 2>&1`
-   - If output is empty: skip — "No planning artifacts to commit."
-   - If output is non-empty (changes detected OR git error output): proceed to step 2 — treat conservatively as "artifacts may exist."
-2. Dispatch a general-purpose subagent to commit. **Before dispatching, substitute `[feature-name]` with the actual feature name from Step 1** (e.g., "csv-export", "auth-refresh-token"). The orchestrator holds this value in context:
-
-   ```
-   Task(
-     subagent_type: "general-purpose",
-     model: "sonnet",
-     description: "Commit planning artifacts to base branch",
-     prompt: "Commit the following files to git. Files: docs/plans/*.md and .feature-flow.yml (git add is safe on unchanged tracked files — it no-ops). Commit message: 'docs: add design and implementation plan for [feature-name]'. Run: git add docs/plans/*.md .feature-flow.yml && git commit -m '[message]'. If no files are staged after add, report 'nothing to commit'. Return: committed SHA or 'nothing to commit'."
-   )
-   ```
-
-   If the subagent fails or errors, log the error and continue — commit failure is non-blocking.
-
-3. Announce: "Planning artifacts committed: [SHA returned by subagent]" or "Nothing to commit — skipping."
-
-**Edge cases:**
-- **`.feature-flow.yml` already tracked and unchanged** — `git add` no-ops on unchanged tracked files
-- **No plan files exist** — git status in step 1 returns empty (exit 0), step skipped
-- **Only `.feature-flow.yml` changed** — still dispatches subagent; file should be tracked regardless
-- **git errors in output** — `2>&1` redirects stderr to stdout; git errors appear as non-empty output and are treated conservatively as "may have artifacts" — the subagent proceeds and determines the actual state
-
-> **Note:** The commit message in this step is fixed (`docs: add design and implementation plan for [feature-name]`). For implementation commits (created during the Implement step), follow the atomic commit format in `references/git-workflow.md` — one commit per acceptance criterion with the `feat(scope): description — ✓criterion` format.
-
----
-
 ## Copy Env Files Step
 
 This step runs after worktree setup and before study existing patterns. It copies non-production `.env*` files from the main worktree into the new worktree so that tests, tools, and dependency scripts have access to environment configuration.
@@ -186,7 +151,7 @@ This step runs after copy env files and before implementation. It forces reading
 - State management: [specific approach matching existing patterns]
 ```
 
-6. **Write to context file.** After generating the "How to Code This" notes, write the full findings (Existing Patterns Found, Anti-Patterns, How to Code This) to `.feature-flow/implement/patterns-found.md`. Append to the existing file rather than overwriting, so multiple study passes accumulate. If the file does not exist yet (e.g., worktree was set up without the init step), create it using the template from `../../references/phase-context-templates.md`.
+6. **Write to context file.** After generating the "How to Code This" notes, write the full findings (Existing Patterns Found, Anti-Patterns, How to Code This) to `.feature-flow/implement/patterns-found.md`. Append to the existing file rather than overwriting, so multiple study passes accumulate.
 
 7. Pass these patterns, the "How to Code This" notes, anti-pattern warnings, AND reference examples from the consolidated output to BOTH the implementation step AND the code review pipeline step as mandatory context. **New code MUST follow these patterns unless there is a documented reason to deviate.** The code review pipeline uses reference examples to check new code against known-good patterns.
 
