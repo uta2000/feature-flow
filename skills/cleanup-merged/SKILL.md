@@ -76,9 +76,13 @@ gh pr view <pr_number> --json state --jq '.state'
 
 Run all six actions in order. Each action tolerates "already done" state — a missing worktree, an already-deleted branch, or an already-removed file is treated as success for that action.
 
-**CWD-safety guard:** Before any action, verify the process is NOT currently inside the worktree being removed:
+**CWD-safety guard:** Before any action, capture the base repo root and verify the process is NOT currently inside the worktree being removed:
 
 ```bash
+# Capture BASE_REPO before any removal — if CWD is inside the worktree,
+# git rev-parse will still work because the worktree exists at this point.
+BASE_REPO=$(git rev-parse --show-toplevel)
+
 CURRENT_DIR=$(pwd)
 if [[ "$CURRENT_DIR" == "${worktree_path}"* ]]; then
   echo "cleanup-merged: SAFETY — refusing to remove worktree currently in use at ${worktree_path}. Change to the base repo root first."
@@ -94,6 +98,11 @@ git worktree remove "<worktree_path>" --force 2>/dev/null || true
 
 Announce on success: `cleanup-merged: worktree removed — <worktree_path>`
 Announce on skip (CWD safety): `cleanup-merged: worktree removal skipped — currently inside worktree (safe to retry from base repo root).`
+
+```bash
+# Ensure CWD is stable for Actions 2–6 even if CWD was inside the removed worktree.
+cd "$BASE_REPO" || exit 1
+```
 
 **Action 2 — Fallback directory removal:**
 
