@@ -671,7 +671,7 @@ For inline steps (CHANGELOG generation, self-review, code review, study existing
 | `base_branch` | Step 0 — base branch detection |
 | `feature_context` | Step 0 — knowledge base pre-flight (null if no FEATURE_CONTEXT.md found). File is session-local (not committed). |
 | `issue` | Step 1 — when an issue number is linked |
-| `design_doc` | After design document step (the absolute path returned by the skill) |
+| `design_issue` | After create-issue step — integer issue number containing the design (set by create-issue; design-document edits the body) |
 | `plan_file` | After implementation plan step (the absolute path of the saved plan file) |
 | `worktree` | After worktree setup (the absolute path to the created worktree) |
 | `pr` | After "Commit and PR" step (the PR number extracted from the `superpowers:finishing-a-development-branch` output) |
