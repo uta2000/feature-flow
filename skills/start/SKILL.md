@@ -685,14 +685,14 @@ Task(subagent_type: "general-purpose", model: "opus", description: "YOLO brainst
 
 # YOLO mode — planning via Task dispatch with explicit model:
 Task(subagent_type: "general-purpose", model: "sonnet", description: "YOLO implementation plan",
-     prompt: "Invoke Skill(skill: 'superpowers:writing-plans', args: 'yolo: true. scope: [scope]. base_branch: main. issue: 119. design_doc: /abs/path/design.md. [original args]'). Return the plan file path.")
+     prompt: "Invoke Skill(skill: 'superpowers:writing-plans', args: 'yolo: true. scope: [scope]. base_branch: main. issue: 119. design_issue: 119. [original args]'). Return the plan file path.")
 
 # Interactive/Express mode — inline Skill calls (inherit parent model):
 Skill(skill: "superpowers:brainstorming", args: "yolo: true. scope: [scope]. base_branch: main. issue: 119. [original args]")
-Skill(skill: "superpowers:writing-plans", args: "yolo: true. scope: [scope]. base_branch: main. issue: 119. design_doc: /abs/path/design.md. [original args]")
+Skill(skill: "superpowers:writing-plans", args: "yolo: true. scope: [scope]. base_branch: main. issue: 119. design_issue: 119. [original args]")
 
 # During and after implementation (all paths known, all modes):
-Skill(skill: "superpowers:subagent-driven-development", args: "yolo: true. scope: [scope]. plan_file: /abs/path/plan.md. design_doc: /abs/path/design.md. worktree: /abs/path/.worktrees/feat-xyz. base_branch: main. issue: 119. [original args]")
+Skill(skill: "superpowers:subagent-driven-development", args: "yolo: true. scope: [scope]. plan_file: /abs/path/plan.md. design_issue: 119. worktree: /abs/path/.worktrees/feat-xyz. base_branch: main. issue: 119. [original args]")
 Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/path/plan.md. [original args]")
 ```
 

@@ -1,6 +1,6 @@
 # Fixture: Happy Path — Full v1 Block
 
-**Purpose:** A complete PR body with a well-formed `feature-flow-metadata:v1` block containing all 16 fields populated (no nulls). Used to verify the consumer's happy-path parsing and field binding.
+**Purpose:** A complete PR body with a well-formed `feature-flow-metadata:v1` block containing all 15 fields populated (no nulls). Used to verify the consumer's happy-path parsing and field binding.
 
 **Expected consumer behavior:** Parse succeeds. All fields bound to PR context. `sibling_prs`, `depends_on_prs`, `risk_areas`, `remediation_log` available for downstream checks. No warnings emitted.
 
@@ -31,8 +31,7 @@ created_at: 2026-04-08T14:22:10Z
 scope: feature
 risk_tier: medium
 issue: 229
-design_doc: docs/plans/2026-04-08-feature-flow-metadata-block.md
-design_doc_sha: 9f4a2c1d3e5b7a8f0c2d4e6f8a0b2c4d
+design_issue: 229
 plan_file: docs/plans/2026-04-08-feature-flow-metadata-block-plan.md
 acceptance_criteria_verified_at: 2026-04-08T14:40:02Z
 acceptance_criteria_verified_sha: 7b3e815f9c2d4a6e8b0f1c3d5e7f9a1b
