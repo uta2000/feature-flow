@@ -902,7 +902,7 @@ Extracted reference files (read on-demand during lifecycle execution):
 - **`references/orchestration-overrides.md`** — Brainstorming interview format, Express design approval
 - **`references/yolo-overrides.md`** — YOLO/Express overrides for writing-plans, git-worktrees, finishing-branch, subagent-driven-dev; quality context injections
 - **`references/code-review-pipeline.md`** — Code review pipeline Phases 0-5
-- **`references/inline-steps.md`** — 13 inline step definitions (documentation lookup, commit artifacts, copy env, study patterns, self-review, CHANGELOG, sync with base branch, final verification, wait for CI and reviews, harden PR, post implementation comment, handoff, commit and PR)
+- **`references/inline-steps.md`** — 12 inline step definitions (documentation lookup, copy env, study patterns, self-review, CHANGELOG, sync with base branch, final verification, wait for CI and reviews, harden PR, post implementation comment, handoff, commit and PR)
 - **`references/model-routing.md`** — Model routing defaults (orchestrator phases + subagent dispatches)
 - **`references/scope-guide.md`** — Detailed criteria for classifying work scope
 
