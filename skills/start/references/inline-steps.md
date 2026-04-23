@@ -925,11 +925,10 @@ This step is the terminal step for Feature and Major Feature scopes. It replaces
 
    Next steps:
      1. Merge PR #<number> directly in GitHub  →  closes issue #<N>
-     2. Or run `/merge-prs <number>`  →  feature-flow merges, closes issue, consolidates changelog
-     3. Or run `/merge-prs feature-flow`  →  batch-merge all [M+1] feature-flow PRs
+        (Or run `/merge-prs <number>` for automated cleanup after merge)
+     2. After merge, `feature-flow:cleanup-merged` will automatically remove the worktree, branch, and handoff file.
 
-   Worktree: [Removed | Still active at .worktrees/<name>]
-   [If still active: "Run `cd <repo-root> && git worktree remove .worktrees/<name>` from the parent repo (NOT from inside the worktree)."]
+   Worktree: Still active at `.worktrees/<name>` — will be removed automatically after PR #<number> merges.
    ```
 
 5. **Mode behavior:**
