@@ -831,7 +831,7 @@ if yolo_mode AND current_phase_name in config.yolo.stop_after:
 
 **Across sessions (new conversation):**
 - Todo lists do not persist across sessions. If the user says "resume the feature lifecycle," ask which feature and which step they were on.
-- Check for artifacts from previous sessions: design docs in `docs/plans/`, open GitHub issues, existing worktrees, and branch history to infer progress.
+- Check for artifacts from previous sessions: open GitHub issues (search via `gh issue search`), existing worktrees (via `git worktree list`), and branch history (via `git log --oneline -5`) to infer progress. Design content for sessions started after 2026-04-23 lives in the linked GitHub issue body under `## Design (feature-flow)` — not in `docs/plans/`.
 
 ### Step 5: Completion
 
@@ -846,7 +846,7 @@ Lifecycle complete!
 
 Summary:
 - Platform: [web/ios/android/cross-platform]
-- Design doc: docs/plans/YYYY-MM-DD-feature.md
+- Design: issue #<number> body (§ Design (feature-flow)) — or `docs/plans/` for sessions before 2026-04-23
 - Issue: #[number] (commented — will auto-close on PR merge) [or "(no issue linked)" if none]
 - PR: #[number] → [base branch]
 - All acceptance criteria verified
