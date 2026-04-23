@@ -848,7 +848,8 @@ Lifecycle complete!
 
 Summary:
 - Platform: [web/ios/android/cross-platform]
-- Design: issue #<number> body (§ Design (feature-flow)) — or `docs/plans/` for sessions before 2026-04-23
+- Design: issue #<number> body, under `## Design (feature-flow)`  [if `design_issue` present]
+- Design: `docs/plans/<path>.md`  [legacy sessions before 2026-04-23 only]
 - Issue: #[number] (commented — will auto-close on PR merge) [or "(no issue linked)" if none]
 - PR: #[number] → [base branch]
 - All acceptance criteria verified
