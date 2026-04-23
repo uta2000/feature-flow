@@ -14,3 +14,6 @@ dispatcher.db
 .feature-flow/
 FEATURE_CONTEXT.md
 DECISIONS_ARCHIVE.md
+
+# feature-flow handoff state files (local only — never committed)
+.feature-flow/handoffs/
