@@ -514,8 +514,8 @@ This step runs during the `Commit and PR` phase, immediately after the PR body (
    - `lifecycle_session`: read from `.feature-flow/session.txt`
    - `created_at`: `date -u +%Y-%m-%dT%H:%M:%SZ`
    - `scope`, `risk_tier`, `issue`: from Step 1 lifecycle context
-   - `design_doc`, `plan_file`: repo-relative paths from lifecycle state (null if scope skips these)
-   - `design_doc_sha`: `git rev-parse HEAD:<design_doc_path>` (blob SHA; null if design_doc is null)
+   - `design_issue`: the integer issue number from lifecycle context (`issue`); null if no issue is linked
+   - `plan_file`: repo-relative path from lifecycle state (null if scope skips this)
    - `acceptance_criteria_verified_at`, `acceptance_criteria_verified_sha`, `acceptance_criteria_count`: from `verify-acceptance-criteria` output (null if not yet run)
    - `risk_areas`: `git diff --name-only <base>...HEAD` → take top-level directories of changed files plus any individual file with >50 changed lines; dedupe; cap at 10 entries
    - `sibling_prs`: always `[]` (multi-PR session support deferred)
@@ -524,7 +524,7 @@ This step runs during the `Commit and PR` phase, immediately after the PR body (
 
 2. Build the JSON representation using `jq -n` (avoids shell quoting pitfalls).
 
-   **Convention:** Optional string fields (`design_doc`, `design_doc_sha`, `plan_file`) use the empty string `""` to mean "absent/null". The `with_entries` filter at the end converts every empty-string field value to JSON `null` so the serialized YAML emits `null` instead of `""`. Optional integer fields (`issue`, `acceptance_criteria_count`) and list/dict fields use `--argjson` and pass the literal string `null` or a JSON-encoded list when absent.
+   **Convention:** The optional string field (`plan_file`) uses the empty string `""` to mean "absent/null". The `with_entries` filter at the end converts every empty-string field value to JSON `null` so the serialized YAML emits `null` instead of `""`. Optional integer fields (`issue`, `design_issue`, `acceptance_criteria_count`) and list/dict fields use `--argjson` and pass the literal string `null` or a JSON-encoded list when absent.
 
    ```bash
    METADATA_JSON=$(jq -n \
@@ -534,8 +534,7 @@ This step runs during the `Commit and PR` phase, immediately after the PR body (
      --arg scope "$SCOPE" \
      --arg risk_tier "$RISK_TIER" \
      --argjson issue "${ISSUE_OR_NULL:-null}" \
-     --arg design_doc "${DESIGN_DOC:-}" \
-     --arg design_doc_sha "${DESIGN_DOC_SHA:-}" \
+     --argjson design_issue "${ISSUE_OR_NULL:-null}" \
      --arg plan_file "${PLAN_FILE:-}" \
      --argjson acceptance_criteria_verified_at null \
      --argjson acceptance_criteria_verified_sha null \
@@ -994,9 +993,9 @@ CURRENT_BODY=$(gh pr view <pr_number> --json body --jq '.body')
 
 # Build markers block
 MARKERS="<!-- feature-flow-session -->"
-if [ -n "<design_doc_path>" ]; then
+if [ -n "<issue_number>" ]; then
   MARKERS="${MARKERS}
-<!-- feature-flow-design-doc: <design_doc_path> -->"
+<!-- feature-flow-design-issue: <issue_number> -->"
 fi
 
 # Append to body (only if marker not already present)
@@ -1007,7 +1006,7 @@ ${MARKERS}"
 fi
 ```
 
-Where `<design_doc_path>` is the `design_doc` value from the lifecycle context object (may be absent for quick fix / small enhancement scopes).
+Where `<issue_number>` is the `issue` value from the lifecycle context object (integer issue number; may be absent for scopes that skip issue creation).
 
 **YOLO behavior:** Run silently. Announce: `YOLO: start — PR #<number> labeled feature-flow + body markers applied`
 **Express behavior:** Same as YOLO — run silently, announce.
