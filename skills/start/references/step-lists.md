@@ -45,8 +45,8 @@ If the small enhancement qualifies for fast-track (issue richness 3+ or equivale
 - [ ] 1. Worktree setup
 - [ ] 2. Brainstorm requirements
 - [ ] 3. Documentation lookup (Context7)
-- [ ] 4. Design document
-- [ ] 5. Create issue
+- [ ] 4. Create issue
+- [ ] 5. Design document
 - [ ] 6. Implementation plan
 - [ ] 7. Verify plan criteria
 - [ ] 8. Copy env files
@@ -87,9 +87,9 @@ If the small enhancement qualifies for fast-track (issue richness 3+ or equivale
 - [ ] 1. Worktree setup
 - [ ] 2. Brainstorm requirements
 - [ ] 3. Documentation lookup (Context7)
-- [ ] 4. Design document
-- [ ] 5. Design verification
-- [ ] 6. Create issue
+- [ ] 4. Create issue
+- [ ] 5. Design document
+- [ ] 6. Design verification
 - [ ] 7. Implementation plan
 - [ ] 8. Verify plan criteria
 - [ ] 9. Copy env files
@@ -114,9 +114,9 @@ If the small enhancement qualifies for fast-track (issue richness 3+ or equivale
 - [ ] 2. Brainstorm requirements
 - [ ] 3. Spike / PoC (if risky unknowns)
 - [ ] 4. Documentation lookup (Context7)
-- [ ] 5. Design document
-- [ ] 6. Design verification
-- [ ] 7. Create issue
+- [ ] 5. Create issue
+- [ ] 6. Design document
+- [ ] 7. Design verification
 - [ ] 8. Implementation plan
 - [ ] 9. Verify plan criteria
 - [ ] 10. Copy env files
