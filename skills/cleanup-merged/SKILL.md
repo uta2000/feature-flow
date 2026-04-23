@@ -51,6 +51,8 @@ Read the YAML file. Parse the following fields:
 - `branch` (string)
 - `worktree_path` (string)
 - `slug` (string)
+- `pending_slug` (string, optional — present when the file was created as `pending-<slug>.yml` before PR creation)
+- `feature_flow_version` (string, optional — the feature-flow version that created this handoff; also stored as `plugin_version`)
 
 **Schema version guard:** If `schema_version` is absent or `< 1`, log a warning and skip:
 ```
