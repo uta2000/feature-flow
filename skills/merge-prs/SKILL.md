@@ -121,6 +121,21 @@ gh pr comment <number> --body "Merged via feature-flow merge-prs (batch merge, o
 <!-- Issue closure happens via `Closes #N` in PR bodies (GitHub native auto-close).
      The lifecycle no longer closes issues here — see issue #228. -->
 
+**4c.1 Post-merge cleanup (non-blocking):**
+
+Invoke `feature-flow:cleanup-merged` for this PR:
+
+```
+Skill(skill: "feature-flow:cleanup-merged", args: "<pr_number>")
+```
+
+If `cleanup-merged` fails or throws an error, log a warning and continue:
+```
+merge-prs: cleanup-merged failed for PR #<pr_number>: <error> — handoff retained for next opportunistic run.
+```
+
+Cleanup failure **must not** fail the merge operation itself. The handoff file remains on disk for the next `start:` session's pre-flight to retry.
+
 **4d. Opportunistic Vercel deploy check (non-blocking):**
 Check `.feature-flow.yml` `plugin_registry` for any key containing `vercel`:
 ```bash
