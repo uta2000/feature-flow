@@ -179,11 +179,22 @@ Design content is written into the linked GitHub issue body — not to a file un
    <!-- feature-flow:design:end -->
    ```
 
-4. **Merge rules:**
-   - **If markers present:** Replace everything between `<!-- feature-flow:design:start -->` and `<!-- feature-flow:design:end -->` (inclusive of those tags) with the new marker-wrapped block. Preserve all content outside the markers verbatim.
-   - **If markers absent:** Append the full marker-wrapped block to the end of the body.
+4. **Marker integrity check:** Before merging, count occurrences of each marker in the fetched body:
+   ```
+   start_count = number of occurrences of "<!-- feature-flow:design:start -->"
+   end_count   = number of occurrences of "<!-- feature-flow:design:end -->"
+   ```
+   If `start_count != 1` or `end_count != 1` or `start_count != end_count` (i.e., markers are absent, duplicated, or mismatched): fall back to **append mode** — wrap the new design in fresh markers and append to the end of the body. Announce a warning:
+   ```
+   Warning: Existing issue body has malformed design markers (start=N, end=M) — appending new design block instead of replacing.
+   ```
+   Only proceed with the replace path when exactly one matched start/end pair is present.
 
-5. **Size check:** If the merged body exceeds 65,536 characters:
+5. **Merge rules:**
+   - **If markers present (and integrity check passed):** Replace everything between `<!-- feature-flow:design:start -->` and `<!-- feature-flow:design:end -->` (inclusive of those tags) with the new marker-wrapped block. Preserve all content outside the markers verbatim.
+   - **If markers absent or malformed (integrity check failed):** Append the full marker-wrapped block to the end of the body.
+
+6. **Size check:** If the merged body exceeds 65,536 characters:
    - Post the `## Design (feature-flow)` block as a standalone issue comment:
      ```bash
      TMPFILE=$(mktemp /tmp/ff_design_comment_XXXXXX.md)
@@ -201,7 +212,7 @@ Design content is written into the linked GitHub issue body — not to a file un
      <!-- feature-flow:design:end -->
      ```
 
-6. **Write via temp file** (avoids shell-escaping issues with multi-kilobyte content):
+7. **Write via temp file** (avoids shell-escaping issues with multi-kilobyte content):
    ```bash
    TMPFILE=$(mktemp /tmp/ff_design_body_XXXXXX.md)
    cat > "$TMPFILE" << 'ISSUE_BODY'
@@ -211,7 +222,7 @@ Design content is written into the linked GitHub issue body — not to a file un
    rm -f "$TMPFILE"
    ```
 
-7. **Announce:** `Design merged into issue #<issue_number> body (N chars, markers [present|added]).`
+8. **Announce:** `Design merged into issue #<issue_number> body (N chars, markers [present|added|appended — malformed]).`
 
 ### Step: Optional codex review
 
