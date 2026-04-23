@@ -228,14 +228,23 @@ Design content is written into the linked GitHub issue body — not to a file un
 
 If `.feature-flow.yml` has `codex.enabled: true` AND `codex.proactive_reviews.design_doc: true`:
 
-1. Record the design doc path in session state so the consult-codex skill can find it:
+1. **Write a design-snapshot file** so the consult-codex skill (which still reads `design_doc_path` as a file on disk) can find the content. Since 2026-04-23 the design lives in the linked issue body, not `docs/plans/*.md` — we bridge the two by writing the generated design content to a session-local snapshot file at `.feature-flow/design/design-snapshot-<issue>.md` (gitignored via the existing `.feature-flow/` entry; not committed). The snapshot is a read-only bridge for consult-codex — the issue body remains the source of truth.
 
    ```bash
+   SNAPSHOT=".feature-flow/design/design-snapshot-<issue_number>.md"
+   mkdir -p "$(dirname "$SNAPSHOT")"
+   # Write the same generated design content that was merged into the issue body
+   # (the content from the `<!-- feature-flow:design:start -->` block, without the markers).
+   cat > "$SNAPSHOT" <<'DESIGN'
+<generated design content>
+DESIGN
    node -e '
      const state = require("./skills/consult-codex/scripts/state.js");
      state.setMetadata(process.cwd(), { design_doc_path: process.argv[1] });
-   ' "<relative path to the design doc just written>"
+   ' "$SNAPSHOT"
    ```
+
+   **Follow-up note (out of scope for this PR):** `consult-codex` should be updated to fetch directly from the issue body when `design_issue` is set, removing the need for the snapshot bridge. Tracked as a follow-up; the snapshot approach preserves the existing `design_doc_path` contract in the meantime.
 
 2. Invoke consult-codex:
 
