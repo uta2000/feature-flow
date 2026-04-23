@@ -21,17 +21,23 @@ Verify a design document against the actual codebase to catch conflicts, gaps, a
 
 ### Step 1: Load the Design Document
 
-Find the design document:
-1. If the user specified a path, use it
-2. Otherwise, find the most recently modified `.md` file in `docs/plans/`:
+Find the design from the linked GitHub issue:
 
-```
-Glob: docs/plans/*.md
-```
+1. **If `issue` is in the lifecycle context** (the issue number was passed as an argument or set by `create-issue` earlier in the session):
+   ```bash
+   gh issue view <issue_number> --json body --jq '.body'
+   ```
+   Extract the content between `<!-- feature-flow:design:start -->` and `<!-- feature-flow:design:end -->` markers.
+   - If markers are found: use the extracted content as the design document.
+   - If markers are absent: the design has not been merged into the issue yet. Stop and instruct the user: "No design found in issue #<issue_number>. Run `feature-flow:design-document` first to merge the design into the issue."
+   - If the extracted content is a reference link (`Design is too large to inline — see comment: <url>`): fetch the comment URL via `gh api <url> --jq '.body'` and use that content instead.
 
-Confirm with the user: "Verifying design: `[path]`. Is this correct?"
+2. **If the user specified a file path directly** (legacy support for pre-2026-04-23 design docs in `docs/plans/`):
+   Read the file at the specified path. Announce: "Loading design from file (legacy path): `<path>`."
 
-Read the full document and extract all proposed changes.
+3. **Fallback — no issue and no path:** Stop and instruct the user: "No design source found. Pass the issue number (`issue: N`) or a file path (`design_doc: /path/to/doc.md`)."
+
+After loading, extract all proposed changes from the design content.
 
 ### Step 2: Load Project Context
 

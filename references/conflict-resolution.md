@@ -269,12 +269,19 @@ When behavioral conflicts require interpretation, load the design doc for contex
 gh pr view <number> --json body --jq '.body' | grep -o 'feature-flow-design-doc: [^-]*' | sed 's/feature-flow-design-doc: //'
 ```
 
-**Step 2: Fallback — scan docs/plans/**
+**Step 2: Fallback — gh issue search**
+
+Since 2026-04-23, design content lives in the GitHub issue body (between `<!-- feature-flow:design:start -->` markers), not in `docs/plans/` files. Fall back to searching open issues by branch name fragment or issue number:
+
 ```bash
-# Find files matching branch name or issue number
-ls docs/plans/ | grep -i "<branch_name_fragment>"
-ls docs/plans/ | grep "<issue_number>"
+# Search by issue number (most reliable when the branch name embeds #N)
+gh issue view <issue_number> --json body,title --jq '.title, .body'
+
+# Search by branch name fragment (e.g., "logout-button")
+gh issue list --search "<branch_name_fragment>" --state all --json number,title,body --limit 5
 ```
+
+Historical `docs/plans/*.md` files remain as archive but are no longer written. Use them only as a last resort when neither the PR body nor the issue body resolves the context.
 
 **Step 3: Final fallback**
 If no design doc found, proceed with conflict classification rules alone (no additional context).

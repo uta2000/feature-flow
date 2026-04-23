@@ -42,14 +42,56 @@ If the small enhancement qualifies for fast-track (issue richness 3+ or equivale
 
 *Standard (no fast-track):*
 ```
-- [ ] 1. Brainstorm requirements
-- [ ] 2. Documentation lookup (Context7)
-- [ ] 3. Design document
+- [ ] 1. Worktree setup
+- [ ] 2. Brainstorm requirements
+- [ ] 3. Documentation lookup (Context7)
 - [ ] 4. Create issue
-- [ ] 5. Implementation plan
-- [ ] 6. Verify plan criteria
-- [ ] 7. Commit planning artifacts
-- [ ] 8. Worktree setup
+- [ ] 5. Design document
+- [ ] 6. Implementation plan
+- [ ] 7. Verify plan criteria
+- [ ] 8. Copy env files
+- [ ] 9. Study existing patterns
+- [ ] 10. Implement (TDD)
+- [ ] 11. Self-review
+- [ ] 12. Code review
+- [ ] 13. Generate CHANGELOG entry
+- [ ] 14. Final verification
+- [ ] 15. Sync with base branch
+- [ ] 16. Commit and PR
+- [ ] 17. Wait for CI and address reviews
+- [ ] 18. Post implementation comment
+```
+
+*Fast-track (issue richness 3+ or detailed inline context):*
+```
+- [ ] 1. Worktree setup
+- [ ] 2. Documentation lookup (Context7)
+- [ ] 3. Create issue
+- [ ] 4. Implementation plan
+- [ ] 5. Copy env files
+- [ ] 6. Study existing patterns
+- [ ] 7. Implement (TDD)
+- [ ] 8. Self-review
+- [ ] 9. Code review
+- [ ] 10. Generate CHANGELOG entry
+- [ ] 11. Final verification
+- [ ] 12. Sync with base branch
+- [ ] 13. Commit and PR
+- [ ] 14. Wait for CI and address reviews
+- [ ] 15. Post implementation comment
+```
+
+### Feature
+
+```
+- [ ] 1. Worktree setup
+- [ ] 2. Brainstorm requirements
+- [ ] 3. Documentation lookup (Context7)
+- [ ] 4. Create issue
+- [ ] 5. Design document
+- [ ] 6. Design verification
+- [ ] 7. Implementation plan
+- [ ] 8. Verify plan criteria
 - [ ] 9. Copy env files
 - [ ] 10. Study existing patterns
 - [ ] 11. Implement (TDD)
@@ -60,41 +102,23 @@ If the small enhancement qualifies for fast-track (issue richness 3+ or equivale
 - [ ] 16. Sync with base branch
 - [ ] 17. Commit and PR
 - [ ] 18. Wait for CI and address reviews
-- [ ] 19. Post implementation comment
+- [ ] 19. Harden PR
+- [ ] 20. Post implementation comment
+- [ ] 21. Handoff
 ```
 
-*Fast-track (issue richness 3+ or detailed inline context):*
-```
-- [ ] 1. Documentation lookup (Context7)
-- [ ] 2. Create issue
-- [ ] 3. Implementation plan
-- [ ] 4. Commit planning artifacts
-- [ ] 5. Worktree setup
-- [ ] 6. Copy env files
-- [ ] 7. Study existing patterns
-- [ ] 8. Implement (TDD)
-- [ ] 9. Self-review
-- [ ] 10. Code review
-- [ ] 11. Generate CHANGELOG entry
-- [ ] 12. Final verification
-- [ ] 13. Sync with base branch
-- [ ] 14. Commit and PR
-- [ ] 15. Wait for CI and address reviews
-- [ ] 16. Post implementation comment
-```
-
-### Feature
+### Major feature
 
 ```
-- [ ] 1. Brainstorm requirements
-- [ ] 2. Documentation lookup (Context7)
-- [ ] 3. Design document
-- [ ] 4. Design verification
+- [ ] 1. Worktree setup
+- [ ] 2. Brainstorm requirements
+- [ ] 3. Spike / PoC (if risky unknowns)
+- [ ] 4. Documentation lookup (Context7)
 - [ ] 5. Create issue
-- [ ] 6. Implementation plan
-- [ ] 7. Verify plan criteria
-- [ ] 8. Commit planning artifacts
-- [ ] 9. Worktree setup
+- [ ] 6. Design document
+- [ ] 7. Design verification
+- [ ] 8. Implementation plan
+- [ ] 9. Verify plan criteria
 - [ ] 10. Copy env files
 - [ ] 11. Study existing patterns
 - [ ] 12. Implement (TDD)
@@ -108,34 +132,6 @@ If the small enhancement qualifies for fast-track (issue richness 3+ or equivale
 - [ ] 20. Harden PR
 - [ ] 21. Post implementation comment
 - [ ] 22. Handoff
-```
-
-### Major feature
-
-```
-- [ ] 1. Brainstorm requirements
-- [ ] 2. Spike / PoC (if risky unknowns)
-- [ ] 3. Documentation lookup (Context7)
-- [ ] 4. Design document
-- [ ] 5. Design verification
-- [ ] 6. Create issue
-- [ ] 7. Implementation plan
-- [ ] 8. Verify plan criteria
-- [ ] 9. Commit planning artifacts
-- [ ] 10. Worktree setup
-- [ ] 11. Copy env files
-- [ ] 12. Study existing patterns
-- [ ] 13. Implement (TDD)
-- [ ] 14. Self-review
-- [ ] 15. Code review
-- [ ] 16. Generate CHANGELOG entry
-- [ ] 17. Final verification
-- [ ] 18. Sync with base branch
-- [ ] 19. Commit and PR
-- [ ] 20. Wait for CI and address reviews
-- [ ] 21. Harden PR
-- [ ] 22. Post implementation comment
-- [ ] 23. Handoff
 ```
 
 ### Mobile platform adjustments (ios, android, cross-platform)

@@ -42,41 +42,6 @@ This step queries Context7 for current patterns relevant to the feature being bu
 - Keep queries specific to the feature, not generic
 - If the docs contradict the stack reference file, note the discrepancy
 
----
-
-## Commit Planning Artifacts Step
-
-This step runs after verify-plan-criteria and before worktree setup. It commits design documents and project config to the base branch so the worktree inherits them via git history, preventing untracked file clutter.
-
-**Process:**
-1. Run inline: `git status --porcelain docs/plans/*.md .feature-flow.yml 2>&1`
-   - If output is empty: skip — "No planning artifacts to commit."
-   - If output is non-empty (changes detected OR git error output): proceed to step 2 — treat conservatively as "artifacts may exist."
-2. Dispatch a general-purpose subagent to commit. **Before dispatching, substitute `[feature-name]` with the actual feature name from Step 1** (e.g., "csv-export", "auth-refresh-token"). The orchestrator holds this value in context:
-
-   ```
-   Task(
-     subagent_type: "general-purpose",
-     model: "sonnet",
-     description: "Commit planning artifacts to base branch",
-     prompt: "Commit the following files to git. Files: docs/plans/*.md and .feature-flow.yml (git add is safe on unchanged tracked files — it no-ops). Commit message: 'docs: add design and implementation plan for [feature-name]'. Run: git add docs/plans/*.md .feature-flow.yml && git commit -m '[message]'. If no files are staged after add, report 'nothing to commit'. Return: committed SHA or 'nothing to commit'."
-   )
-   ```
-
-   If the subagent fails or errors, log the error and continue — commit failure is non-blocking.
-
-3. Announce: "Planning artifacts committed: [SHA returned by subagent]" or "Nothing to commit — skipping."
-
-**Edge cases:**
-- **`.feature-flow.yml` already tracked and unchanged** — `git add` no-ops on unchanged tracked files
-- **No plan files exist** — git status in step 1 returns empty (exit 0), step skipped
-- **Only `.feature-flow.yml` changed** — still dispatches subagent; file should be tracked regardless
-- **git errors in output** — `2>&1` redirects stderr to stdout; git errors appear as non-empty output and are treated conservatively as "may have artifacts" — the subagent proceeds and determines the actual state
-
-> **Note:** The commit message in this step is fixed (`docs: add design and implementation plan for [feature-name]`). For implementation commits (created during the Implement step), follow the atomic commit format in `references/git-workflow.md` — one commit per acceptance criterion with the `feat(scope): description — ✓criterion` format.
-
----
-
 ## Copy Env Files Step
 
 This step runs after worktree setup and before study existing patterns. It copies non-production `.env*` files from the main worktree into the new worktree so that tests, tools, and dependency scripts have access to environment configuration.
@@ -186,7 +151,7 @@ This step runs after copy env files and before implementation. It forces reading
 - State management: [specific approach matching existing patterns]
 ```
 
-6. **Write to context file.** After generating the "How to Code This" notes, write the full findings (Existing Patterns Found, Anti-Patterns, How to Code This) to `.feature-flow/implement/patterns-found.md`. Append to the existing file rather than overwriting, so multiple study passes accumulate. If the file does not exist yet (e.g., worktree was set up without the init step), create it using the template from `../../references/phase-context-templates.md`.
+6. **Write to context file.** After generating the "How to Code This" notes, write the full findings (Existing Patterns Found, Anti-Patterns, How to Code This) to `.feature-flow/implement/patterns-found.md`. Append to the existing file rather than overwriting, so multiple study passes accumulate.
 
 7. Pass these patterns, the "How to Code This" notes, anti-pattern warnings, AND reference examples from the consolidated output to BOTH the implementation step AND the code review pipeline step as mandatory context. **New code MUST follow these patterns unless there is a documented reason to deviate.** The code review pipeline uses reference examples to check new code against known-good patterns.
 
@@ -549,8 +514,8 @@ This step runs during the `Commit and PR` phase, immediately after the PR body (
    - `lifecycle_session`: read from `.feature-flow/session.txt`
    - `created_at`: `date -u +%Y-%m-%dT%H:%M:%SZ`
    - `scope`, `risk_tier`, `issue`: from Step 1 lifecycle context
-   - `design_doc`, `plan_file`: repo-relative paths from lifecycle state (null if scope skips these)
-   - `design_doc_sha`: `git rev-parse HEAD:<design_doc_path>` (blob SHA; null if design_doc is null)
+   - `design_issue`: the integer issue number from lifecycle context (`issue`); null if no issue is linked
+   - `plan_file`: repo-relative path from lifecycle state (null if scope skips this)
    - `acceptance_criteria_verified_at`, `acceptance_criteria_verified_sha`, `acceptance_criteria_count`: from `verify-acceptance-criteria` output (null if not yet run)
    - `risk_areas`: `git diff --name-only <base>...HEAD` → take top-level directories of changed files plus any individual file with >50 changed lines; dedupe; cap at 10 entries
    - `sibling_prs`: always `[]` (multi-PR session support deferred)
@@ -559,7 +524,7 @@ This step runs during the `Commit and PR` phase, immediately after the PR body (
 
 2. Build the JSON representation using `jq -n` (avoids shell quoting pitfalls).
 
-   **Convention:** Optional string fields (`design_doc`, `design_doc_sha`, `plan_file`) use the empty string `""` to mean "absent/null". The `with_entries` filter at the end converts every empty-string field value to JSON `null` so the serialized YAML emits `null` instead of `""`. Optional integer fields (`issue`, `acceptance_criteria_count`) and list/dict fields use `--argjson` and pass the literal string `null` or a JSON-encoded list when absent.
+   **Convention:** The optional string field (`plan_file`) uses the empty string `""` to mean "absent/null". The `with_entries` filter at the end converts every empty-string field value to JSON `null` so the serialized YAML emits `null` instead of `""`. Optional integer fields (`issue`, `design_issue`, `acceptance_criteria_count`) and list/dict fields use `--argjson` and pass the literal string `null` or a JSON-encoded list when absent.
 
    ```bash
    METADATA_JSON=$(jq -n \
@@ -569,8 +534,7 @@ This step runs during the `Commit and PR` phase, immediately after the PR body (
      --arg scope "$SCOPE" \
      --arg risk_tier "$RISK_TIER" \
      --argjson issue "${ISSUE_OR_NULL:-null}" \
-     --arg design_doc "${DESIGN_DOC:-}" \
-     --arg design_doc_sha "${DESIGN_DOC_SHA:-}" \
+     --argjson design_issue "${ISSUE_OR_NULL:-null}" \
      --arg plan_file "${PLAN_FILE:-}" \
      --argjson acceptance_criteria_verified_at null \
      --argjson acceptance_criteria_verified_sha null \
@@ -960,11 +924,10 @@ This step is the terminal step for Feature and Major Feature scopes. It replaces
 
    Next steps:
      1. Merge PR #<number> directly in GitHub  →  closes issue #<N>
-     2. Or run `/merge-prs <number>`  →  feature-flow merges, closes issue, consolidates changelog
-     3. Or run `/merge-prs feature-flow`  →  batch-merge all [M+1] feature-flow PRs
+        (Or run `/merge-prs <number>` for automated cleanup after merge)
+     2. After merge, `feature-flow:cleanup-merged` will automatically remove the worktree, branch, and handoff file.
 
-   Worktree: [Removed | Still active at .worktrees/<name>]
-   [If still active: "Run `cd <repo-root> && git worktree remove .worktrees/<name>` from the parent repo (NOT from inside the worktree)."]
+   Worktree: Still active at `.worktrees/<name>` — will be removed automatically after PR #<number> merges.
    ```
 
 5. **Mode behavior:**
@@ -1030,9 +993,9 @@ CURRENT_BODY=$(gh pr view <pr_number> --json body --jq '.body')
 
 # Build markers block
 MARKERS="<!-- feature-flow-session -->"
-if [ -n "<design_doc_path>" ]; then
+if [ -n "<issue_number>" ]; then
   MARKERS="${MARKERS}
-<!-- feature-flow-design-doc: <design_doc_path> -->"
+<!-- feature-flow-design-issue: <issue_number> -->"
 fi
 
 # Append to body (only if marker not already present)
@@ -1043,7 +1006,7 @@ ${MARKERS}"
 fi
 ```
 
-Where `<design_doc_path>` is the `design_doc` value from the lifecycle context object (may be absent for quick fix / small enhancement scopes).
+Where `<issue_number>` is the `issue` value from the lifecycle context object (integer issue number; may be absent for scopes that skip issue creation).
 
 **YOLO behavior:** Run silently. Announce: `YOLO: start — PR #<number> labeled feature-flow + body markers applied`
 **Express behavior:** Same as YOLO — run silently, announce.

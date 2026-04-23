@@ -466,6 +466,12 @@ Ensure the lifecycle is followed from start to finish. Track which steps are com
 4. Session model check
 5. Notification preference (macOS-only, saved to `.feature-flow.yml`)
 6. YOLO stop_after reading (from `.feature-flow.yml`)
+7. **Opportunistic cleanup pre-flight.** Invoke `feature-flow:cleanup-merged` with no argument to reclaim worktrees, branches, and handoff files for any PRs that have merged since the last `start:` session. This step:
+   - Runs for **all scopes including Quick fix**.
+   - Is **silent on no-op** (no handoff files found, or all found PRs are still open).
+   - **Announces** cleaned PRs on success: `Pre-flight: cleaned up PR #N (slug-a3f2), PR #M (slug-b742)`
+   - **Non-blocking**: does not block the lifecycle if cleanup fails — log the failure and continue.
+   - Invocation: `Skill(skill: "feature-flow:cleanup-merged", args: "")` wrapped in try/catch; any exception logs `Pre-flight cleanup failed: <error> — continuing.` and proceeds.
 
 ### Step 1: Determine Scope
 
@@ -612,7 +618,7 @@ Use the `TaskCreate` tool to create a todo item for each step. Call all TaskCrea
 For each step, follow this pattern:
 
 1. **Announce the step:** "Step N: [name]. Invoking [skill name]."
-2. **Mark in progress (conditional):** Only set `in_progress` via `TaskUpdate` before starting steps where the work is extended and the user benefits from an active status indicator. **Steps that keep `in_progress`:** study existing patterns, implementation, self-review, code review, generate CHANGELOG entry, final verification, documentation lookup. **Steps that skip `in_progress`:** brainstorming, design document, design verification, create/update issue, implementation plan, verify plan criteria, worktree setup, copy env files, commit planning artifacts, commit and PR, post implementation comment. Note: sub-step 5 (`completed`) is always retained — it is the turn-continuity bridge. Skipping `in_progress` does not affect YOLO Execution Continuity. Note: YOLO propagation (prepending `yolo: true`) applies only to `Skill()` invocations, not to `Task()` dispatches.
+2. **Mark in progress (conditional):** Only set `in_progress` via `TaskUpdate` before starting steps where the work is extended and the user benefits from an active status indicator. **Steps that keep `in_progress`:** study existing patterns, implementation, self-review, code review, generate CHANGELOG entry, final verification, documentation lookup. **Steps that skip `in_progress`:** brainstorming, design document, design verification, create/update issue, implementation plan, verify plan criteria, worktree setup, copy env files, commit and PR, post implementation comment. Note: sub-step 5 (`completed`) is always retained — it is the turn-continuity bridge. Skipping `in_progress` does not affect YOLO Execution Continuity. Note: YOLO propagation (prepending `yolo: true`) applies only to `Skill()` invocations, not to `Task()` dispatches.
 3. **Invoke the skill** using the Skill tool (see mapping below and `../../references/tool-api.md` — Skill Tool for correct parameter names)
 4. **Confirm completion:** Verify the step produced its expected output. *(Turn Bridge Rule — include any confirmation notes alongside the `TaskUpdate` call in step 5, not as a separate text-only response.)*
 5. **Mark complete:** Update the todo item to `completed` — **always call `TaskUpdate` here.** *(Turn Bridge Rule — this call keeps your turn alive.)* **Batching optimization:** When the next step (N+1) is in the `in_progress`-eligible list (study existing patterns, implementation, self-review, code review, generate CHANGELOG entry, final verification, documentation lookup), send both `TaskUpdate` calls as a single parallel message: `[TaskUpdate(N, completed), TaskUpdate(N+1, in_progress)]`. This saves one API round-trip per eligible step transition. If N is the final lifecycle step, no N+1 exists — skip the batch and call only `TaskUpdate(N, completed)` as usual.
@@ -665,7 +671,7 @@ For inline steps (CHANGELOG generation, self-review, code review, study existing
 | `base_branch` | Step 0 — base branch detection |
 | `feature_context` | Step 0 — knowledge base pre-flight (null if no FEATURE_CONTEXT.md found). File is session-local (not committed). |
 | `issue` | Step 1 — when an issue number is linked |
-| `design_doc` | After design document step (the absolute path returned by the skill) |
+| `design_issue` | After create-issue step — integer issue number containing the design (set by create-issue; design-document edits the body) |
 | `plan_file` | After implementation plan step (the absolute path of the saved plan file) |
 | `worktree` | After worktree setup (the absolute path to the created worktree) |
 | `pr` | After "Commit and PR" step (the PR number extracted from the `superpowers:finishing-a-development-branch` output) |
@@ -679,14 +685,14 @@ Task(subagent_type: "general-purpose", model: "opus", description: "YOLO brainst
 
 # YOLO mode — planning via Task dispatch with explicit model:
 Task(subagent_type: "general-purpose", model: "sonnet", description: "YOLO implementation plan",
-     prompt: "Invoke Skill(skill: 'superpowers:writing-plans', args: 'yolo: true. scope: [scope]. base_branch: main. issue: 119. design_doc: /abs/path/design.md. [original args]'). Return the plan file path.")
+     prompt: "Invoke Skill(skill: 'superpowers:writing-plans', args: 'yolo: true. scope: [scope]. base_branch: main. issue: 119. design_issue: 119. [original args]'). Return the plan file path.")
 
 # Interactive/Express mode — inline Skill calls (inherit parent model):
 Skill(skill: "superpowers:brainstorming", args: "yolo: true. scope: [scope]. base_branch: main. issue: 119. [original args]")
-Skill(skill: "superpowers:writing-plans", args: "yolo: true. scope: [scope]. base_branch: main. issue: 119. design_doc: /abs/path/design.md. [original args]")
+Skill(skill: "superpowers:writing-plans", args: "yolo: true. scope: [scope]. base_branch: main. issue: 119. design_issue: 119. [original args]")
 
 # During and after implementation (all paths known, all modes):
-Skill(skill: "superpowers:subagent-driven-development", args: "yolo: true. scope: [scope]. plan_file: /abs/path/plan.md. design_doc: /abs/path/design.md. worktree: /abs/path/.worktrees/feat-xyz. base_branch: main. issue: 119. [original args]")
+Skill(skill: "superpowers:subagent-driven-development", args: "yolo: true. scope: [scope]. plan_file: /abs/path/plan.md. design_issue: 119. worktree: /abs/path/.worktrees/feat-xyz. base_branch: main. issue: 119. [original args]")
 Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/path/plan.md. [original args]")
 ```
 
@@ -699,14 +705,13 @@ Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/p
 | Brainstorm requirements | `superpowers:brainstorming` | Decisions on scope, approach, UX. **For Feature and Major Feature scopes:** brainstorming includes the design preferences preamble — captures or loads project-wide design preferences before feature-specific questions begin. See `references/orchestration-overrides.md` → "Design Preferences Preamble". |
 | Spike / PoC | `feature-flow:spike` | Confirmed/denied assumptions |
 | Documentation lookup | No skill — inline step (see below) | Current patterns from official docs injected into context |
-| Design document | `feature-flow:design-document` | File at `docs/plans/YYYY-MM-DD-*.md` **Context capture:** After the design document is saved, write key scope decisions, approach choices, and rejected alternatives to `.feature-flow/design/design-decisions.md` (append to the existing template — do not overwrite). |
+| Design document | `feature-flow:design-document` | GitHub issue body (between `<!-- feature-flow:design:start -->` markers) **Context capture:** After the design document is written to the issue body, write key scope decisions, approach choices, and rejected alternatives to `.feature-flow/design/design-decisions.md` (append to the existing template — do not overwrite). |
 | Study existing patterns | No skill — inline step (see below) | Understanding of codebase conventions for the areas being modified |
 | Design verification | `feature-flow:design-verification` | Blockers/gaps identified and fixed **Context capture:** After verification completes, write the blockers found and their resolutions to `.feature-flow/design/verification-results.md` (append to the existing template — do not overwrite). Include the verification score summary and any design changes required. |
-| Create issue | `feature-flow:create-issue` | GitHub issue URL. **If an issue number was detected in Step 1**, pass it to create-issue as the `existing_issue` context — the skill will update the existing issue instead of creating a new one. |
+| Create issue | `feature-flow:create-issue` | GitHub issue URL. **If an issue number was detected in Step 1**, pass it to create-issue as the `issue` context — the skill will update the existing issue instead of creating a new one. |
 | Implementation plan | `superpowers:writing-plans` | Numbered tasks with acceptance criteria. **Override:** After the plan is saved, always proceed with subagent-driven execution — do not present the execution choice to the user. Immediately invoke `superpowers:subagent-driven-development`. |
 | Verify plan criteria | `feature-flow:verify-plan-criteria` | All tasks have verifiable criteria |
-| Commit planning artifacts | No skill — inline step (see below) | Planning docs and config committed to base branch |
-| Worktree setup | `superpowers:using-git-worktrees` | Isolated worktree created. **Override:** When checking for existing worktree directories, use `test -d` instead of `ls -d` — the `ls -d` command returns a non-zero exit code when the directory doesn't exist, causing false Bash tool errors. Example: `test -d .worktrees && echo "exists" \|\| echo "not found"`. **After worktree creation:** Create `FEATURE_CONTEXT.md` in the worktree root using the template from `skills/start/references/feature-context-template.md`. **Context directories:** Also create `.feature-flow/design/` and `.feature-flow/implement/` directories. For each of the four context files, read the corresponding template from `references/phase-context-templates.md` and write it to `.feature-flow/design/design-decisions.md`, `.feature-flow/design/verification-results.md`, `.feature-flow/implement/patterns-found.md`, and `.feature-flow/implement/blockers-and-resolutions.md`. These files are session-local working state — do NOT commit them to the feature branch. They are used for context capture during the session and for PR body injection at completion, but are excluded from git via `.gitignore`. After creating the files, verify they are ignored: `git status FEATURE_CONTEXT.md .feature-flow/` should show no output. **Gitignore safety:** Before creating context files, check the project's `.gitignore` for `.feature-flow/` and `FEATURE_CONTEXT.md` entries. If either is missing: (1) Append the missing entries to `.gitignore`: `# feature-flow session-local files (not committed to feature branches)\n.feature-flow/\nFEATURE_CONTEXT.md\nDECISIONS_ARCHIVE.md` (2) Stage and commit: `git add .gitignore && git commit -m "chore: gitignore feature-flow session metadata"`. This commit goes on the base branch (before the worktree branch is created), so all future worktrees inherit it. If both entries already exist, skip silently. |
+| Worktree setup | `superpowers:using-git-worktrees` | Isolated worktree created. **Runs at step 1** — the worktree is created before planning steps so all subsequent work happens inside the isolated branch. **Slug algorithm:** Generate a 4-char hex slug from the issue/feature title: take the first content words (stop words removed), compute sha256 of the lowercased joined string, take the first 4 hex chars. Branch name: `feature-flow/<issue-slug>-<slug>`. Worktree path: `.worktrees/<issue-slug>-<slug>`. **Handoff state file is NOT written at this step** — the `.feature-flow/handoffs/<pr-number>.yml` file is written once, at the Commit-and-PR step, after `gh pr create` returns the PR number. This single-step write removes any rename-atomicity question. Worktrees without a handoff file (e.g., pre-PR-creation state, or legacy worktrees) are not auto-reclaimed by `cleanup-merged` — a deliberate tradeoff to keep the cleanup contract narrow. **Override:** When checking for existing worktree directories, use `test -d` instead of `ls -d` — the `ls -d` command returns a non-zero exit code when the directory doesn't exist, causing false Bash tool errors. Example: `test -d .worktrees && echo "exists" \|\| echo "not found"`. **After worktree creation:** Create `FEATURE_CONTEXT.md` in the worktree root using the template from `skills/start/references/feature-context-template.md`. **Context directories:** Also create `.feature-flow/design/` and `.feature-flow/implement/` directories. For each of the four context files, read the corresponding template from `references/phase-context-templates.md` and write it to `.feature-flow/design/design-decisions.md`, `.feature-flow/design/verification-results.md`, `.feature-flow/implement/patterns-found.md`, and `.feature-flow/implement/blockers-and-resolutions.md`. These files are session-local working state — do NOT commit them to the feature branch. They are used for context capture during the session and for PR body injection at completion, but are excluded from git via `.gitignore`. After creating the files, verify they are ignored: `git status FEATURE_CONTEXT.md .feature-flow/` should show no output. **Gitignore safety:** Before creating context files, check the project's `.gitignore` for `.feature-flow/` and `FEATURE_CONTEXT.md` entries. If either is missing: (1) Append the missing entries to `.gitignore`: `# feature-flow session-local files (not committed to feature branches)\n.feature-flow/\nFEATURE_CONTEXT.md\nDECISIONS_ARCHIVE.md` (2) Stage and commit: `git add .gitignore && git commit -m "chore: gitignore feature-flow session metadata"`. This commit goes on the base branch (before the worktree branch is created), so all future worktrees inherit it. If both entries already exist, skip silently. |
 | Copy env files | No skill — inline step (see below) | Env files available in worktree |
 | Implement | `superpowers:subagent-driven-development` | Code written with tests, spec-reviewed, and quality-reviewed per task |
 | Self-review | No skill — inline step (see below) | Code verified against coding standards before formal review |
@@ -714,7 +719,7 @@ Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/p
 | Generate CHANGELOG entry | No skill — inline step (see below) | Changelog fragment written to `.changelogs/<id>.md`; consolidated when `/merge-prs` is invoked |
 | Final verification | No skill — inline step (see below) | All criteria PASS + quality gates pass (or skipped if Phase 4 already passed) |
 | Sync with base branch | No skill — inline step (see below) | Branch merged onto latest base branch; conflicts require manual resolution |
-| Commit and PR | `superpowers:finishing-a-development-branch` | PR URL; PR body includes `feature-flow-metadata` block (all modes) |
+| Commit and PR | `superpowers:finishing-a-development-branch` | PR URL; PR body includes `feature-flow-metadata` block (all modes). **Handoff file write:** Immediately after `gh pr create` returns the PR number, write `.feature-flow/handoffs/<pr-number>.yml` in the **base repo** (not the worktree — the file must survive worktree removal). Required fields: `schema_version: 1`, `pr_number: <N>`, `branch: <branch>`, `worktree_path: <abs-path>`, `base_branch: <base>`, `scope: <scope>`, `issue_number: <N-or-null>`, `created_at: <iso-utc>`, `slug: <slug>`, `feature_flow_version: <plugin-version>`. The write happens once, in a single step — no intermediate `pending-<slug>.yml` file, no rename. If the write fails, log a warning and continue (the worktree is still valid; the user can retry by running `cleanup-merged` manually later, though cleanup without a handoff requires manual worktree removal). |
 | Wait for CI and address reviews | No skill — inline step (see below) | CI green, review comments addressed |
 | Device matrix testing | No skill — manual step | Tested on min OS, small/large screens, slow network |
 | Beta testing | No skill — manual step | TestFlight / Play Console build tested by internal tester |
@@ -775,10 +780,6 @@ if yolo_mode AND current_phase_name in config.yolo.stop_after:
 
 **Read `references/model-routing.md`** for the full model routing tables. Summary: Opus orchestrator for the full session; subagents routed to Sonnet/Haiku for cost optimization. In YOLO mode, brainstorming and design doc are dispatched as Task(model: "opus"), planning as Task(model: "sonnet").
 
-### Commit Planning Artifacts Step (inline — no separate skill)
-
-**Read `references/inline-steps.md` — "Commit Planning Artifacts Step" section** when reaching this step.
-
 ### Copy Env Files Step (inline — no separate skill)
 
 **Read `references/inline-steps.md` — "Copy Env Files Step" section** when reaching this step.
@@ -832,7 +833,7 @@ if yolo_mode AND current_phase_name in config.yolo.stop_after:
 
 **Across sessions (new conversation):**
 - Todo lists do not persist across sessions. If the user says "resume the feature lifecycle," ask which feature and which step they were on.
-- Check for artifacts from previous sessions: design docs in `docs/plans/`, open GitHub issues, existing worktrees, and branch history to infer progress.
+- Check for artifacts from previous sessions: open GitHub issues (search via `gh issue search`), existing worktrees (via `git worktree list`), and branch history (via `git log --oneline -5`) to infer progress. Design content for sessions started after 2026-04-23 lives in the linked GitHub issue body under `## Design (feature-flow)` — not in `docs/plans/`.
 
 ### Step 5: Completion
 
@@ -847,7 +848,8 @@ Lifecycle complete!
 
 Summary:
 - Platform: [web/ios/android/cross-platform]
-- Design doc: docs/plans/YYYY-MM-DD-feature.md
+- Design: issue #<number> body, under `## Design (feature-flow)`  [if `design_issue` present]
+- Design: `docs/plans/<path>.md`  [legacy sessions before 2026-04-23 only]
 - Issue: #[number] (commented — will auto-close on PR merge) [or "(no issue linked)" if none]
 - PR: #[number] → [base branch]
 - All acceptance criteria verified
@@ -901,7 +903,7 @@ Extracted reference files (read on-demand during lifecycle execution):
 - **`references/orchestration-overrides.md`** — Brainstorming interview format, Express design approval
 - **`references/yolo-overrides.md`** — YOLO/Express overrides for writing-plans, git-worktrees, finishing-branch, subagent-driven-dev; quality context injections
 - **`references/code-review-pipeline.md`** — Code review pipeline Phases 0-5
-- **`references/inline-steps.md`** — 13 inline step definitions (documentation lookup, commit artifacts, copy env, study patterns, self-review, CHANGELOG, sync with base branch, final verification, wait for CI and reviews, harden PR, post implementation comment, handoff, commit and PR)
+- **`references/inline-steps.md`** — 12 inline step definitions (documentation lookup, copy env, study patterns, self-review, CHANGELOG, sync with base branch, final verification, wait for CI and reviews, harden PR, post implementation comment, handoff, commit and PR)
 - **`references/model-routing.md`** — Model routing defaults (orchestrator phases + subagent dispatches)
 - **`references/scope-guide.md`** — Detailed criteria for classifying work scope
 

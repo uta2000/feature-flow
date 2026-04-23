@@ -231,24 +231,23 @@ Skills that need project context (`design-verification`, `spike`) will auto-crea
  7. GitHub Issue                   ← create-issue
  8. Implementation Plan            ← superpowers:writing-plans (supports XML plan format + split plans)
  9. Plan Criteria Check            ← verify-plan-criteria (validates dependency graphs)
-10. Commit Planning Artifacts      ← inline (design docs + config committed to base branch)
-11. Worktree Setup                 ← superpowers:using-git-worktrees (+ FEATURE_CONTEXT.md + phase context dirs)
-12. Copy Env Files                 ← inline (env files available in worktree)
-13. Study Existing Patterns        ← inline (reads codebase, generates "How to Code This" notes)
-14. Implementation (TDD)           ← superpowers:subagent-driven-development (wave-based parallel execution)
-14b. Device Matrix Testing         ← mobile only
-15. Self-Review                    ← inline (coding-standards.md checklist)
-16. Code Review                    ← inline (5-phase pipeline: pre-pass → report → consolidate → fix → re-verify)
-17. Generate CHANGELOG Entry       ← inline (conventional commits → Keep a Changelog)
-18. Final Verification             ← verify-acceptance-criteria + superpowers:verification-before-completion
-18b. Beta Testing                  ← mobile only (TestFlight / Play Console)
-19. Sync with Base Branch          ← inline (merge or rebase, configurable via git_strategy)
-20. PR / Merge                     ← superpowers:finishing-a-development-branch
-21. Wait for CI & Address Reviews  ← inline (polls CI checks, detects review bots, addresses comments)
-21b. App Store Review              ← mobile only
-22. Comment and Close Issue        ← inline (implementation summary + close)
-23. Ship (merge related PRs)       ← merge-prs (optional — Feature/Major only, skips if no PRs)
-24. Deploy
+10. Worktree Setup                 ← superpowers:using-git-worktrees (+ FEATURE_CONTEXT.md + phase context dirs)
+11. Copy Env Files                 ← inline (env files available in worktree)
+12. Study Existing Patterns        ← inline (reads codebase, generates "How to Code This" notes)
+13. Implementation (TDD)           ← superpowers:subagent-driven-development (wave-based parallel execution)
+13b. Device Matrix Testing         ← mobile only
+14. Self-Review                    ← inline (coding-standards.md checklist)
+15. Code Review                    ← inline (5-phase pipeline: pre-pass → report → consolidate → fix → re-verify)
+16. Generate CHANGELOG Entry       ← inline (conventional commits → Keep a Changelog)
+17. Final Verification             ← verify-acceptance-criteria + superpowers:verification-before-completion
+17b. Beta Testing                  ← mobile only (TestFlight / Play Console)
+18. Sync with Base Branch          ← inline (merge or rebase, configurable via git_strategy)
+19. PR / Merge                     ← superpowers:finishing-a-development-branch
+20. Wait for CI & Address Reviews  ← inline (polls CI checks, detects review bots, addresses comments)
+20b. App Store Review              ← mobile only
+21. Comment and Close Issue        ← inline (implementation summary + close)
+22. Ship (merge related PRs)       ← merge-prs (optional — Feature/Major only, skips if no PRs)
+23. Deploy
 ```
 
 ## Hooks
