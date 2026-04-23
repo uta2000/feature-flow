@@ -40,16 +40,15 @@ Fields are serialized in this exact canonical order (preserved via `yaml.safe_du
 | 4 | `scope` | enum string | Yes | One of: `quick_fix`, `small_enhancement`, `feature`, `major_feature`. |
 | 5 | `risk_tier` | enum string | Yes | One of: `low`, `medium`, `high`. Defaults: `quick_fix`/`small_enhancement` → `low`; `feature` → `medium`; `major_feature` → `high`. Bumped one tier if design-verification flagged blockers. |
 | 6 | `issue` | integer or null | No | Linked GitHub issue number. `null` if none. |
-| 7 | `design_doc` | string or null | No | Repo-relative POSIX path to design doc (no `./` prefix, no absolute paths). `null` for scopes that skip design. |
-| 8 | `design_doc_sha` | string or null | No | **Blob SHA** (content-addressed): `git rev-parse HEAD:<design_doc_path>`. Pins design content regardless of subsequent edits. `null` when `design_doc` is null. |
-| 9 | `plan_file` | string or null | No | Repo-relative POSIX path to implementation plan. `null` for scopes that skip planning. |
-| 10 | `acceptance_criteria_verified_at` | ISO 8601 UTC string or null | No | Timestamp when `verify-acceptance-criteria` last passed. `null` if not yet verified. |
-| 11 | `acceptance_criteria_verified_sha` | string or null | No | **Commit SHA** at verification time: `git rev-parse HEAD`. `null` if not yet verified. |
-| 12 | `acceptance_criteria_count` | integer or null | No | Count of `- [ ]` lines in the plan file at verification time. `null` if not yet verified. |
-| 13 | `risk_areas` | list of strings | No | Top-level directories of changed files plus any individual file with >50 changed lines. Derived from `git diff --name-only --stat <base>...HEAD`. Deduped. Capped at 10 entries. Empty list `[]` when no diff yet. |
-| 14 | `sibling_prs` | list of integers | No | PR numbers in the same lifecycle session. Always `[]` in the current implementation (multi-PR session support deferred). |
-| 15 | `depends_on_prs` | list of integers | No | Parsed from explicit `gh-pr:<N>` tokens in the design doc body. No inference. `[]` when none found. |
-| 16 | `remediation_log` | list of objects | No | Append-only log of remediation events. Each entry has `type` (string), `description` (string), `commit` (string), `at` (ISO 8601 UTC). Empty list `[]` at PR creation. Capped at 50 entries when body approaches GitHub's 65,536-char limit. |
+| 7 | `design_issue` | integer or null | No | GitHub issue number containing the design (in body under `## Design (feature-flow)` markers). `null` for scopes that skip design. Issue body is the live source of truth — no separate snapshot field. |
+| 8 | `plan_file` | string or null | No | Repo-relative POSIX path to implementation plan. `null` for scopes that skip planning. |
+| 9 | `acceptance_criteria_verified_at` | ISO 8601 UTC string or null | No | Timestamp when `verify-acceptance-criteria` last passed. `null` if not yet verified. |
+| 10 | `acceptance_criteria_verified_sha` | string or null | No | **Commit SHA** at verification time: `git rev-parse HEAD`. `null` if not yet verified. |
+| 11 | `acceptance_criteria_count` | integer or null | No | Count of `- [ ]` lines in the plan file at verification time. `null` if not yet verified. |
+| 12 | `risk_areas` | list of strings | No | Top-level directories of changed files plus any individual file with >50 changed lines. Derived from `git diff --name-only --stat <base>...HEAD`. Deduped. Capped at 10 entries. Empty list `[]` when no diff yet. |
+| 13 | `sibling_prs` | list of integers | No | PR numbers in the same lifecycle session. Always `[]` in the current implementation (multi-PR session support deferred). |
+| 14 | `depends_on_prs` | list of integers | No | Parsed from explicit `gh-pr:<N>` tokens in the design doc body. No inference. `[]` when none found. |
+| 15 | `remediation_log` | list of objects | No | Append-only log of remediation events. Each entry has `type` (string), `description` (string), `commit` (string), `at` (ISO 8601 UTC). Empty list `[]` at PR creation. Capped at 50 entries when body approaches GitHub's 65,536-char limit. |
 
 **Required fields** (must be non-null in every well-formed block): `schema_version`, `lifecycle_session`, `created_at`, `scope`, `risk_tier`.
 
@@ -130,8 +129,7 @@ created_at: 2026-04-08T14:22:10Z
 scope: feature
 risk_tier: medium
 issue: 229
-design_doc: docs/plans/2026-04-08-feature-flow-metadata-block.md
-design_doc_sha: 9f4a2c1d3e5b7a8f0c2d4e6f8a0b2c4d
+design_issue: 244
 plan_file: docs/plans/2026-04-08-feature-flow-metadata-block-plan.md
 acceptance_criteria_verified_at: 2026-04-08T14:40:02Z
 acceptance_criteria_verified_sha: 7b3e815f9c2d4a6e8b0f1c3d5e7f9a1b
