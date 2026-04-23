@@ -466,6 +466,12 @@ Ensure the lifecycle is followed from start to finish. Track which steps are com
 4. Session model check
 5. Notification preference (macOS-only, saved to `.feature-flow.yml`)
 6. YOLO stop_after reading (from `.feature-flow.yml`)
+7. **Opportunistic cleanup pre-flight.** Invoke `feature-flow:cleanup-merged` with no argument to reclaim worktrees, branches, and handoff files for any PRs that have merged since the last `start:` session. This step:
+   - Runs for **all scopes including Quick fix**.
+   - Is **silent on no-op** (no handoff files found, or all found PRs are still open).
+   - **Announces** cleaned PRs on success: `Pre-flight: cleaned up PR #N (slug-a3f2), PR #M (slug-b742)`
+   - **Non-blocking**: does not block the lifecycle if cleanup fails — log the failure and continue.
+   - Invocation: `Skill(skill: "feature-flow:cleanup-merged", args: "")` wrapped in try/catch; any exception logs `Pre-flight cleanup failed: <error> — continuing.` and proceeds.
 
 ### Step 1: Determine Scope
 
