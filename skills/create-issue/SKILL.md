@@ -19,17 +19,24 @@ Create or update a well-structured GitHub issue from a verified design document.
 
 ## Process
 
-### Step 1: Load the Design Document
+### Step 1: Assemble design content
 
-Find the design document:
-1. If the user specified a path, use it
-2. Otherwise, find the most recently modified `.md` file in `docs/plans/`:
+Design content for new issues comes from the current conversation context (brainstorming output, inline arguments, or previously gathered decisions) — not from `docs/plans/`.
 
+**Context sources (in priority order):**
+1. If `issue` is already set in lifecycle context (the user passed an existing issue number): load the existing issue body via `gh issue view <issue_number> --json body,title --jq '{title, body}'`. This is **update mode** — skip draft assembly and go directly to Step 5.
+2. From brainstorming output in the conversation: extract scope, approach, decisions, and acceptance criteria.
+3. From inline `start:` args (user description + any explicitly provided context).
+4. From any design-document content already written earlier in the session (in conversation context — not from a file).
+
+Assemble a minimal issue body from the gathered context. The body will include an empty design marker block that `feature-flow:design-document` will fill in on the next lifecycle step.
+
+**Design marker block (placeholder — will be replaced by design-document):**
 ```
-Glob: docs/plans/*.md
+<!-- feature-flow:design:start -->
+(pending design-document — will be filled in by `feature-flow:design-document`)
+<!-- feature-flow:design:end -->
 ```
-
-Read the full document and extract the key sections.
 
 ### Step 2: Check Repository Context
 
@@ -72,19 +79,16 @@ Map the design document sections to issue sections:
 
 Compose the issue body. Follow these principles:
 
-- **Link to design doc:** Always include "See `docs/plans/YYYY-MM-DD-feature.md`" for full detail
 - **Summarize, don't duplicate:** The issue is a brief, not a copy of the design doc. Include enough to understand the scope without opening the doc.
 - **Concrete examples:** Include at least one input/output example in the summary
 - **Implementation notes from verification:** If design-verification was run, include its findings as implementation notes
+- **Design section placeholder:** Always include the empty design marker block. Design is captured in this issue body under the `## Design (feature-flow)` section (populated by design-document).
 
 **Issue format:**
 
 ```markdown
 ## Summary
 [2-3 sentences + concrete example]
-
-## Design Doc
-See `docs/plans/YYYY-MM-DD-feature.md`
 
 ## User Flow
 1. **[Step name]** — [description]
@@ -100,6 +104,10 @@ See `docs/plans/YYYY-MM-DD-feature.md`
 ## Implementation Notes
 - [blocker or gap from verification]
 - [technical consideration]
+
+<!-- feature-flow:design:start -->
+(pending design-document — will be filled in by `feature-flow:design-document`)
+<!-- feature-flow:design:end -->
 ```
 
 ### Step 5: Add Metadata
@@ -167,7 +175,7 @@ EOF
 Then add a comment summarizing what changed:
 
 ```bash
-gh issue comment N --body "Updated from design document: [1-line summary of what changed]. See \`docs/plans/YYYY-MM-DD-feature.md\`"
+gh issue comment N --body "Updated from design document: [1-line summary of what changed]. Design is captured in this issue body under the ## Design (feature-flow) section (populated by design-document)."
 ```
 
 **If creating a new issue:**
@@ -188,9 +196,9 @@ Report the issue URL to the user.
 Issue #N updated: [URL]
 
 Recommended next steps:
-1. Run `writing-plans` to create an implementation plan with acceptance criteria
-2. Run `verify-plan-criteria` to ensure all tasks have verifiable criteria
-3. Set up a worktree with `using-git-worktrees` to start implementation
+1. Run `feature-flow:design-document` to merge the design into this issue body
+2. Run `feature-flow:design-verification` to check the design against the codebase
+3. Run `superpowers:writing-plans` to create an implementation plan with acceptance criteria
 ```
 
 **If created:**
@@ -198,16 +206,16 @@ Recommended next steps:
 Issue created: [URL]
 
 Recommended next steps:
-1. Run `writing-plans` to create an implementation plan with acceptance criteria
-2. Run `verify-plan-criteria` to ensure all tasks have verifiable criteria
-3. Set up a worktree with `using-git-worktrees` to start implementation
+1. Run `feature-flow:design-document` to merge the design into this issue body
+2. Run `feature-flow:design-verification` to check the design against the codebase
+3. Run `superpowers:writing-plans` to create an implementation plan with acceptance criteria
 ```
 
 ## Quality Rules
 
 - **No orphan decisions:** Every key decision from the design doc should appear in the issue (in Key Decisions or as context in other sections)
 - **Accurate counts:** Migration counts, component counts, and phase counts must match the design doc exactly
-- **Link to design doc:** Always reference the design doc path so readers can access full detail
+- **Design in issue body:** Design is captured in this issue body under the `## Design (feature-flow)` section (populated by design-document). Always include the empty design marker block so `feature-flow:design-document` can fill it in.
 - **Consistent terminology:** Use the same names for tables, columns, components, and concepts as the design doc and codebase
 - **Stand-alone readability:** A developer reading only the issue (without the design doc) should understand what to build, even if they need the doc for implementation details
 
