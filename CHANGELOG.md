@@ -4,6 +4,9 @@ All notable changes to the feature-flow plugin.
 
 ## [Unreleased]
 
+### Added
+- **Per-phase context-contributor instrumentation in session-report (#253)** — `analyze-session.py` now produces a `context_contributors` section in its JSON output that shows which files, Bash commands, Skill invocations, and subagent dispatches consumed the most context tokens during each lifecycle phase. Phase boundaries are detected via `TaskUpdate(status="in_progress")` events; tool calls before the first phase boundary are grouped under a `startup` bucket (renamed to `session` in non-workflow sessions with no `TaskUpdate` events at all). Token usage is estimated as `len(result_text) // 4`. `context_contributors` shape: `{phases: {<phase>: [{key, count, tokens}]}, phase_summary: {<phase>: total_tokens}, tool_result_estimated_tokens: N, calibration_note: "..."}`. Top 5 contributors are surfaced per phase; `phase_summary` sums all contributors (not just the top 5) so phase totals reconcile with `tool_result_estimated_tokens`. Paths are normalized: `~/.claude/plugins/cache/<owner>/.../<skill>/...` for user-global plugin cache, `<project>/.claude/plugins/cache/<owner>/.../<skill>/...` for project-local plugin cache, and `~/...` for other absolute paths. `SKILL.md` gains a `### 3S: Top Context Contributors` analysis step in the session analysis checklist and a `### Top Context Contributors` table block in the report output template. New test file `skills/session-report/scripts/test_context_contributors.py` covers path normalization, phase detection, token accumulation, `phase_summary` correctness, and hybrid startup+named-phase sessions (12 tests).
+
 ## [1.37.0] - 2026-04-23
 
 ### Added
