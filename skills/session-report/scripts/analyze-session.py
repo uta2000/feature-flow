@@ -1343,10 +1343,14 @@ def analyze_session(filepath):
             for k, v in sorted_contribs
         ]
 
-    phase_summary = {
-        phase: sum(c["tokens"] for c in contribs)
-        for phase, contribs in phases_output.items()
-    }
+    # Sum ALL contributors per phase (not just the top-5 slice) so phase totals
+    # reconcile correctly with tool_result_estimated_tokens.
+    phase_summary = {}
+    for phase_name, contributors in phase_contributors.items():
+        output_name = (
+            "session" if (phase_name == "startup" and named_phase_count == 0) else phase_name
+        )
+        phase_summary[output_name] = sum(v["tokens"] for v in contributors.values())
 
     report["context_contributors"] = {
         "phases": phases_output,

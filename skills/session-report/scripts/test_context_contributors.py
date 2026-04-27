@@ -178,6 +178,21 @@ def test_tool_result_estimated_tokens_total():
     assert cc.get("tool_result_estimated_tokens") == 1500  # (4000 + 2000) // 4
 
 
+def test_phase_summary_counts_all_contributors():
+    """phase_summary includes ALL contributors, not just top-5."""
+    # Build 7 distinct files each returning 400 chars → 100 tokens each
+    messages = []
+    for i in range(7):
+        messages.append(make_message("assistant", tool_calls=[
+            make_tc("Read", f"r{i}", {"file_path": f"/Users/test/file{i}.py"}),
+        ]))
+        messages.append(make_message("user", tool_results=[make_tr(f"r{i}", "x" * 400)]))
+    cc = run_phase_detection(messages)
+    # phases["session"] has only top 5, but phase_summary must reflect all 7
+    assert cc.get("phase_summary", {}).get("session") == 700  # 7 * 100
+    assert len(cc.get("phases", {}).get("session", [])) == 5  # capped at 5
+
+
 def test_hybrid_startup_and_named_phase():
     """Tool calls before first TaskUpdate are kept under 'startup' phase."""
     messages = [
