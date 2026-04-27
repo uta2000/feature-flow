@@ -313,6 +313,23 @@ THINKING_SIGNALS = {
 # MAIN ANALYSIS
 # =========================================================================
 
+def normalize_contributor_path(path: str) -> str:
+    """Shorten plugin cache paths and replace /Users/<user>/ with ~/."""
+    # Plugin cache: .../project/.claude/plugins/cache/owner/name/ver/skills/skill/...
+    m = re.match(
+        r".+/\.claude/plugins/cache/([^/]+)/[^/]+/[^/]+/skills/([^/]+)/(.+)",
+        path,
+    )
+    if m:
+        owner, skill, rest = m.group(1), m.group(2), m.group(3)
+        if re.match(r"/Users/[^/]+/\.claude/", path):
+            return f"~/.claude/plugins/cache/{owner}/.../{skill}/{rest}"
+        else:
+            return f"<project>/.claude/plugins/cache/{owner}/.../{skill}/{rest}"
+    # Replace /Users/<username>/ with ~/
+    return re.sub(r"^/Users/[^/]+/", "~/", path)
+
+
 def analyze_session(filepath):
     with open(filepath) as f:
         data = json.load(f)
