@@ -634,23 +634,6 @@ Do not exit the skill after a save. The user exits explicitly by selecting "Done
 
 ---
 
-## Setting Definitions Reference
-
-| # | Setting | YAML Path | Default |
-|---|---------|-----------|---------|
-| 1 | YOLO stops | `yolo.stop_after` | `[]` (no stops) |
-| 2 | Notifications | `notifications.on_stop` | `bell` |
-| 3 | Default branch | `default_branch` | _(absent = auto-detect)_ |
-| 4 | Git strategy | `git_strategy` | `merge` |
-| 5 | Design preferences | `design_preferences.*` | _(absent = infer from codebase)_ |
-| 6 | Tool selector | `tool_selector.*` | enabled, 0.7, no auto-launch |
-| 7 | Context7 libraries | `context7.*` | _(absent = no mappings)_ |
-| 8 | CI timeout | `ci_timeout_seconds` | `900` |
-| 9 | KB limits | `knowledge_base.max_lines`, `knowledge_base.stale_days` | `150`, `14` |
-| 10 | Standards | `standards.*` | _(absent = auto-discovery on next design-document run)_ |
-
----
-
 ## Special Cases
 
 ### Notification Hook Side Effect
