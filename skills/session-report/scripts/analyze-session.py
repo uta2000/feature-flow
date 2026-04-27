@@ -460,6 +460,17 @@ def analyze_session(filepath):
     # Lifecycle tasks
     tasks_created = []
 
+    # Context contributors — phase-attributed token estimation
+    task_create_id_to_subject = {}   # tool_use_id of TaskCreate -> subject str
+    task_id_to_subject = {}          # task #N str -> subject str
+    tool_use_phase = {}              # tool_use_id -> (phase_name, contributor_key)
+    current_phase_name = "startup"
+    current_phase_id = None
+    phase_contributors = defaultdict(
+        lambda: defaultdict(lambda: {"count": 0, "tokens": 0})
+    )
+    tool_result_total_tokens = 0
+
     # User questions
     questions_asked = []
 
@@ -815,9 +826,44 @@ def analyze_session(filepath):
                 if file_path:
                     file_read_counts[file_path] += 1
 
+            # Context contributor attribution — record tool call -> phase mapping
+            contributor_key = None
+            if tool_name == "Read":
+                raw_path = inp.get("file_path", "")
+                if raw_path:
+                    contributor_key = normalize_contributor_path(raw_path)
+            elif tool_name == "Bash":
+                cmd_str = inp.get("command", "") if isinstance(inp, dict) else str(inp)
+                contributor_key = "Bash: " + cmd_str[:60].replace("\n", " ")
+            elif tool_name == "Skill":
+                contributor_key = "Skill: " + inp.get("skill", "unknown")
+            elif tool_name in ("Task", "Agent"):
+                desc = inp.get("description", inp.get("prompt", "unknown"))
+                contributor_key = tool_name + ": " + str(desc)[:60]
+            if contributor_key:
+                tc_id = tc.get("id", "")
+                if tc_id:
+                    tool_use_phase[tc_id] = (current_phase_name, contributor_key)
+
             # TaskCreate
             if tool_name == "TaskCreate":
-                tasks_created.append(inp.get("subject", "unknown"))
+                subject = inp.get("subject", "unknown")
+                tasks_created.append(subject)
+                tc_id = tc.get("id", "")
+                if tc_id:
+                    task_create_id_to_subject[tc_id] = subject
+
+            # TaskUpdate — phase boundary detection
+            if tool_name == "TaskUpdate":
+                status = inp.get("status", "")
+                task_id = str(inp.get("taskId", ""))
+                if status == "in_progress":
+                    phase_name = task_id_to_subject.get(task_id, f"task-{task_id}")
+                    current_phase_name = phase_name
+                    current_phase_id = task_id
+                elif status in ("completed", "deleted", "cancelled"):
+                    current_phase_name = "startup"
+                    current_phase_id = None
 
             # AskUserQuestion
             if tool_name == "AskUserQuestion":
@@ -911,6 +957,32 @@ def analyze_session(filepath):
         # --- Tool results (user messages containing results) ---
         for tr in m.get("toolResults", []):
             tool_use_id = tr.get("toolUseId", "")
+
+            # Context contributor: accumulate tokens and parse TaskCreate results
+            content = tr.get("content", "")
+            if isinstance(content, list):
+                result_text = " ".join(
+                    c.get("text", "")
+                    for c in content
+                    if isinstance(c, dict) and c.get("type") == "text"
+                )
+            else:
+                result_text = str(content) if content else ""
+            result_token_estimate = len(result_text) // 4
+            tool_result_total_tokens += result_token_estimate
+
+            # Parse TaskCreate result to populate task_id_to_subject
+            if tool_use_id in task_create_id_to_subject:
+                subject = task_create_id_to_subject[tool_use_id]
+                id_match = re.search(r"Task #(\d+) created successfully", result_text)
+                if id_match:
+                    task_id_to_subject[id_match.group(1)] = subject
+
+            # Accumulate tokens for contributor attribution
+            if tool_use_id in tool_use_phase:
+                phase_name, contributor_key = tool_use_phase[tool_use_id]
+                phase_contributors[phase_name][contributor_key]["count"] += 1
+                phase_contributors[phase_name][contributor_key]["tokens"] += result_token_estimate
 
             # Subagent metrics from Task results
             if tool_use_id in tool_call_index:
@@ -1250,6 +1322,47 @@ def analyze_session(filepath):
             round(total_reads / unique_files, 2) if unique_files else 0
         ),
         "redundant_files": redundant_files,
+    }
+
+    # --- Context contributors ---
+    # Build output for all named phases (excludes "startup" which is the
+    # pre-lifecycle default — handled as fallback below)
+    phases_output = {}
+    for phase_name, contributors in phase_contributors.items():
+        if phase_name == "startup":
+            continue
+        sorted_contribs = sorted(
+            contributors.items(),
+            key=lambda x: x[1]["tokens"],
+            reverse=True,
+        )[:5]
+        phases_output[phase_name] = [
+            {"key": k, "count": v["count"], "tokens": v["tokens"]}
+            for k, v in sorted_contribs
+        ]
+
+    # Fallback: non-workflow sessions — rename "startup" phase to "session"
+    if not phases_output and "startup" in phase_contributors:
+        sorted_session = sorted(
+            phase_contributors["startup"].items(),
+            key=lambda x: x[1]["tokens"],
+            reverse=True,
+        )[:5]
+        phases_output["session"] = [
+            {"key": k, "count": v["count"], "tokens": v["tokens"]}
+            for k, v in sorted_session
+        ]
+
+    phase_summary = {
+        phase: sum(c["tokens"] for c in contribs)
+        for phase, contribs in phases_output.items()
+    }
+
+    report["context_contributors"] = {
+        "phases": phases_output,
+        "phase_summary": phase_summary,
+        "tool_result_estimated_tokens": tool_result_total_tokens,
+        "calibration_note": "Token counts are estimated as len(result_text) // 4.",
     }
 
     # --- Cache economics ---
