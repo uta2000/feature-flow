@@ -176,3 +176,31 @@ def test_tool_result_estimated_tokens_total():
     ]
     cc = run_phase_detection(messages)
     assert cc.get("tool_result_estimated_tokens") == 1500  # (4000 + 2000) // 4
+
+
+def test_hybrid_startup_and_named_phase():
+    """Tool calls before first TaskUpdate are kept under 'startup' phase."""
+    messages = [
+        make_message("assistant", tool_calls=[
+            make_tc("Read", "r0", {"file_path": "/Users/test/issue.md"}),
+        ]),
+        make_message("user", tool_results=[make_tr("r0", "x" * 4000)]),
+        make_message("assistant", tool_calls=[
+            make_tc("TaskCreate", "tc1", {"subject": "Build"}),
+        ]),
+        make_message("user", tool_results=[
+            make_tr("tc1", "Task #1 created successfully: Build"),
+        ]),
+        make_message("assistant", tool_calls=[
+            make_tc("TaskUpdate", "tu1", {"taskId": "1", "status": "in_progress"}),
+        ]),
+        make_message("user", tool_results=[make_tr("tu1", "ok")]),
+        make_message("assistant", tool_calls=[
+            make_tc("Read", "r1", {"file_path": "/Users/test/code.py"}),
+        ]),
+        make_message("user", tool_results=[make_tr("r1", "y" * 2000)]),
+    ]
+    cc = run_phase_detection(messages)
+    phases = cc.get("phases", {})
+    assert "startup" in phases, f"startup contributors dropped! phases={list(phases.keys())}"
+    assert "Build" in phases

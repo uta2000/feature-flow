@@ -1325,32 +1325,22 @@ def analyze_session(filepath):
     }
 
     # --- Context contributors ---
-    # Build output for all named phases (excludes "startup" which is the
-    # pre-lifecycle default — handled as fallback below)
+    # "startup" is renamed to "session" only when no named phases exist.
+    # In workflow sessions it stays as "startup" so pre-lifecycle reads are visible.
+    named_phase_count = sum(1 for p in phase_contributors if p != "startup")
     phases_output = {}
     for phase_name, contributors in phase_contributors.items():
-        if phase_name == "startup":
-            continue
+        output_name = (
+            "session" if (phase_name == "startup" and named_phase_count == 0) else phase_name
+        )
         sorted_contribs = sorted(
             contributors.items(),
             key=lambda x: x[1]["tokens"],
             reverse=True,
         )[:5]
-        phases_output[phase_name] = [
+        phases_output[output_name] = [
             {"key": k, "count": v["count"], "tokens": v["tokens"]}
             for k, v in sorted_contribs
-        ]
-
-    # Fallback: non-workflow sessions — rename "startup" phase to "session"
-    if not phases_output and "startup" in phase_contributors:
-        sorted_session = sorted(
-            phase_contributors["startup"].items(),
-            key=lambda x: x[1]["tokens"],
-            reverse=True,
-        )[:5]
-        phases_output["session"] = [
-            {"key": k, "count": v["count"], "tokens": v["tokens"]}
-            for k, v in sorted_session
         ]
 
     phase_summary = {
