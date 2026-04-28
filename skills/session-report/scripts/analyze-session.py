@@ -313,6 +313,23 @@ THINKING_SIGNALS = {
 # MAIN ANALYSIS
 # =========================================================================
 
+def normalize_contributor_path(path: str) -> str:
+    """Shorten plugin cache paths and replace /Users/<user>/ with ~/."""
+    # Plugin cache: .../project/.claude/plugins/cache/owner/name/ver/skills/skill/...
+    m = re.match(
+        r".+/\.claude/plugins/cache/([^/]+)/[^/]+/[^/]+/skills/([^/]+)/(.+)",
+        path,
+    )
+    if m:
+        owner, skill, rest = m.group(1), m.group(2), m.group(3)
+        if re.match(r"/(?:Users|home)/[^/]+/\.claude/", path):
+            return f"~/.claude/plugins/cache/{owner}/.../{skill}/{rest}"
+        else:
+            return f"<project>/.claude/plugins/cache/{owner}/.../{skill}/{rest}"
+    # Replace /Users/<username>/ (macOS) or /home/<username>/ (Linux) with ~/
+    return re.sub(r"^/(?:Users|home)/[^/]+/", "~/", path)
+
+
 def analyze_session(filepath):
     with open(filepath) as f:
         data = json.load(f)
@@ -442,6 +459,17 @@ def analyze_session(filepath):
 
     # Lifecycle tasks
     tasks_created = []
+
+    # Context contributors — phase-attributed token estimation
+    task_create_id_to_subject = {}   # tool_use_id of TaskCreate -> subject str
+    task_id_to_subject = {}          # task #N str -> subject str
+    tool_use_phase = {}              # tool_use_id -> (phase_name, contributor_key)
+    current_phase_name = "startup"
+    current_phase_id = None
+    phase_contributors = defaultdict(
+        lambda: defaultdict(lambda: {"count": 0, "tokens": 0})
+    )
+    tool_result_total_tokens = 0
 
     # User questions
     questions_asked = []
@@ -798,9 +826,43 @@ def analyze_session(filepath):
                 if file_path:
                     file_read_counts[file_path] += 1
 
+            # Context contributor attribution — record tool call -> phase mapping
+            contributor_key = None
+            if tool_name == "Read":
+                if file_path:
+                    contributor_key = normalize_contributor_path(file_path)
+            elif tool_name == "Bash":
+                cmd_str = inp.get("command", "") if isinstance(inp, dict) else str(inp)
+                contributor_key = "Bash: " + cmd_str[:60].replace("\n", " ")
+            elif tool_name == "Skill":
+                contributor_key = "Skill: " + inp.get("skill", "unknown")
+            elif tool_name in ("Task", "Agent"):
+                desc = inp.get("description", inp.get("prompt", "unknown"))
+                contributor_key = tool_name + ": " + str(desc)[:60]
+            if contributor_key:
+                tc_id = tc.get("id", "")
+                if tc_id:
+                    tool_use_phase[tc_id] = (current_phase_name, contributor_key)
+
             # TaskCreate
             if tool_name == "TaskCreate":
-                tasks_created.append(inp.get("subject", "unknown"))
+                subject = inp.get("subject", "unknown")
+                tasks_created.append(subject)
+                tc_id = tc.get("id", "")
+                if tc_id:
+                    task_create_id_to_subject[tc_id] = subject
+
+            # TaskUpdate — phase boundary detection
+            if tool_name == "TaskUpdate":
+                status = inp.get("status", "")
+                task_id = str(inp.get("taskId", ""))
+                if status == "in_progress":
+                    phase_name = task_id_to_subject.get(task_id, f"task-{task_id}")
+                    current_phase_name = phase_name
+                    current_phase_id = task_id
+                elif status in ("completed", "deleted", "cancelled"):
+                    current_phase_name = "startup"
+                    current_phase_id = None
 
             # AskUserQuestion
             if tool_name == "AskUserQuestion":
@@ -894,6 +956,32 @@ def analyze_session(filepath):
         # --- Tool results (user messages containing results) ---
         for tr in m.get("toolResults", []):
             tool_use_id = tr.get("toolUseId", "")
+
+            # Context contributor: accumulate tokens and parse TaskCreate results
+            content = tr.get("content", "")
+            if isinstance(content, list):
+                result_text = " ".join(
+                    c.get("text", "")
+                    for c in content
+                    if isinstance(c, dict) and c.get("type") == "text"
+                )
+            else:
+                result_text = str(content) if content else ""
+            result_token_estimate = len(result_text) // 4
+            tool_result_total_tokens += result_token_estimate
+
+            # Parse TaskCreate result to populate task_id_to_subject
+            if tool_use_id in task_create_id_to_subject:
+                subject = task_create_id_to_subject[tool_use_id]
+                id_match = re.search(r"Task #(\d+) created successfully", result_text)
+                if id_match:
+                    task_id_to_subject[id_match.group(1)] = subject
+
+            # Accumulate tokens for contributor attribution
+            if tool_use_id in tool_use_phase:
+                phase_name, contributor_key = tool_use_phase[tool_use_id]
+                phase_contributors[phase_name][contributor_key]["count"] += 1
+                phase_contributors[phase_name][contributor_key]["tokens"] += result_token_estimate
 
             # Subagent metrics from Task results
             if tool_use_id in tool_call_index:
@@ -1233,6 +1321,37 @@ def analyze_session(filepath):
             round(total_reads / unique_files, 2) if unique_files else 0
         ),
         "redundant_files": redundant_files,
+    }
+
+    # --- Context contributors ---
+    # "startup" is renamed to "session" only when no named phases exist.
+    # In workflow sessions it stays as "startup" so pre-lifecycle reads are visible.
+    # "startup" is renamed to "session" only when no named phases exist.
+    # In workflow sessions it stays as "startup" so pre-lifecycle reads are visible.
+    # phases_output (top-5) and phase_summary (all contributors) are built in one pass.
+    named_phase_count = sum(1 for p in phase_contributors if p != "startup")
+    phases_output = {}
+    phase_summary = {}
+    for phase_name, contributors in phase_contributors.items():
+        output_name = (
+            "session" if (phase_name == "startup" and named_phase_count == 0) else phase_name
+        )
+        sorted_contribs = sorted(
+            contributors.items(),
+            key=lambda x: x[1]["tokens"],
+            reverse=True,
+        )[:5]
+        phases_output[output_name] = [
+            {"key": k, "count": v["count"], "tokens": v["tokens"]}
+            for k, v in sorted_contribs
+        ]
+        phase_summary[output_name] = sum(v["tokens"] for v in contributors.values())
+
+    report["context_contributors"] = {
+        "phases": phases_output,
+        "phase_summary": phase_summary,
+        "tool_result_estimated_tokens": tool_result_total_tokens,
+        "calibration_note": "Token counts are estimated as len(result_text) // 4.",
     }
 
     # --- Cache economics ---

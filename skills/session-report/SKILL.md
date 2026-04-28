@@ -314,6 +314,16 @@ For each item in `out_of_scope_findings`:
 2. Classify severity: **High** (breaks functionality), **Medium** (degrades quality), **Low** (cosmetic/minor tech debt)
 3. Recommend: "File issue" / "Add to backlog" / "Ignore"
 
+### 3S: Top Context Contributors
+
+From `context_contributors` in the script output:
+
+- **`tool_result_estimated_tokens`:** Report this as the total estimated context consumed by tool results session-wide (tokens ≈ chars ÷ 4). Annotate with the `calibration_note`.
+- **Per phase (`phases`):** For each phase in `phases`, list the top contributors in descending token order. Format each contributor as "`<key>` — <count> call(s), ~<tokens> tokens".
+- **`phase_summary`:** Report total estimated tokens per phase to show which lifecycle phase consumed the most context.
+- **If only `"session"` phase is present:** Omit phase labeling — just report the top contributors as a flat list with the header "Top contributors (session-wide)".
+- **Threshold:** Only include a phase section if it has at least one contributor with `tokens > 0`. Skip phases with no attributed results.
+
 ---
 
 ## Step 4: Generate the Report
@@ -456,6 +466,26 @@ Write the report to `docs/plans/session-report-<session-id-first-8-chars>.md`:
 - **Thinking blocks:** <count>
 - **Key signals:** <planning> planning, <alternatives> alternative explorations, <direction_change> direction changes, <uncertainty> uncertainty markers
 - <Interpretation per 3K>
+
+### Top Context Contributors
+
+> Include only if `context_contributors.phases` is non-empty and at least one contributor has `tokens > 0`.
+
+**Total tool result context:** ~<tool_result_estimated_tokens> tokens (<calibration_note>)
+
+**By phase (top 5 each):**
+
+| Phase | Contributor | Calls | ~Tokens |
+|---|---|---:|---:|
+| <phase_name> | `<key>` | <count> | <tokens> |
+
+**Phase totals:**
+
+| Phase | ~Tokens |
+|---|---:|
+| <phase_name> | <tokens> |
+
+<Interpretation per 3S: highlight the phase consuming the most context, flag any single contributor using >30% of a phase's token budget as a "context hot spot".>
 
 ---
 
