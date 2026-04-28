@@ -322,12 +322,12 @@ def normalize_contributor_path(path: str) -> str:
     )
     if m:
         owner, skill, rest = m.group(1), m.group(2), m.group(3)
-        if re.match(r"/Users/[^/]+/\.claude/", path):
+        if re.match(r"/(?:Users|home)/[^/]+/\.claude/", path):
             return f"~/.claude/plugins/cache/{owner}/.../{skill}/{rest}"
         else:
             return f"<project>/.claude/plugins/cache/{owner}/.../{skill}/{rest}"
-    # Replace /Users/<username>/ with ~/
-    return re.sub(r"^/Users/[^/]+/", "~/", path)
+    # Replace /Users/<username>/ (macOS) or /home/<username>/ (Linux) with ~/
+    return re.sub(r"^/(?:Users|home)/[^/]+/", "~/", path)
 
 
 def analyze_session(filepath):
@@ -829,9 +829,8 @@ def analyze_session(filepath):
             # Context contributor attribution — record tool call -> phase mapping
             contributor_key = None
             if tool_name == "Read":
-                raw_path = inp.get("file_path", "")
-                if raw_path:
-                    contributor_key = normalize_contributor_path(raw_path)
+                if file_path:
+                    contributor_key = normalize_contributor_path(file_path)
             elif tool_name == "Bash":
                 cmd_str = inp.get("command", "") if isinstance(inp, dict) else str(inp)
                 contributor_key = "Bash: " + cmd_str[:60].replace("\n", " ")
@@ -1327,8 +1326,12 @@ def analyze_session(filepath):
     # --- Context contributors ---
     # "startup" is renamed to "session" only when no named phases exist.
     # In workflow sessions it stays as "startup" so pre-lifecycle reads are visible.
+    # "startup" is renamed to "session" only when no named phases exist.
+    # In workflow sessions it stays as "startup" so pre-lifecycle reads are visible.
+    # phases_output (top-5) and phase_summary (all contributors) are built in one pass.
     named_phase_count = sum(1 for p in phase_contributors if p != "startup")
     phases_output = {}
+    phase_summary = {}
     for phase_name, contributors in phase_contributors.items():
         output_name = (
             "session" if (phase_name == "startup" and named_phase_count == 0) else phase_name
@@ -1342,14 +1345,6 @@ def analyze_session(filepath):
             {"key": k, "count": v["count"], "tokens": v["tokens"]}
             for k, v in sorted_contribs
         ]
-
-    # Sum ALL contributors per phase (not just the top-5 slice) so phase totals
-    # reconcile correctly with tool_result_estimated_tokens.
-    phase_summary = {}
-    for phase_name, contributors in phase_contributors.items():
-        output_name = (
-            "session" if (phase_name == "startup" and named_phase_count == 0) else phase_name
-        )
         phase_summary[output_name] = sum(v["tokens"] for v in contributors.values())
 
     report["context_contributors"] = {
