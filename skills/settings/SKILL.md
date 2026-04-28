@@ -91,7 +91,7 @@ tool_selector:
 
 Then announce: "Created `.feature-flow.yml` with defaults. You can now configure your settings."
 
-**If the file exists**, read it and parse the current values for all 10 settings using the reference table below.
+**If the file exists**, read it and parse the current values for all 10 settings.
 
 ### Step 2: Display Dashboard
 
