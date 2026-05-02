@@ -582,7 +582,7 @@ This step runs after commit and PR (or after mobile-specific steps like app stor
 
 Use both results together to determine (a) initial CI state and (b) whether bot-review polling is needed. Then proceed to the Phase 1 and Phase 2 loops described below.
 
-For subsequent polls, continue firing Phase 1 and Phase 2b polls in the same parallel-message pattern — one tool call each, grouped into a single message per tick — until each loop reaches its terminal state. (Phase 2a fires only once at entry; subsequent Phase 2 ticks poll the current PR per Step 2b.)
+For subsequent ticks, continue firing Phase 1 and Phase 2 (2b/2c) calls in the same parallel-message pattern — one tool call each, grouped into a single message per tick — until each loop reaches its terminal state. (Phase 2a fires only once at entry; subsequent Phase 2 ticks poll the current PR per Step 2b or execute remediation steps per Step 2c.)
 
 ### Phase 1: Wait for CI checks
 
@@ -745,7 +745,7 @@ If Phase 1 times out or has no checks, Phase 2 still runs (the bot review is ind
 
 ### Loop Termination
 
-Maximum 2 total fix-and-recheck cycles across Phase 1 and Phase 3 combined. After 2 cycles:
+Maximum 2 total fix-and-recheck cycles across Phase 1, Phase 2c, and Phase 3 combined (any fix push that triggers a Phase 1 re-wait counts, regardless of source phase). After 2 cycles:
 - If checks still failing → warn: "CI still failing after 2 fix attempts. Continuing lifecycle." List failing checks.
 
 Phase 2 (bot review) runs at most once per PR — no loop. If the bot posts additional comments on the fix commit, they are not automatically addressed (this would require a separate manual invocation).

@@ -63,7 +63,7 @@ Use both results together to determine (a) initial CI state and (b) whether bot-
 - [ ] **Step 3: Verify the new block is present**
 
 ```bash
-grep -n "single parallel message" /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e/skills/start/references/inline-steps.md
+grep -n "single parallel message" skills/start/references/inline-steps.md
 ```
 
 Expected: one matching line containing "single parallel message".
@@ -71,10 +71,8 @@ Expected: one matching line containing "single parallel message".
 - [ ] **Step 4: Commit**
 
 ```bash
-git -C /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e \
-  add skills/start/references/inline-steps.md
-git -C /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e \
-  commit -m "docs(start): add parallel-kickoff block at step entry"
+git add skills/start/references/inline-steps.md
+git commit -m "docs(start): add parallel-kickoff block at step entry"
 ```
 
 ---
@@ -119,7 +117,7 @@ Check the last 5 merged/closed PRs for reviews from bot users:
 - [ ] **Step 3: Verify the concurrent-framing sentence is present**
 
 ```bash
-grep -n "Step 2a runs concurrently with Phase 1" /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e/skills/start/references/inline-steps.md
+grep -n "Step 2a runs concurrently with Phase 1" skills/start/references/inline-steps.md
 ```
 
 Expected: one matching line.
@@ -127,7 +125,7 @@ Expected: one matching line.
 - [ ] **Step 4: Verify the join-condition forward reference is present**
 
 ```bash
-grep -n "Step Exit / Join Condition" /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e/skills/start/references/inline-steps.md
+grep -n "Step Exit / Join Condition" skills/start/references/inline-steps.md
 ```
 
 Expected: at least one matching line (the forward reference added in this task, plus the section heading added in Task 3).
@@ -135,10 +133,8 @@ Expected: at least one matching line (the forward reference added in this task, 
 - [ ] **Step 5: Commit**
 
 ```bash
-git -C /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e \
-  add skills/start/references/inline-steps.md
-git -C /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e \
-  commit -m "docs(start): reframe Phase 2 step 2a as concurrent with Phase 1 CI poll"
+git add skills/start/references/inline-steps.md
+git commit -m "docs(start): reframe Phase 2 step 2a as concurrent with Phase 1 CI poll"
 ```
 
 ---
@@ -180,7 +176,7 @@ Both loops complete independently. Do not exit the step while either loop is sti
 - [ ] **Step 3: Verify the section heading is present**
 
 ```bash
-grep -n "Step Exit / Join Condition" /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e/skills/start/references/inline-steps.md
+grep -n "Step Exit / Join Condition" skills/start/references/inline-steps.md
 ```
 
 Expected: at least 2 matching lines (forward reference from Task 2 + this new heading).
@@ -188,7 +184,7 @@ Expected: at least 2 matching lines (forward reference from Task 2 + this new he
 - [ ] **Step 4: Verify the join-condition semantics are stated**
 
 ```bash
-grep -n "Both loops complete independently" /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e/skills/start/references/inline-steps.md
+grep -n "Both loops complete independently" skills/start/references/inline-steps.md
 ```
 
 Expected: one matching line.
@@ -196,7 +192,7 @@ Expected: one matching line.
 - [ ] **Step 5: Verify the no-bot short-circuit note is present**
 
 ```bash
-grep -n "no bot history.*short-circuits immediately" /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e/skills/start/references/inline-steps.md
+grep -n "no bot history.*short-circuits immediately" skills/start/references/inline-steps.md
 ```
 
 Expected: one matching line.
@@ -204,10 +200,8 @@ Expected: one matching line.
 - [ ] **Step 6: Commit**
 
 ```bash
-git -C /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e \
-  add skills/start/references/inline-steps.md
-git -C /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e \
-  commit -m "docs(start): add Step Exit / Join Condition section for parallel loop termination"
+git add skills/start/references/inline-steps.md
+git commit -m "docs(start): add Step Exit / Join Condition section for parallel loop termination"
 ```
 
 ---
@@ -247,17 +241,14 @@ Replace it with:
 Phase 1 (CI) and Phase 2 (bot review) run in parallel. Bot-history detection (Phase 2 Step 2a) fires on step entry alongside Phase 1's first CI poll. If bot history is found, the Phase 2 polling loop runs concurrently with the remainder of Phase 1's polling loop. The step exits only when both loops have terminated (see Step Exit / Join Condition above).
 
 ```
-Step entry
-   │
-   ├─── Phase 1: first CI poll ─── poll loop (30s) ─── CI green / timeout
-   │                                     │
-   └─── Phase 2a: bot-history detect ───┤
-         │ no bots → skip               │
-         └─ bots found ──── Phase 2b: poll for bot review (30s) ──── Phase 2c: address comments ──┐
-                                                                                                    │
-                                                         join: both loops terminal ─────────────────┘
-                                                              │
-                                                           Step exit
+Step entry: fire Phase 1 first CI poll AND Phase 2a bot-history detection in parallel
+Phase 1 (CI loop):    poll every 30s → CI green or 15-min timeout → handle failures if any
+Phase 2 (bot loop):
+    no bots detected → skip (terminal)
+    bots detected → poll every 30s → bot review received → address comments → push fix
+                    or 15-min timeout
+After CI fix push: re-wait for CI (Phase 1 only); do NOT re-enter Phase 2
+Step exits when BOTH loops reach terminal state (join: both loops terminal)
 ```
 
 If Phase 1 times out or has no checks, Phase 2 still runs (the bot review is independent of CI). If Phase 2 detects no bot history, it skips immediately and the step exits as soon as Phase 1 finishes.
@@ -266,7 +257,7 @@ If Phase 1 times out or has no checks, Phase 2 still runs (the bot review is ind
 - [ ] **Step 3: Verify "run in parallel" replaces "run sequentially"**
 
 ```bash
-grep -n "run sequentially" /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e/skills/start/references/inline-steps.md
+grep -n "run sequentially" skills/start/references/inline-steps.md
 ```
 
 Expected: zero results (the old sequential phrasing is gone).
@@ -274,7 +265,7 @@ Expected: zero results (the old sequential phrasing is gone).
 - [ ] **Step 4: Verify the new parallel description is present**
 
 ```bash
-grep -n "run in parallel" /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e/skills/start/references/inline-steps.md
+grep -n "run in parallel" skills/start/references/inline-steps.md
 ```
 
 Expected: one matching line in the Phase Ordering section.
@@ -282,7 +273,7 @@ Expected: one matching line in the Phase Ordering section.
 - [ ] **Step 5: Verify the fork-join diagram landmark is present**
 
 ```bash
-grep -n "join: both loops terminal" /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e/skills/start/references/inline-steps.md
+grep -n "join: both loops terminal" skills/start/references/inline-steps.md
 ```
 
 Expected: one matching line.
@@ -290,10 +281,8 @@ Expected: one matching line.
 - [ ] **Step 6: Commit**
 
 ```bash
-git -C /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e \
-  add skills/start/references/inline-steps.md
-git -C /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e \
-  commit -m "docs(start): update Phase Ordering text and diagram to show parallel structure"
+git add skills/start/references/inline-steps.md
+git commit -m "docs(start): update Phase Ordering text and diagram to show parallel structure"
 ```
 
 ---
@@ -357,7 +346,7 @@ Replace it with:
 - [ ] **Step 5: Verify the updated YOLO string contains the bot-history inline status**
 
 ```bash
-grep -n "bot-history" /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e/skills/start/references/inline-steps.md
+grep -n "bot-history" skills/start/references/inline-steps.md
 ```
 
 Expected: at least one matching line in the YOLO block.
@@ -365,7 +354,7 @@ Expected: at least one matching line in the YOLO block.
 - [ ] **Step 6: Verify the old "Phase 2 will find it when it runs after Phase 1" text is gone**
 
 ```bash
-grep -n "Phase 2 will find it when it runs after Phase 1" /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e/skills/start/references/inline-steps.md
+grep -n "Phase 2 will find it when it runs after Phase 1" skills/start/references/inline-steps.md
 ```
 
 Expected: zero results.
@@ -373,10 +362,8 @@ Expected: zero results.
 - [ ] **Step 7: Commit**
 
 ```bash
-git -C /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e \
-  add skills/start/references/inline-steps.md
-git -C /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e \
-  commit -m "docs(start): update YOLO/Interactive strings and edge-cases table for parallel structure"
+git add skills/start/references/inline-steps.md
+git commit -m "docs(start): update YOLO/Interactive strings and edge-cases table for parallel structure"
 ```
 
 ---
@@ -391,7 +378,7 @@ This task runs all machine-verifiable acceptance criteria from issue #252 as gre
 - [ ] **AC 1 — First step turn issues both calls in a single parallel message**
 
 ```bash
-grep -n "single parallel message" /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e/skills/start/references/inline-steps.md
+grep -n "single parallel message" skills/start/references/inline-steps.md
 ```
 
 Expected: one matching line.
@@ -399,7 +386,7 @@ Expected: one matching line.
 - [ ] **AC 2 — Phase 2 bot-history detection no longer waits for Phase 1 completion**
 
 ```bash
-grep -n "Step 2a runs concurrently with Phase 1" /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e/skills/start/references/inline-steps.md
+grep -n "Step 2a runs concurrently with Phase 1" skills/start/references/inline-steps.md
 ```
 
 Expected: one matching line.
@@ -407,7 +394,7 @@ Expected: one matching line.
 - [ ] **AC 3 — Bot review polling runs concurrent with CI polling**
 
 ```bash
-grep -n "run concurrently with any remaining CI polling" /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e/skills/start/references/inline-steps.md
+grep -n "run concurrently with any remaining CI polling" skills/start/references/inline-steps.md
 ```
 
 Expected: one matching line.
@@ -415,7 +402,7 @@ Expected: one matching line.
 - [ ] **AC 4 — Step exit waits for both loops to terminate**
 
 ```bash
-grep -n "Both loops complete independently" /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e/skills/start/references/inline-steps.md
+grep -n "Both loops complete independently" skills/start/references/inline-steps.md
 ```
 
 Expected: one matching line.
@@ -423,7 +410,7 @@ Expected: one matching line.
 - [ ] **AC 5 — No bot history → step behaves identically to today (Phase 1 only)**
 
 ```bash
-grep -n "short-circuits immediately and the step exits as soon as Phase 1 completes" /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e/skills/start/references/inline-steps.md
+grep -n "short-circuits immediately and the step exits as soon as Phase 1 completes" skills/start/references/inline-steps.md
 ```
 
 Expected: one matching line (from the Step Exit / Join Condition section).
@@ -431,7 +418,7 @@ Expected: one matching line (from the Step Exit / Join Condition section).
 - [ ] **AC 6 — Bot history but bot never posts → Phase 2 respects its 15-minute timeout**
 
 ```bash
-grep -n "Phase 2 timed out after 15 minutes" /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e/skills/start/references/inline-steps.md
+grep -n "Phase 2 timed out after 15 minutes" skills/start/references/inline-steps.md
 ```
 
 Expected: one matching line (in the Step Exit / Join Condition section added by Task 3).
@@ -439,7 +426,7 @@ Expected: one matching line (in the Step Exit / Join Condition section added by 
 - [ ] **AC 7 — 2-fix-cycle limit preserved**
 
 ```bash
-grep -n "Maximum 2 total fix-and-recheck cycles" /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e/skills/start/references/inline-steps.md
+grep -n "Maximum 2 total fix-and-recheck cycles" skills/start/references/inline-steps.md
 ```
 
 Expected: one matching line (unchanged from original Loop Termination section).
@@ -447,7 +434,7 @@ Expected: one matching line (unchanged from original Loop Termination section).
 - [ ] **AC 8 — "Do NOT re-wait for a second round of bot reviews" preserved**
 
 ```bash
-grep -n "Do NOT re-wait for a second round of bot reviews" /Users/weee/Dev/feature-flow/.worktrees/overlap-ci-poll-ae8e/skills/start/references/inline-steps.md
+grep -n "Do NOT re-wait for a second round of bot reviews" skills/start/references/inline-steps.md
 ```
 
 Expected: one matching line (unchanged from Phase 2 step 2c.8).
