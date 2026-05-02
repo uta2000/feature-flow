@@ -728,6 +728,50 @@ Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/p
 | Post implementation comment | No skill — inline step (see below) | Issue commented with implementation summary (will auto-close on PR merge) |
 | Handoff | No skill — inline step (see below) | Lifecycle terminal announcement; PR ready for user to merge |
 
+### In-Progress State File Schema
+
+The in-progress file lives at `.feature-flow/handoffs/in-progress-<slug>.yml` in the **base repo** (not inside the worktree — the file must survive worktree removal). It is created immediately after worktree setup, updated throughout the lifecycle, and deleted-then-replaced by the numbered handoff file (`<pr-number>.yml`) at PR creation.
+
+```yaml
+schema_version: 1                          # integer — schema version for migration safety
+slug: <slug>                               # string — 4-char hex slug from feature title (matches branch slug)
+issue_number: <N|null>                     # integer or null — GitHub issue number, if linked
+worktree_path: <abs-path>                  # string — absolute path to the worktree
+branch: <branch-name>                      # string — full branch name (e.g., feature-flow/<slug>-<hex>)
+base_branch: <base>                        # string — the base branch the feature merges into
+scope: <quick|small|feature|major-feature> # string — classified scope from Step 1
+current_step: <step-id>                    # string — step about to run or currently running
+last_completed_step: <step-id|null>        # string or null — the most recently completed step
+created_at: <iso-utc>                      # string — ISO 8601 UTC timestamp at file creation
+updated_at: <iso-utc>                      # string — ISO 8601 UTC timestamp at last write
+phase_summaries:
+  brainstorm:
+    completed: <bool>
+    key_decisions: [<string>, ...]
+  design:
+    completed: <bool>
+    issue_url: <url|null>
+    key_decisions: [<string>, ...]
+  plan:
+    completed: <bool>
+    plan_path: <path|null>
+    open_questions: [<string>, ...]
+  implementation:
+    completed: <bool>
+    tasks_done: <int>
+    tasks_total: <int>
+    blockers: [<string>, ...]
+feature_flow_version: <plugin-version>     # string — read from .claude-plugin/plugin.json `version` field
+```
+
+**Step IDs:** use the lowercase step names from the Step List — `brainstorm`, `design`, `verification`, `plan`, `worktree-setup`, `copy-env`, `study-patterns`, `implement`, `self-review`, `code-review`, `changelog`, `final-verification`, `sync`, `pr`, `wait-ci`, `harden-pr`, `post-comment`, `handoff`.
+
+**`feature_flow_version`:** read from `.claude-plugin/plugin.json` → `version` field. Example: `jq -r '.version' .claude-plugin/plugin.json`.
+
+**Gitignore coverage:** the existing entry `.feature-flow/handoffs/` in `.gitignore` already excludes `in-progress-*.yml` files — no additional entry is required.
+
+**File lifecycle (mutual exclusion with `<pr-number>.yml`):** Only one of these two file forms exists per slug at a time. The in-progress file is the active state during the lifecycle; once the PR is created, the in-progress file is deleted and the numbered handoff file (`.feature-flow/handoffs/<pr-number>.yml`, schema documented in the Commit-and-PR row above) is written in its place.
+
 ### Orchestration Overrides
 
 **Read `references/orchestration-overrides.md`** for brainstorming interview format override (including YOLO self-answering) and Express design approval checkpoint.
