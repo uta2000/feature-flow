@@ -648,6 +648,8 @@ Runs inline as a Bash call paired with the TaskUpdate. The `$(cd "$(git rev-pars
 
 **YOLO Model Routing (CRITICAL):** In YOLO mode, brainstorming and design document phases MUST be dispatched as `Task` calls with explicit `model` params — not as inline `Skill` calls. This gives full per-phase model control regardless of the orchestrator's model. Planning is also dispatched as a `Task` with `model: "sonnet"`.
 
+**Pattern A subagent dispatch (CRITICAL — applies in ALL modes, not just YOLO):** Some lifecycle phases are dispatched as `Task()` subagents per #251's subagent-driven phase architecture, regardless of mode. These dispatches are for **context isolation** (the orchestrator never sees the skill's intermediate work — only a structured return contract written to the in-progress state file), not for model routing. Currently converted: `verify-plan-criteria` (see "Verify Plan Criteria — Pattern A Dispatch" subsection below). Future conversions: `merge-prs`, `design-document`, `verify-acceptance-criteria`, `code-review`, `implementation` per #251's conversion order. Each Pattern A phase has its own wrapper subsection documenting the dispatch shape, return-contract validation, and inline-fallback path. **In Express and Interactive modes, Pattern A still applies** — the skill being wrapped (`verify-plan-criteria` etc.) does not require user interaction, so subagent isolation is safe in all modes.
+
 **Why:** The `Skill` tool has no `model` parameter — it inherits the parent model. The `Task` tool has an explicit `model` parameter. In YOLO mode there is no user interaction, so running skills inside a Task subagent works identically to running them inline. The `/model` command must NEVER be used — it writes to `~/.claude/settings.json` (a global config file) and affects all other terminal windows and tmux panes.
 
 YOLO mode invocations:
@@ -670,7 +672,7 @@ Task(subagent_type: "general-purpose", model: "sonnet", description: "YOLO imple
 **Note:** INLINE-FALLBACK IS A ROLLOUT-ONLY FEATURE.
 <!-- feature-flow vNEXT removes inline-fallback once two consecutive successful real-session uses are observed. -->
 
-In YOLO mode, `verify-plan-criteria` is the first lifecycle phase converted to Pattern A subagent dispatch (per issue #251). The orchestrator dispatches a `Task()` subagent with explicit `model`, the subagent invokes the skill which writes a structured return contract to the in-progress state file, and the orchestrator validates the contract before proceeding to the next step. The orchestrator never sees the skill's intermediate file reads or report text — only the validated contract object.
+**Applies in ALL modes** (YOLO, Express, Interactive — see the "Pattern A subagent dispatch" CRITICAL block above). `verify-plan-criteria` is the first lifecycle phase converted to Pattern A subagent dispatch (per issue #251). The orchestrator dispatches a `Task()` subagent with explicit `model`, the subagent invokes the skill which writes a structured return contract to the in-progress state file, and the orchestrator validates the contract before proceeding to the next step. The orchestrator never sees the skill's intermediate file reads or report text — only the validated contract object.
 
 ```
 # Step: Verify plan criteria (Pattern A)
