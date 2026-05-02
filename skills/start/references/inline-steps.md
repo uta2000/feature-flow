@@ -575,6 +575,13 @@ This step runs after commit and PR (or after mobile-specific steps like app stor
 
 **Process:**
 
+**On step entry — fire both of the following in a single parallel message (two simultaneous tool calls):**
+
+1. Phase 1 first poll: `gh pr checks <pr_number> --json name,status,conclusion`
+2. Phase 2 bot-history detection: Check the last 5 merged/closed PRs for bot reviews (full script in Phase 2 Step 2a below)
+
+Use both results together to determine (a) initial CI state and (b) whether bot-review polling is needed. Then proceed to the Phase 1 and Phase 2 loops described below.
+
 ### Phase 1: Wait for CI checks
 
 1. Get the PR number from the previous step's output.
