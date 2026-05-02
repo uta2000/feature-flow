@@ -21,7 +21,7 @@ Validates that every task in an implementation plan has machine-verifiable accep
 When invoked as a Pattern A subagent dispatch (per #251), the orchestrator passes two additional arguments so the skill can write its structured return contract back to the lifecycle's in-progress state file:
 
 - `write_contract_to: <absolute-path-to-in-progress-yml>` — when set, writes the return contract to `phase_summaries.<phase_id>.return_contract` in that YAML file after Step 6 (see Step 7 below).
-- `phase_id: <phase-id-string>` — identifies which `phase_summaries` key to write into (e.g., `verify-plan-criteria`). If absent when `write_contract_to` is set, defaults to `verify-plan-criteria`.
+- `phase_id: <bucket-name>` — identifies which **`phase_summaries` bucket** to write into. Must be one of the four fixed buckets defined in the in-progress state-file schema: `brainstorm`, `design`, `plan`, or `implementation`. If absent when `write_contract_to` is set, defaults to `plan` (the bucket that contains the `verify-plan-criteria` lifecycle step). **Do not confuse `phase_id` with the contract's own `phase` field** — `phase_id` is the bucket key, the contract's `phase` field is the lifecycle step name (`verify-plan-criteria`) per #251's locked spec.
 
 Both args are optional. If `write_contract_to` is not present in ARGUMENTS, Step 7 is skipped — the skill behaves identically to its inline-invocation form.
 

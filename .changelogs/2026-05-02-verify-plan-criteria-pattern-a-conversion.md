@@ -1,6 +1,6 @@
 ## feat: verify-plan-criteria converted to Pattern A subagent dispatch (#251)
 
-`feature-flow:verify-plan-criteria` is now dispatched as a `Task()` subagent (model: sonnet) instead of an inline `Skill()` call. The subagent writes a structured return contract to the in-progress state file (`phase_summaries.<phase_id>.return_contract`); the orchestrator validates it with `hooks/scripts/validate-return-contract.js` before proceeding.
+`feature-flow:verify-plan-criteria` is now dispatched as a `Task()` subagent (model: sonnet) instead of an inline `Skill()` call. The subagent writes a structured return contract to the in-progress state file at `phase_summaries.plan.return_contract` (the `plan` bucket — `verify-plan-criteria` lives in the `plan` lifecycle phase; the contract's own `phase` field stays `"verify-plan-criteria"` per #251's locked spec); the orchestrator validates it with `hooks/scripts/validate-return-contract.js` before proceeding.
 
 This is the **first conversion** validating the subagent-driven phase architecture from issue #251. Five more phase conversions (merge-prs, design-document, verify-acceptance-criteria, code-review, implementation) follow once two consecutive successful real-session uses of this conversion are observed and #253-measurement confirms ≥5% orchestrator context reduction.
 
