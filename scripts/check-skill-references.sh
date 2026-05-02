@@ -70,6 +70,9 @@ check_file() {
     local raw="${match_line#*:}"          # remove "N:"
     raw="${raw#*\`}"                      # remove up to first backtick
     ref_path="${raw%%\`*}"                # take up to next backtick
+    # Strip section qualifiers like " §Section" or " > Heading"
+    # so refs like `references/X.md §Parsing` resolve to references/X.md.
+    ref_path="${ref_path%% *}"
 
     # Resolve against skill-root
     if (cd "$skill_root" && [ -f "$ref_path" ]); then
@@ -79,7 +82,11 @@ check_file() {
       echo "$file:$lineno: broken reference -> $ref_path (resolved: $resolved, file not found)"
       errors=$((errors + 1))
     fi
-  done < <(grep -noE "Read \`(\.\./)*references/[^\`]+\.md\`" "$file" 2>/dev/null || true)
+    # Match references that end with .md, optionally followed by a section
+    # qualifier (e.g. `Read `references/X.md §Section``). The `.md` anchor
+    # prevents false positives on non-file `Read `...`` instructions like
+    # `Read `.feature-flow.yml`` or `Read `tool_selector.foo``.
+  done < <(grep -noE "Read \`(\.\./)*references/[^\`]+\.md[^\`]*\`" "$file" 2>/dev/null || true)
 }
 
 # --- Main scan loop
