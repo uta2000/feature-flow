@@ -890,8 +890,31 @@ if yolo_mode AND current_phase_name in config.yolo.stop_after:
 - Announce: "Resuming lifecycle. Last completed step: [N]. Next: [N+1]."
 
 **Across sessions (new conversation):**
-- Todo lists do not persist across sessions. If the user says "resume the feature lifecycle," ask which feature and which step they were on.
-- Check for artifacts from previous sessions: open GitHub issues (search via `gh issue search`), existing worktrees (via `git worktree list`), and branch history (via `git log --oneline -5`) to infer progress. Design content for sessions started after 2026-04-23 lives in the linked GitHub issue body under `## Design (feature-flow)` — not in `docs/plans/`.
+
+Todo lists do not persist across sessions. When the user says "resume the feature lifecycle" or `start: resume`, run the **Resume scan** below **before** asking the user anything. The scan auto-restores state from the in-progress state file written during the prior session.
+
+**Resume scan — automatic state recovery:**
+
+1. Scan for in-progress files in the base repo:
+   ```bash
+   find "$(git rev-parse --show-toplevel)/.feature-flow/handoffs" -maxdepth 1 -type f -name 'in-progress-*.yml' 2>/dev/null
+   ```
+
+2. **One file found:** read it with `python3 -c "import yaml; print(yaml.safe_load(open('<path>')))"` and extract `slug`, `issue_number`, `branch`, `worktree_path`, `last_completed_step`, `current_step`, `phase_summaries`, `scope`. Announce the recovered state:
+   ```
+   Resume detected: in-progress-<slug>.yml
+     Feature: <slug> (issue #<N>)
+     Branch: <branch>
+     Worktree: <worktree_path>
+     Last completed: <last_completed_step>
+     Current (resume from): <current_step>
+     Phases done: <list keys where phase_summaries[k].completed is true>
+   ```
+   Then: rebuild the lifecycle todo list from the step list for `scope` (per Step 2), mark all steps up to and including `last_completed_step` as `completed`, and resume execution from `current_step`. In YOLO mode, proceed without asking. In Interactive/Express mode, confirm with the user before resuming.
+
+3. **Multiple files found:** present a list of slugs with their `last_completed_step` and `updated_at` and ask the user which feature to resume via `AskUserQuestion`.
+
+4. **No in-progress files found** (legacy fallback): check for artifacts from previous sessions: open GitHub issues (`gh issue search`), existing worktrees (`git worktree list`), and branch history (`git log --oneline -5`). Design content for sessions started after 2026-04-23 lives in the linked GitHub issue body under `## Design (feature-flow)` — not in `docs/plans/`. If no signals are found, ask the user which feature and which step they were on.
 
 ### Step 5: Completion
 
