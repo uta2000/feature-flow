@@ -665,6 +665,59 @@ Task(subagent_type: "general-purpose", model: "sonnet", description: "YOLO imple
      prompt: "Invoke Skill(skill: 'superpowers:writing-plans', args: 'yolo: true. scope: [scope]. [context args]'). Return the plan file path and task summary.")
 ```
 
+### Verify Plan Criteria — Pattern A Dispatch
+
+**Note:** INLINE-FALLBACK IS A ROLLOUT-ONLY FEATURE.
+<!-- feature-flow vNEXT removes inline-fallback once two consecutive successful real-session uses are observed. -->
+
+In YOLO mode, `verify-plan-criteria` is the first lifecycle phase converted to Pattern A subagent dispatch (per issue #251). The orchestrator dispatches a `Task()` subagent with explicit `model`, the subagent invokes the skill which writes a structured return contract to the in-progress state file, and the orchestrator validates the contract before proceeding to the next step. The orchestrator never sees the skill's intermediate file reads or report text — only the validated contract object.
+
+```
+# Step: Verify plan criteria (Pattern A)
+BASE_REPO=$(cd "$(git rev-parse --git-common-dir)/.." && pwd)
+SLUG=<slug-from-session-context>
+STATE_FILE="${BASE_REPO}/.feature-flow/handoffs/in-progress-${SLUG}.yml"
+PLAN_PATH=<absolute-path-to-plan-file>
+
+Task(
+  subagent_type: "general-purpose",
+  model: "sonnet",
+  description: "verify-plan-criteria Pattern A",
+  prompt: "Invoke Skill(skill: 'feature-flow:verify-plan-criteria', args: 'yolo: true. plan_file: ${PLAN_PATH}. write_contract_to: ${STATE_FILE}. phase_id: verify-plan-criteria'). Return the state-file path and a one-line summary of the contract."
+)
+```
+
+**Why `model: "sonnet"`:** verify-plan-criteria is read-heavy (one plan file + multiple grep checks) with structured output. Sonnet handles the criteria-drafting Step 4 logic well; haiku is too brittle for ambiguous criterion classification; opus is over-spec for mechanical validation.
+
+**Post-dispatch sequence (orchestrator-side):**
+
+1. **Read state file** and extract `phase_summaries.<phase_id>.return_contract`:
+   ```bash
+   python3 -c "import json, yaml; d = yaml.safe_load(open('${STATE_FILE}')); rc = d.get('phase_summaries', {}).get('verify-plan-criteria') or d.get('phase_summaries', {}).get('plan') or {}; rc = rc.get('return_contract'); json.dump(rc, open('/tmp/ff-return-contract-${SLUG}.json','w')) if rc else None; print('missing' if not rc else 'ok')"
+   ```
+   If output is `missing` → trigger **inline-fallback** (case 2 below). The lookup checks both `phase_summaries.verify-plan-criteria` and the legacy `phase_summaries.plan` key (Task 1's schema bump may add a more specific key in a follow-up).
+2. **Validate the contract:**
+   ```bash
+   node hooks/scripts/validate-return-contract.js /tmp/ff-return-contract-${SLUG}.json
+   ```
+   Exit 0 → proceed. Non-zero → trigger **inline-fallback** (case 3 below).
+3. **Proceed to next lifecycle step** (Copy env files / Study existing patterns / Implement).
+
+**Inline-fallback path** (rollout-only — three failure cases):
+
+| Case | Trigger | Announce | Next |
+|------|---------|----------|------|
+| 1 | `Task()` dispatch fails (timeout, tool error, refusal) | `verify-plan-criteria Pattern A: dispatch failed (<reason>). Falling back to inline Skill().` | Run inline `Skill(skill: "feature-flow:verify-plan-criteria", args: "yolo: true. plan_file: <path>")` |
+| 2 | Subagent completes but `return_contract` field is null/absent in state file | `verify-plan-criteria Pattern A: subagent did not write return_contract. Falling back to inline Skill().` | Same inline invocation |
+| 3 | `validate-return-contract.js` exits non-zero | `verify-plan-criteria Pattern A: contract validation failed (<error from validator stdout>). Falling back to inline Skill().` | Same inline invocation |
+
+The inline path runs the existing skill with no `write_contract_to` arg — Step 7 of the skill is skipped, the skill behaves identically to its pre-#251 form, and the orchestrator captures its report from the Skill tool result text directly.
+
+<!-- SUNSET NOTE: feature-flow vNEXT removes this inline-fallback table and the three failure-case
+     handlers once two consecutive successful real-session uses of Pattern A are observed and the
+     measurement (per #253) confirms ≥5% orchestrator context reduction. The wrapper itself stays;
+     only the fallback safety net is sunset. -->
+
 **Interactive/Express mode** continues to use inline `Skill` calls (unchanged — these inherit the parent model, which should be Opus at session start):
 ```
 Skill(skill: "superpowers:brainstorming", args: "yolo: true. scope: [scope]. [original args]")

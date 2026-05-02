@@ -411,7 +411,7 @@ After writing, return the state-file path and a one-line summary as the skill's 
 - [ ] Inline-fallback path documented in wrapper section measured by string presence verified by `grep -n "inline-fallback\|Inline-fallback\|inline fallback" skills/start/SKILL.md`
 - [ ] Sunset note present in wrapper section measured by string presence verified by `grep -n "vNEXT\|two consecutive" skills/start/SKILL.md`
 - [ ] Orchestrator schema-validator call documented (validate-return-contract.js) measured by string presence verified by `grep -n "validate-return-contract" skills/start/SKILL.md`
-- [ ] State file read after subagent return documented measured by string presence verified by `grep -n "phase_summaries.plan.return_contract\|return_contract" skills/start/SKILL.md | grep -v "schema_version\|#" | wc -l | grep -qE "^[2-9]" && echo "ok"`
+- [ ] State file read after subagent return documented measured by string presence verified by `grep -n "phase_summaries.plan.return_contract\|return_contract" skills/start/SKILL.md | grep -v "schema_version\|#" | wc -l | tr -d ' ' | awk '{exit ($1>=2)?0:1}' && echo "ok"`
 
 **Quality Constraints:**
 - Error handling: Document three failure cases that trigger inline-fallback: (1) Task() dispatch fails/errors, (2) `return_contract` field is null/absent after subagent completes, (3) `validate-return-contract.js` exits non-zero. Each fallback path must announce what happened before invoking the inline skill.
