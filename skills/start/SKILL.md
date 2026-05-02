@@ -913,7 +913,7 @@ if yolo_mode AND current_phase_name in config.yolo.stop_after:
 
 ### Quality Context Injections
 
-**Read `references/yolo-overrides.md` — "Writing Plans Quality Context Injection", "Subagent-Driven Development Context Injection", and "Implementer Quality Context Injection" sections.** These apply unconditionally in all modes (YOLO, Express, Interactive).
+**Read `references/yolo-overrides.md` — "Writing Plans Quality Context Injection", "Subagent-Driven Development Context Injection", and "Implementer Quality Context Injection" sections — if not already loaded.** These apply unconditionally in all modes (YOLO, Express, Interactive) and at every scope (every scope dispatches subagents via `subagent-driven-development` for its Implement step). When YOLO/Express mode has already loaded the full `yolo-overrides.md` at the step above, this read is a no-op — the sections are already in context.
 
 ### Model Routing Defaults
 
