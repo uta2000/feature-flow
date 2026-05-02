@@ -72,7 +72,40 @@ Read the YAML file. Parse the following fields:
 cleanup-merged: WARNING — .feature-flow/handoffs/<file>.yml is unparseable or has schema_version < 1. Skipping (clean up manually: rm .feature-flow/handoffs/<file>.yml).
 ```
 
-**Missing pr_number:** If `pr_number` is null or absent, skip silently and log — a handoff without a PR number can't be reconciled against GitHub. Since 2026-04-23, handoff files are only written after PR creation (no more `pending-<slug>.yml`), so this branch handles legacy files only.
+**Missing pr_number:** If `pr_number` is null or absent, route by filename pattern before deciding to skip:
+
+- **`in-progress-*.yml` filename pattern:** These are durable phase-state files written during the lifecycle (before PR creation). Their schema is documented in `start/SKILL.md` → "In-Progress State File Schema". They are orphaned when their worktree no longer exists. Check worktree existence and remove the file if the worktree is gone:
+
+  ```bash
+  FILENAME=$(basename "<handoff_filepath>")
+  if [[ "$FILENAME" == in-progress-*.yml ]]; then
+    WORKTREE_PATH=$(python3 -c "import yaml; d=yaml.safe_load(open('<handoff_filepath>')); print(d.get('worktree_path',''))" 2>/dev/null)
+    if [ -n "$WORKTREE_PATH" ] && [ ! -d "$WORKTREE_PATH" ]; then
+      # Worktree is gone — orphaned in-progress file; remove it.
+      rm -f "<handoff_filepath>"
+      echo "cleanup-merged: orphaned in-progress file removed — ${FILENAME} (worktree ${WORKTREE_PATH} no longer exists)"
+      # Append log entry: outcome=success-orphan
+      TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+      SLUG=${FILENAME#in-progress-}; SLUG=${SLUG%.yml}
+      echo "${TIMESTAMP}  pr=null  slug=${SLUG}  outcome=success-orphan" >> .feature-flow/handoffs/.log
+    elif [ -n "$WORKTREE_PATH" ] && [ -d "$WORKTREE_PATH" ]; then
+      # Worktree still exists — feature is in progress; skip silently (no announcement).
+      :
+    else
+      # worktree_path field missing or empty — skip with warning.
+      echo "cleanup-merged: WARNING — ${FILENAME} has no worktree_path field. Skipping (clean up manually: rm .feature-flow/handoffs/${FILENAME})."
+    fi
+    continue   # Done processing this file — do not fall through to the legacy branch.
+  fi
+  ```
+
+- **Legacy filename (no `in-progress-` prefix and no `pr_number`):** This is a legacy artifact — skip silently and log:
+
+  ```
+  cleanup-merged: WARNING — <filename> has no pr_number and is not an in-progress file. Skipping (clean up manually).
+  ```
+
+Since 2026-04-23, numbered handoff files are only written after PR creation (no more `pending-<slug>.yml`), so any `*.yml` file with no `pr_number` is either an in-progress file (handled above) or a legacy artifact.
 
 **PR state check:** Query the PR state:
 
@@ -202,6 +235,7 @@ After processing all handoffs:
 ```
 cleanup-merged: done.
   Cleaned: PR #123 (logout-button-a3f2), PR #124 (billing-renewal-9c1e)
+  Orphaned in-progress removed: in-progress-9c1e.yml (worktree gone)
   Skipped (open): PR #125
   Failed (retrying on next run): PR #120 — worktree removal failed: <reason>
   No-op: 0 handoffs found
