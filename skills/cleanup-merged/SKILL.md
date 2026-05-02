@@ -84,7 +84,6 @@ cleanup-merged: WARNING — .feature-flow/handoffs/<file>.yml is unparseable or 
       # Worktree is gone — orphaned in-progress file; remove it.
       rm -f "<handoff_filepath>"
       echo "cleanup-merged: orphaned in-progress file removed — ${FILENAME} (worktree ${WORKTREE_PATH} no longer exists)"
-      # Append log entry: outcome=success-orphan
       TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
       SLUG=${FILENAME#in-progress-}; SLUG=${SLUG%.yml}
       echo "${TIMESTAMP}  pr=null  slug=${SLUG}  outcome=success-orphan" >> .feature-flow/handoffs/.log
@@ -95,7 +94,11 @@ cleanup-merged: WARNING — .feature-flow/handoffs/<file>.yml is unparseable or 
       # worktree_path field missing or empty — skip with warning.
       echo "cleanup-merged: WARNING — ${FILENAME} has no worktree_path field. Skipping (clean up manually: rm .feature-flow/handoffs/${FILENAME})."
     fi
-    continue   # Done processing this file — do not fall through to the legacy branch.
+    # Note: when implementing as a real loop, follow this branch with `continue` to
+    # skip the legacy handler below. As prose, the `else` branch covers the alternative.
+  else
+    # Not an in-progress file and no pr_number — see Legacy filename branch below.
+    :
   fi
   ```
 
