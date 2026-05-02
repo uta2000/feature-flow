@@ -869,7 +869,7 @@ If a session uses an issue-as-design fast-track variant of Feature/Major (skip `
 
 ### Orchestration Overrides
 
-**Read `references/orchestration-overrides.md`** for brainstorming interview format override (including YOLO self-answering) and Express design approval checkpoint.
+**Read `references/orchestration-overrides.md`** only if brainstorming runs in the current scope (Small enhancement standard, Feature, or Major feature) or Express mode is active with a design approval checkpoint. Quick fix and Small enhancement fast-track do not invoke brainstorming and do not need this file.
 
 ### YOLO/Express Overrides
 
