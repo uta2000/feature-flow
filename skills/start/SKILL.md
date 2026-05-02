@@ -473,6 +473,33 @@ Ensure the lifecycle is followed from start to finish. Track which steps are com
    - **Non-blocking**: does not block the lifecycle if cleanup fails — log the failure and continue.
    - Invocation: `Skill(skill: "feature-flow:cleanup-merged", args: "")` wrapped in try/catch; any exception logs `Pre-flight cleanup failed: <error> — continuing.` and proceeds.
 
+#### Reference Loading Strategy
+
+This table is the authoritative contract for which references to load and when. The always-loaded group (pre-flight + Step 0 rows) is loaded during pre-flight and Step 0, before scope is known. The scope-conditional group is applied **after Step 1 determines scope** — read only the references marked for the current scope and mode.
+
+**Counting rule:** "Read instructions before lifecycle execution" counts every `**Read \`references/X.md\`**` instruction in this file that appears before the inline-step section headings (`### Copy Env Files Step` and onward). The 11 point-of-use reads in those sections are already lazy and are not counted here.
+
+| Reference | Quick fix | Small enh (fast-track) | Small enh (standard) | Feature | Major feature |
+|-----------|:---------:|:----------------------:|:--------------------:|:-------:|:-------------:|
+| `plugin-scanning.md` (pre-flight) | ✓ always | ✓ always | ✓ always | ✓ always | ✓ always |
+| `step-lists.md` pre-flight sections | ✓ always | ✓ always | ✓ always | ✓ always | ✓ always |
+| `project-context.md` (Step 0) | ✓ always | ✓ always | ✓ always | ✓ always | ✓ always |
+| `step-lists.md` step-list sections (Step 2) | ✓ always | ✓ always | ✓ always | ✓ always | ✓ always |
+| `orchestration-overrides.md` | — | — | ✓ (brainstorm runs) | ✓ | ✓ |
+| `yolo-overrides.md` full file | if YOLO/Express | if YOLO/Express | if YOLO/Express | if YOLO/Express | if YOLO/Express |
+| `yolo-overrides.md` quality sections | ✓ if not already loaded | ✓ if not already loaded | ✓ if not already loaded | ✓ if not already loaded | ✓ if not already loaded |
+| `model-routing.md` | ✓ always | ✓ always | ✓ always | ✓ always | ✓ always |
+| `code-review-pipeline.md` (lazy) | — | ✓ at point-of-use | ✓ at point-of-use | ✓ at point-of-use | ✓ at point-of-use |
+| `inline-steps.md` per-step sections (lazy) | ✓ at point-of-use | ✓ at point-of-use | ✓ at point-of-use | ✓ at point-of-use | ✓ at point-of-use |
+
+**"If not already loaded" idiom:** When an instruction says `Read references/X.md if not already loaded`, treat the read as a no-op when the file is already in the orchestrator's working context. The quality-sections row above is the canonical example: in YOLO/Express mode the full `yolo-overrides.md` is loaded by the `### YOLO/Express Overrides` instruction below, so the quality-sections read in `### Quality Context Injections` finds the file already in context and is a no-op. In Interactive mode the full file is not loaded, so the quality-sections read fires and loads only those three sections.
+
+**Rationale for always-loaded group:** Pre-flight and Step 0 run before scope is determined — those references cannot be deferred. `model-routing.md` and the quality sections of `yolo-overrides.md` apply to every scope because every scope dispatches subagents via `superpowers:subagent-driven-development` for its Implement step (per the Skill Mapping table's `Implement` row — applies to Quick fix's "Implement fix (TDD)" wording too).
+
+**Rationale for scope-conditional group:**
+- `orchestration-overrides.md`: contains only brainstorming interview format and Express design-approval checkpoint. Quick fix has neither a brainstorming step nor a design document; Small enhancement fast-track explicitly skips both. So neither code path inside `orchestration-overrides.md` ever fires for those two scope/mode combinations.
+- `yolo-overrides.md` full file: only the YOLO/Express overrides for writing-plans, git-worktrees, finishing-branch, and subagent-driven-development matter when YOLO or Express mode is active. Interactive sessions never need the full file (they still need the quality sections — see row above).
+
 ### Step 1: Determine Scope
 
 Ask the user what they want to build. Then classify the work.
@@ -906,7 +933,7 @@ If a session uses an issue-as-design fast-track variant of Feature/Major (skip `
 
 ### Orchestration Overrides
 
-**Read `references/orchestration-overrides.md`** for brainstorming interview format override (including YOLO self-answering) and Express design approval checkpoint.
+**Read `references/orchestration-overrides.md`** only if brainstorming runs in the current scope (Small enhancement standard, Feature, or Major feature) or Express mode is active with a design approval checkpoint. Quick fix and Small enhancement fast-track do not invoke brainstorming and do not need this file.
 
 ### YOLO/Express Overrides
 
@@ -950,7 +977,7 @@ if yolo_mode AND current_phase_name in config.yolo.stop_after:
 
 ### Quality Context Injections
 
-**Read `references/yolo-overrides.md` — "Writing Plans Quality Context Injection", "Subagent-Driven Development Context Injection", and "Implementer Quality Context Injection" sections.** These apply unconditionally in all modes (YOLO, Express, Interactive).
+**Read `references/yolo-overrides.md` — "Writing Plans Quality Context Injection", "Subagent-Driven Development Context Injection", and "Implementer Quality Context Injection" sections — if not already loaded.** These apply unconditionally in all modes (YOLO, Express, Interactive) and at every scope (every scope dispatches subagents via `subagent-driven-development` for its Implement step). When YOLO/Express mode has already loaded the full `yolo-overrides.md` at the `### YOLO/Express Overrides` instruction earlier in this file, this read is a no-op — the sections are already in context.
 
 ### Model Routing Defaults
 
@@ -1098,16 +1125,74 @@ When adjusting, announce: "Adjusting scope from [old] to [new]. Adding/removing 
 ### Reference Files
 
 Extracted reference files (read on-demand during lifecycle execution):
-- **`references/project-context.md`** — Step 0: YOLO triggers, .feature-flow.yml, base branch, model check, notifications
-- **`references/step-lists.md`** — Step 2: scope-specific step lists, mobile adjustments, pre-flight reviewer audit/marketplace/install
-- **`references/orchestration-overrides.md`** — Brainstorming interview format, Express design approval
-- **`references/yolo-overrides.md`** — YOLO/Express overrides for writing-plans, git-worktrees, finishing-branch, subagent-driven-dev; quality context injections
-- **`references/code-review-pipeline.md`** — Code review pipeline Phases 0-5
-- **`references/inline-steps.md`** — 12 inline step definitions (documentation lookup, copy env, study patterns, self-review, CHANGELOG, sync with base branch, final verification, wait for CI and reviews, harden PR, post implementation comment, handoff, commit and PR)
-- **`references/model-routing.md`** — Model routing defaults (orchestrator phases + subagent dispatches)
-- **`references/scope-guide.md`** — Detailed criteria for classifying work scope
+- **`references/project-context.md`** — Step 0: YOLO triggers, .feature-flow.yml, base branch, model check, notifications *(eager — all scopes)*
+- **`references/step-lists.md`** — Step 2: scope-specific step lists, mobile adjustments, pre-flight reviewer audit/marketplace/install *(eager — all scopes, read twice: pre-flight + step-list sections)*
+- **`references/orchestration-overrides.md`** — Brainstorming interview format, Express design approval *(eager — Small enh standard, Feature, Major feature; skip Quick fix + Small enh fast-track)*
+- **`references/yolo-overrides.md`** — YOLO/Express overrides for writing-plans, git-worktrees, finishing-branch, subagent-driven-dev; quality context injections *(conditional: full file when YOLO/Express mode active; quality sections always — but `if not already loaded` so YOLO/Express does not double-load)*
+- **`references/code-review-pipeline.md`** — Code review pipeline Phases 0-5 *(lazy — read at point-of-use; Small enhancement, Feature, Major feature; not reached by Quick fix)*
+- **`references/inline-steps.md`** — 12 inline step definitions (documentation lookup, copy env, study patterns, self-review, CHANGELOG, sync with base branch, final verification, wait for CI and reviews, harden PR, post implementation comment, handoff, commit and PR) *(lazy — read at point-of-use per step)*
+- **`references/model-routing.md`** — Model routing defaults (orchestrator phases + subagent dispatches) *(eager — all scopes; every scope dispatches subagents via subagent-driven-development for the Implement step)*
+- **`references/scope-guide.md`** — Detailed criteria for classifying work scope *(on-demand — read when scope classification is uncertain)*
 
 External reference files:
 - **`../../references/project-context-schema.md`** — Schema for `.feature-flow.yml`
 - **`../../references/platforms/mobile.md`** — Mobile lifecycle adjustments, required sections, beta testing checklist
 - **`../../references/platforms/web.md`** — Web lifecycle adjustments
+
+### Smoke Test: Per-Scope Reference Coverage
+
+To verify that no lifecycle path reaches a step requiring a reference file that was not loaded, walk through each scope's step list against the Reference Loading Strategy table (inside Step 0). For each scope:
+
+1. Open `references/step-lists.md` and locate the scope's step list.
+2. For each step in the list, identify which reference file(s) that step requires (by checking the inline-step section heading in this file or the corresponding `references/*.md` file).
+3. Confirm that the Reference Loading Strategy table marks that reference as loaded (✓, or `if YOLO/Express` matching the mode under test) for the current scope.
+
+**Quick fix — expected references reached:**
+- Pre-flight: `plugin-scanning.md`, `step-lists.md` pre-flight sections ✓
+- Step 0: `project-context.md` ✓
+- Step 2: `step-lists.md` step-lists section ✓
+- Quality Context Injections step: `yolo-overrides.md` quality sections ✓ (every scope dispatches implementer subagents)
+- Model Routing Defaults step: `model-routing.md` ✓
+- Implement: `subagent-driven-development` dispatches a subagent (uses model-routing + quality sections in its prompt)
+- Inline steps (lazy, at point-of-use): `inline-steps.md` sections for Study Patterns, Self-Review, Sync with Base Branch, Commit and PR, Wait for CI and Reviews, Post Implementation Comment ✓
+- NOT reached: `orchestration-overrides.md` (no brainstorming step, no Express design checkpoint because no design doc exists), `code-review-pipeline.md` (Quick fix has no code review step in its step list)
+
+**Small enhancement fast-track — expected references reached:**
+- Same always-loaded set as Quick fix, plus:
+- Code review (lazy): `code-review-pipeline.md` (at point-of-use during the Code review step) ✓
+- NOT reached: `orchestration-overrides.md` (fast-track skips brainstorming + design document, so neither code path inside the file fires)
+
+**Small enhancement standard — expected references reached:**
+- Same as fast-track, plus:
+- Brainstorming: `orchestration-overrides.md` (loaded because brainstorming runs) ✓
+
+**Feature — expected references reached:**
+- Same as Small enh standard. The Reference Loading Strategy table marks the same 7 (Interactive) or 8 (YOLO/Express) eager reads as Small enh standard.
+
+**Major feature — expected references reached:**
+- Same as Feature — all 8 eager reads apply (in YOLO/Express) or 7 (in Interactive) ✓
+
+**Grep-based verification commands (run from the repo root after all tasks complete):**
+
+Each pattern below is anchored so it only matches the actual change site (instruction line or list-item annotation), not the bash command lines in this fenced block — i.e. these commands cannot match themselves.
+
+```bash
+# Confirm orchestration-overrides.md instruction has the 'only if' guard (anchored to **Read prefix)
+grep '^\*\*Read `references/orchestration-overrides.md`.*only if' skills/start/SKILL.md
+
+# Confirm quality-sections instruction has the 'if not already loaded' guard
+grep '^\*\*Read `references/yolo-overrides.md`.*if not already loaded' skills/start/SKILL.md
+
+# Confirm Reference Loading Strategy section exists (heading anchor)
+grep "^#### Reference Loading Strategy" skills/start/SKILL.md
+
+# Confirm Reference Files list-item annotations (anchored to '- **`references/' list-item prefix)
+grep '^- \*\*`references/.*eager — all scopes' skills/start/SKILL.md
+grep '^- \*\*`references/.*lazy — read at point-of-use' skills/start/SKILL.md
+grep '^- \*\*`references/orchestration-overrides.md.*skip Quick fix' skills/start/SKILL.md
+
+# Confirm `model-routing.md` was deliberately NOT made conditional (still has the original wording)
+grep -A2 "^### Model Routing Defaults" skills/start/SKILL.md | grep "for the full model routing tables"
+```
+
+All commands must return non-empty output. This is the machine-verifiable form of the smoke test.
