@@ -473,6 +473,31 @@ Ensure the lifecycle is followed from start to finish. Track which steps are com
    - **Non-blocking**: does not block the lifecycle if cleanup fails — log the failure and continue.
    - Invocation: `Skill(skill: "feature-flow:cleanup-merged", args: "")` wrapped in try/catch; any exception logs `Pre-flight cleanup failed: <error> — continuing.` and proceeds.
 
+#### Reference Loading Strategy
+
+This table is the authoritative contract for which references to load and when. The always-loaded group (pre-flight + Step 0 rows) is loaded during pre-flight and Step 0, before scope is known. The scope-conditional group is applied **after Step 1 determines scope** — read only the references marked for the current scope and mode.
+
+**Counting rule:** "Read instructions before lifecycle execution" counts every `**Read \`references/X.md\`**` instruction in this file that appears before the inline-step section headings (`### Copy Env Files Step` and onward). The 11 point-of-use reads in those sections are already lazy and are not counted here.
+
+| Reference | Quick fix | Small enh (fast-track) | Small enh (standard) | Feature | Major feature |
+|-----------|:---------:|:----------------------:|:--------------------:|:-------:|:-------------:|
+| `plugin-scanning.md` (pre-flight) | ✓ always | ✓ always | ✓ always | ✓ always | ✓ always |
+| `step-lists.md` pre-flight sections | ✓ always | ✓ always | ✓ always | ✓ always | ✓ always |
+| `project-context.md` (Step 0) | ✓ always | ✓ always | ✓ always | ✓ always | ✓ always |
+| `step-lists.md` step-list sections (Step 2) | ✓ always | ✓ always | ✓ always | ✓ always | ✓ always |
+| `orchestration-overrides.md` | — | — | ✓ (brainstorm runs) | ✓ | ✓ |
+| `yolo-overrides.md` full file | if YOLO/Express | if YOLO/Express | if YOLO/Express | if YOLO/Express | if YOLO/Express |
+| `yolo-overrides.md` quality sections | ✓ if not already loaded | ✓ if not already loaded | ✓ if not already loaded | ✓ if not already loaded | ✓ if not already loaded |
+| `model-routing.md` | ✓ always | ✓ always | ✓ always | ✓ always | ✓ always |
+
+**"If not already loaded" idiom:** When an instruction says `Read references/X.md if not already loaded`, treat the read as a no-op when the file is already in the orchestrator's working context. The quality-sections row above is the canonical example: in YOLO/Express mode the full `yolo-overrides.md` is loaded at line 851, so the quality-sections read at line 891 finds the file already in context and is a no-op. In Interactive mode the full file is not loaded, so the quality-sections read fires and loads only those three sections.
+
+**Rationale for always-loaded group:** Pre-flight and Step 0 run before scope is determined — those references cannot be deferred. `model-routing.md` and the quality sections of `yolo-overrides.md` apply to every scope because every scope dispatches subagents via `superpowers:subagent-driven-development` for its Implement step (SKILL.md:767 — applies to Quick fix's "Implement fix (TDD)" too).
+
+**Rationale for scope-conditional group:**
+- `orchestration-overrides.md`: contains only brainstorming interview format and Express design-approval checkpoint. Quick fix has neither a brainstorming step nor a design document; Small enhancement fast-track explicitly skips both. So neither code path inside `orchestration-overrides.md` ever fires for those two scope/mode combinations.
+- `yolo-overrides.md` full file: only the YOLO/Express overrides for writing-plans, git-worktrees, finishing-branch, and subagent-driven-development matter when YOLO or Express mode is active. Interactive sessions never need the full file (they still need the quality sections — see row above).
+
 ### Step 1: Determine Scope
 
 Ask the user what they want to build. Then classify the work.
