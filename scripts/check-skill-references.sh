@@ -9,9 +9,7 @@
 #
 # Scope: only the `Read `references/...`` instruction syntax is checked.
 # Markdown links ([text](references/...)) and other forms are intentionally
-# out of scope. One reference per line is assumed; if a line ever needs to
-# carry two references, switch the grep below to `-o` and adjust the
-# line-number handling.
+# out of scope. Multiple references on a single line are supported.
 #
 # Exits 0 with a success message when all references resolve.
 # Exits 1 and prints per-file error lines for any broken reference.
@@ -61,12 +59,11 @@ check_file() {
   fi
 
   # Match: Read `references/...` or Read `../../references/...`
-  # grep -nE returns "<lineno>:<full-line>" for matching lines; we extract
-  # the path from the first backtick pair (one ref per line — see header).
+  # grep -noE emits one output line per match (not per input line), so a line
+  # with two references produces two output lines. Format: "<lineno>:Read `<path>`".
   while IFS= read -r match_line; do
     [ -z "$match_line" ] && continue
 
-    # Format from grep -nE: "<lineno>:Read `<path>`"
     local lineno ref_path
     lineno="${match_line%%:*}"
     # Strip leading "N:Read `" and trailing "`" (and anything after it)
@@ -82,7 +79,7 @@ check_file() {
       echo "$file:$lineno: broken reference -> $ref_path (resolved: $resolved, file not found)"
       errors=$((errors + 1))
     fi
-  done < <(grep -nE "Read \`(\.\./)*references/[^\`]+\.md\`" "$file" 2>/dev/null || true)
+  done < <(grep -noE "Read \`(\.\./)*references/[^\`]+\.md\`" "$file" 2>/dev/null || true)
 }
 
 # --- Main scan loop
