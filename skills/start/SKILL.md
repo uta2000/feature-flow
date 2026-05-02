@@ -1126,7 +1126,7 @@ grep "lazy — read at point-of-use" skills/start/SKILL.md
 grep "skip Quick fix" skills/start/SKILL.md
 
 # Confirm `model-routing.md` was deliberately NOT made conditional
-grep -A1 "^### Model Routing Defaults" skills/start/SKILL.md | grep "for the full model routing tables"
+grep -A2 "^### Model Routing Defaults" skills/start/SKILL.md | grep "for the full model routing tables"
 ```
 
 All commands must return non-empty output. This is the machine-verifiable form of the smoke test.
