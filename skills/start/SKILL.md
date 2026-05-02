@@ -698,6 +698,20 @@ Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/p
 
 **Do not skip steps.** If the user asks to skip a step, explain why it matters and confirm they want to skip. If they insist, mark it as skipped and note the risk.
 
+**Phase-boundary in-progress writes (distinct from TaskUpdate-paired updates):** At the end of each major phase — after the phase's skill returns its output and before the corresponding `TaskUpdate(N, completed)` is called — write the full `phase_summaries.<phase>` block to the in-progress file. These writes capture structured phase output, not just step progression, and are what makes the file useful as the substrate for #251's subagent return contracts. Four phase boundaries fire in order during a typical Feature lifecycle (skipped phases — e.g., brainstorm + design in fast-track mode — are simply not written; their `completed` flag remains `false`):
+
+- **Brainstorm phase boundary** (after `superpowers:brainstorming` returns): set `phase_summaries.brainstorm.completed: true`, populate `key_decisions` with up to 5 string entries pulled from the brainstorming output (scope, approach, major design choices). In fast-track mode this phase is skipped — leave `completed: false`.
+
+- **Design phase boundary** (after `feature-flow:design-document` returns, or after `feature-flow:design-verification` returns in fast-track mode where the issue body is the design): set `phase_summaries.design.completed: true`, set `issue_url` to the GitHub issue URL of the design issue, and populate `key_decisions` with up to 5 design choices.
+
+- **Plan phase boundary** (after `superpowers:writing-plans` returns): set `phase_summaries.plan.completed: true`, set `plan_path` to the absolute path of the saved plan markdown file, and populate `open_questions` with any unresolved questions surfaced during planning (empty list if none).
+
+- **Implementation phase boundary** (after `superpowers:subagent-driven-development` returns): set `phase_summaries.implementation.completed: true`, set `tasks_done` and `tasks_total` integers, populate `blockers` with any unresolved implementation issues (empty list if none).
+
+Helper pattern (use a fresh-load + dump for each write so other phases' entries are preserved): `BASE_REPO=$(git rev-parse --show-toplevel); SLUG=<slug>; F="${BASE_REPO}/.feature-flow/handoffs/in-progress-${SLUG}.yml"; [ -f "$F" ] && python3 -c "import yaml; d=yaml.safe_load(open('$F')); d['phase_summaries']['<phase>']['completed']=True; d['phase_summaries']['<phase>']['<field>']=<value>; d['updated_at']='$(date -u +%Y-%m-%dT%H:%M:%SZ)'; yaml.dump(d, open('$F','w'), default_flow_style=False, allow_unicode=True)"`. If the in-progress file does not exist (initial write failed), skip phase-boundary writes silently — the lifecycle continues without resume support.
+
+**Directional-discipline rule:** When the user makes a directional change mid-conversation (e.g., "actually let's prioritize X over Y", "drop the Z constraint", "also add W"), the active skill is responsible for writing the change to the in-progress file's relevant `phase_summaries.<current-phase>.key_decisions` list (or `open_questions` for the plan phase) before continuing. This ensures cross-session resume reflects the latest decisions, not the pre-pivot state. Applies in all modes (Interactive, Express, YOLO).
+
 ### Skill Mapping
 
 | Step | Skill to Invoke | Expected Output |
