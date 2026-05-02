@@ -606,7 +606,9 @@ Use both results together to determine (a) initial CI state and (b) whether bot-
 
 ### Phase 2: Wait for and address bot review comments
 
-CI and code review are **independent processes**. Review bots (Gemini Code Review, CodeRabbit, etc.) typically post their review 5-10 minutes after the PR is created — well after CI has already passed. This phase detects whether the repo uses review bots and waits for their review to land before proceeding.
+CI and code review are **independent processes**. Review bots (Gemini Code Review, CodeRabbit, etc.) typically post their review 5-10 minutes after the PR is created — well after CI has already passed.
+
+**Step 2a runs concurrently with Phase 1's CI poll loop** (it is fired on step entry alongside the first CI poll — see the parallel-kickoff block above). Steps 2b and 2c run concurrently with any remaining CI polling: once bot history is confirmed, begin polling for bot review on the current PR without waiting for Phase 1 to complete. Both loops run independently and the step exits only when both have terminated (see Step Exit / Join Condition below).
 
 **Step 2a: Detect if the repo uses review bots**
 
