@@ -14,6 +14,8 @@ tool_selector:
   auto_launch_gsd: false          # If true, launch GSD automatically without asking
 gotchas:
   - "Settings SKILL.md enforces max 4 options per AskUserQuestion — adding new dashboard categories requires merging with existing ones, not adding a 5th option"
+  - "analyze-session.py uses camelCase processed fields internally (toolCalls, toolResults, toolUseId) — NOT the raw JSONL snake_case. Any new section must use these internal field names, not content[].type='tool_result' scanning."
+  - "Bash tool_results dominate context in ~50% of sessions (73-77% of tool_result chars). Any 'top context contributors' ranking that excludes Bash produces systematically wrong results for roughly half of all sessions."
 # Optional: codex MCP consultation at four lifecycle checkpoints
 # (review-design, review-plan, review-code, stuck). Requires the
 # `codex` MCP server to be configured. OFF by default — uncomment
