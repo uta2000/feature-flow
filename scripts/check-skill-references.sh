@@ -7,6 +7,12 @@
 # nearest ancestor SKILL.md directory (skill-root), and reports any
 # missing files.
 #
+# Scope: only the `Read `references/...`` instruction syntax is checked.
+# Markdown links ([text](references/...)) and other forms are intentionally
+# out of scope. One reference per line is assumed; if a line ever needs to
+# carry two references, switch the grep below to `-o` and adjust the
+# line-number handling.
+#
 # Exits 0 with a success message when all references resolve.
 # Exits 1 and prints per-file error lines for any broken reference.
 
@@ -55,8 +61,8 @@ check_file() {
   fi
 
   # Match: Read `references/...` or Read `../../references/...`
-  # grep -nE prints line numbers; -o extracts each match.
-  # We run grep twice in a pipeline to get both line number and match.
+  # grep -nE returns "<lineno>:<full-line>" for matching lines; we extract
+  # the path from the first backtick pair (one ref per line — see header).
   while IFS= read -r match_line; do
     [ -z "$match_line" ] && continue
 
