@@ -1061,14 +1061,14 @@ When adjusting, announce: "Adjusting scope from [old] to [new]. Adding/removing 
 ### Reference Files
 
 Extracted reference files (read on-demand during lifecycle execution):
-- **`references/project-context.md`** — Step 0: YOLO triggers, .feature-flow.yml, base branch, model check, notifications
-- **`references/step-lists.md`** — Step 2: scope-specific step lists, mobile adjustments, pre-flight reviewer audit/marketplace/install
-- **`references/orchestration-overrides.md`** — Brainstorming interview format, Express design approval
-- **`references/yolo-overrides.md`** — YOLO/Express overrides for writing-plans, git-worktrees, finishing-branch, subagent-driven-dev; quality context injections
-- **`references/code-review-pipeline.md`** — Code review pipeline Phases 0-5
-- **`references/inline-steps.md`** — 12 inline step definitions (documentation lookup, copy env, study patterns, self-review, CHANGELOG, sync with base branch, final verification, wait for CI and reviews, harden PR, post implementation comment, handoff, commit and PR)
-- **`references/model-routing.md`** — Model routing defaults (orchestrator phases + subagent dispatches)
-- **`references/scope-guide.md`** — Detailed criteria for classifying work scope
+- **`references/project-context.md`** — Step 0: YOLO triggers, .feature-flow.yml, base branch, model check, notifications *(eager — all scopes)*
+- **`references/step-lists.md`** — Step 2: scope-specific step lists, mobile adjustments, pre-flight reviewer audit/marketplace/install *(eager — all scopes, read twice: pre-flight + step-list sections)*
+- **`references/orchestration-overrides.md`** — Brainstorming interview format, Express design approval *(eager — Small enh standard, Feature, Major feature; skip Quick fix + Small enh fast-track)*
+- **`references/yolo-overrides.md`** — YOLO/Express overrides for writing-plans, git-worktrees, finishing-branch, subagent-driven-dev; quality context injections *(conditional: full file when YOLO/Express mode active; quality sections always — but `if not already loaded` so YOLO/Express does not double-load)*
+- **`references/code-review-pipeline.md`** — Code review pipeline Phases 0-5 *(lazy — read at point-of-use; Feature + Major feature only)*
+- **`references/inline-steps.md`** — 12 inline step definitions (documentation lookup, copy env, study patterns, self-review, CHANGELOG, sync with base branch, final verification, wait for CI and reviews, harden PR, post implementation comment, handoff, commit and PR) *(lazy — read at point-of-use per step)*
+- **`references/model-routing.md`** — Model routing defaults (orchestrator phases + subagent dispatches) *(eager — all scopes; every scope dispatches subagents via subagent-driven-development for the Implement step)*
+- **`references/scope-guide.md`** — Detailed criteria for classifying work scope *(on-demand — read when scope classification is uncertain)*
 
 External reference files:
 - **`../../references/project-context-schema.md`** — Schema for `.feature-flow.yml`
