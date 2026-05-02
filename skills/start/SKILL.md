@@ -621,7 +621,23 @@ For each step, follow this pattern:
 2. **Mark in progress (conditional):** Only set `in_progress` via `TaskUpdate` before starting steps where the work is extended and the user benefits from an active status indicator. **Steps that keep `in_progress`:** study existing patterns, implementation, self-review, code review, generate CHANGELOG entry, final verification, documentation lookup. **Steps that skip `in_progress`:** brainstorming, design document, design verification, create/update issue, implementation plan, verify plan criteria, worktree setup, copy env files, commit and PR, post implementation comment. Note: sub-step 5 (`completed`) is always retained — it is the turn-continuity bridge. Skipping `in_progress` does not affect YOLO Execution Continuity. Note: YOLO propagation (prepending `yolo: true`) applies only to `Skill()` invocations, not to `Task()` dispatches.
 3. **Invoke the skill** using the Skill tool (see mapping below and `../../references/tool-api.md` — Skill Tool for correct parameter names)
 4. **Confirm completion:** Verify the step produced its expected output. *(Turn Bridge Rule — include any confirmation notes alongside the `TaskUpdate` call in step 5, not as a separate text-only response.)*
-5. **Mark complete:** Update the todo item to `completed` — **always call `TaskUpdate` here.** *(Turn Bridge Rule — this call keeps your turn alive.)* **Batching optimization:** When the next step (N+1) is in the `in_progress`-eligible list (study existing patterns, implementation, self-review, code review, generate CHANGELOG entry, final verification, documentation lookup), send both `TaskUpdate` calls as a single parallel message: `[TaskUpdate(N, completed), TaskUpdate(N+1, in_progress)]`. This saves one API round-trip per eligible step transition. If N is the final lifecycle step, no N+1 exists — skip the batch and call only `TaskUpdate(N, completed)` as usual.
+5. **Mark complete:** Update the todo item to `completed` — **always call `TaskUpdate` here.** *(Turn Bridge Rule — this call keeps your turn alive.)* **Batching optimization:** When the next step (N+1) is in the `in_progress`-eligible list (study existing patterns, implementation, self-review, code review, generate CHANGELOG entry, final verification, documentation lookup), send both `TaskUpdate` calls as a single parallel message: `[TaskUpdate(N, completed), TaskUpdate(N+1, in_progress)]`. This saves one API round-trip per eligible step transition. If N is the final lifecycle step, no N+1 exists — skip the batch and call only `TaskUpdate(N, completed)` as usual. **In-progress step update (paired with TaskUpdate):** After (or alongside) `TaskUpdate(N, completed)`, update the in-progress state file at `.feature-flow/handoffs/in-progress-<slug>.yml` in the base repo: set `current_step` to the next step's step-id (or `handoff` if N is the final step), `last_completed_step` to the just-completed step's step-id, and `updated_at` to the current ISO UTC timestamp. Use the helper pattern below — `python3` + `yaml.safe_load`/`yaml.dump` so `phase_summaries` entries written by phase-boundary writes are preserved. **Pass values via env vars, not inline string interpolation** — values like `current_step` are safe (kebab-case enums) but the same pattern is reused for free-text fields elsewhere, and consistent env-var passing means apostrophes in values cannot terminate the python `-c` argument early. If the in-progress file does not exist (initial write failed), skip silently. Helper:
+
+```bash
+BASE_REPO=$(cd "$(git rev-parse --git-common-dir)/.." && pwd)
+F="${BASE_REPO}/.feature-flow/handoffs/in-progress-${SLUG}.yml"
+[ -f "$F" ] && F="$F" NEXT="<next-step-id>" PREV="<completed-step-id>" TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)" python3 -c '
+import os, yaml
+f = os.environ["F"]
+d = yaml.safe_load(open(f)) or {}
+d["current_step"] = os.environ["NEXT"]
+d["last_completed_step"] = os.environ["PREV"]
+d["updated_at"] = os.environ["TS"]
+yaml.dump(d, open(f, "w"), default_flow_style=False, allow_unicode=True)
+'
+```
+
+Runs inline as a Bash call paired with the TaskUpdate. The `$(cd "$(git rev-parse --git-common-dir)/.." && pwd)` idiom resolves the base repo from both base-repo and worktree CWDs (`--show-toplevel` returns the worktree path when invoked from inside a worktree — wrong location).
 6. **Announce next step and loop:** "Step N complete. Next: Step N+1 — [name]." Then **immediately loop back to sub-step 1 (Announce the step)** for the next lifecycle step.
 
 **YOLO Execution Continuity (CRITICAL):** In YOLO mode, the execution loop must be **uninterrupted**. After completing one step, proceed directly to the next step in the same turn — do NOT end your turn between steps. The most common failure mode is: a skill outputs text (e.g., brainstorming decisions table), the assistant's turn ends because there are no pending tool calls, and the user must type "continue" to resume — this defeats the purpose of YOLO ("fully unattended, no pauses"). To prevent this: apply the **Turn Bridge Rule** (below) after every step, then continue to step 7 and loop back to step 1 for the next step.
@@ -698,6 +714,41 @@ Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/p
 
 **Do not skip steps.** If the user asks to skip a step, explain why it matters and confirm they want to skip. If they insist, mark it as skipped and note the risk.
 
+**Phase-boundary in-progress writes (distinct from TaskUpdate-paired updates):** At the end of each major phase — after the phase's skill returns its output and before the corresponding `TaskUpdate(N, completed)` is called — write the full `phase_summaries.<phase>` block to the in-progress file. These writes capture structured phase output, not just step progression, and are what makes the file useful as the substrate for #251's subagent return contracts. Four phase boundaries fire in order during a typical Feature lifecycle (skipped phases — e.g., brainstorm + design in fast-track mode — are simply not written; their `completed` flag remains `false`):
+
+- **Brainstorm phase boundary** (after `superpowers:brainstorming` returns): set `phase_summaries.brainstorm.completed: true`, populate `key_decisions` with up to 5 string entries pulled from the brainstorming output (scope, approach, major design choices). In fast-track mode this phase is skipped — leave `completed: false`.
+
+- **Design phase boundary** (after `feature-flow:design-document` returns, or after `feature-flow:design-verification` returns in fast-track mode where the issue body is the design): set `phase_summaries.design.completed: true`, set `issue_url` to the GitHub issue URL of the design issue, and populate `key_decisions` with up to 5 design choices.
+
+- **Plan phase boundary** (after `superpowers:writing-plans` returns): set `phase_summaries.plan.completed: true`, set `plan_path` to the absolute path of the saved plan markdown file, and populate `open_questions` with any unresolved questions surfaced during planning (empty list if none).
+
+- **Implementation phase boundary** (after `superpowers:subagent-driven-development` returns): set `phase_summaries.implementation.completed: true`, set `tasks_done` and `tasks_total` integers, populate `blockers` with any unresolved implementation issues (empty list if none).
+
+Helper pattern (fresh-load + dump on each write so other phases' entries are preserved; values pass via env vars and JSON to avoid quoting issues with apostrophes or Unicode):
+
+```bash
+BASE_REPO=$(cd "$(git rev-parse --git-common-dir)/.." && pwd)
+F="${BASE_REPO}/.feature-flow/handoffs/in-progress-${SLUG}.yml"
+# Example: brainstorm phase boundary with key_decisions list (JSON-encoded for list passing)
+[ -f "$F" ] && F="$F" PHASE=brainstorm \
+    KEY_DECISIONS='["<decision 1>","<decision 2>"]' \
+    TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)" python3 -c '
+import os, json, yaml
+f, phase = os.environ["F"], os.environ["PHASE"]
+d = yaml.safe_load(open(f)) or {}
+d.setdefault("phase_summaries", {}).setdefault(phase, {})["completed"] = True
+d["phase_summaries"][phase]["key_decisions"] = json.loads(os.environ["KEY_DECISIONS"])
+d["updated_at"] = os.environ["TS"]
+yaml.dump(d, open(f, "w"), default_flow_style=False, allow_unicode=True)
+'
+```
+
+For phases with non-list fields (`design.issue_url`, `plan.plan_path`, `implementation.tasks_done` / `tasks_total`), pass each as its own env var (`URL=...`, `PATH=...`, `DONE=...`, `TOTAL=...`) and read with `os.environ[<NAME>]`. Use `int(os.environ["DONE"])` for integers. **Use `BASE_REPO=$(cd "$(git rev-parse --git-common-dir)/.." && pwd)` for `BASE_REPO`, never `--show-toplevel`** — the latter returns the worktree path from inside a worktree.
+
+If the in-progress file does not exist (initial write failed), skip phase-boundary writes silently — the lifecycle continues without resume support.
+
+**Directional-discipline rule:** When the user makes a directional change mid-conversation (e.g., "actually let's prioritize X over Y", "drop the Z constraint", "also add W"), the active skill is responsible for writing the change to the in-progress file's relevant `phase_summaries.<current-phase>.key_decisions` list (or `open_questions` for the plan phase) before continuing. This ensures cross-session resume reflects the latest decisions, not the pre-pivot state. Applies in all modes (Interactive, Express, YOLO).
+
 ### Skill Mapping
 
 | Step | Skill to Invoke | Expected Output |
@@ -711,7 +762,7 @@ Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/p
 | Create issue | `feature-flow:create-issue` | GitHub issue URL. **If an issue number was detected in Step 1**, pass it to create-issue as the `issue` context — the skill will update the existing issue instead of creating a new one. |
 | Implementation plan | `superpowers:writing-plans` | Numbered tasks with acceptance criteria. **Override:** After the plan is saved, always proceed with subagent-driven execution — do not present the execution choice to the user. Immediately invoke `superpowers:subagent-driven-development`. |
 | Verify plan criteria | `feature-flow:verify-plan-criteria` | All tasks have verifiable criteria |
-| Worktree setup | `superpowers:using-git-worktrees` | Isolated worktree created. **Runs at step 1** — the worktree is created before planning steps so all subsequent work happens inside the isolated branch. **Slug algorithm:** Generate a 4-char hex slug from the issue/feature title: take the first content words (stop words removed), compute sha256 of the lowercased joined string, take the first 4 hex chars. Branch name: `feature-flow/<issue-slug>-<slug>`. Worktree path: `.worktrees/<issue-slug>-<slug>`. **Handoff state file is NOT written at this step** — the `.feature-flow/handoffs/<pr-number>.yml` file is written once, at the Commit-and-PR step, after `gh pr create` returns the PR number. This single-step write removes any rename-atomicity question. Worktrees without a handoff file (e.g., pre-PR-creation state, or legacy worktrees) are not auto-reclaimed by `cleanup-merged` — a deliberate tradeoff to keep the cleanup contract narrow. **Override:** When checking for existing worktree directories, use `test -d` instead of `ls -d` — the `ls -d` command returns a non-zero exit code when the directory doesn't exist, causing false Bash tool errors. Example: `test -d .worktrees && echo "exists" \|\| echo "not found"`. **After worktree creation:** Create `FEATURE_CONTEXT.md` in the worktree root using the template from `skills/start/references/feature-context-template.md`. **Context directories:** Also create `.feature-flow/design/` and `.feature-flow/implement/` directories. For each of the four context files, read the corresponding template from `references/phase-context-templates.md` and write it to `.feature-flow/design/design-decisions.md`, `.feature-flow/design/verification-results.md`, `.feature-flow/implement/patterns-found.md`, and `.feature-flow/implement/blockers-and-resolutions.md`. These files are session-local working state — do NOT commit them to the feature branch. They are used for context capture during the session and for PR body injection at completion, but are excluded from git via `.gitignore`. After creating the files, verify they are ignored: `git status FEATURE_CONTEXT.md .feature-flow/` should show no output. **Gitignore safety:** Before creating context files, check the project's `.gitignore` for `.feature-flow/` and `FEATURE_CONTEXT.md` entries. If either is missing: (1) Append the missing entries to `.gitignore`: `# feature-flow session-local files (not committed to feature branches)\n.feature-flow/\nFEATURE_CONTEXT.md\nDECISIONS_ARCHIVE.md` (2) Stage and commit: `git add .gitignore && git commit -m "chore: gitignore feature-flow session metadata"`. This commit goes on the base branch (before the worktree branch is created), so all future worktrees inherit it. If both entries already exist, skip silently. |
+| Worktree setup | `superpowers:using-git-worktrees` | Isolated worktree created. **Runs at step 1** — the worktree is created before planning steps so all subsequent work happens inside the isolated branch. **Slug algorithm:** Generate a 4-char hex slug from the issue/feature title: take the first content words (stop words removed), compute sha256 of the lowercased joined string, take the first 4 hex chars. Branch name: `feature-flow/<issue-slug>-<slug>`. Worktree path: `.worktrees/<issue-slug>-<slug>`. **Handoff state file is NOT written at this step** — the `.feature-flow/handoffs/<pr-number>.yml` file is written once, at the Commit-and-PR step, after `gh pr create` returns the PR number. This single-step write removes any rename-atomicity question. Worktrees without a handoff file (e.g., pre-PR-creation state, or legacy worktrees) are not auto-reclaimed by `cleanup-merged` — a deliberate tradeoff to keep the cleanup contract narrow. **Override:** When checking for existing worktree directories, use `test -d` instead of `ls -d` — the `ls -d` command returns a non-zero exit code when the directory doesn't exist, causing false Bash tool errors. Example: `test -d .worktrees && echo "exists" \|\| echo "not found"`. **After worktree creation:** Create `FEATURE_CONTEXT.md` in the worktree root using the template from `skills/start/references/feature-context-template.md`. **Context directories:** Also create `.feature-flow/design/` and `.feature-flow/implement/` directories. For each of the four context files, read the corresponding template from `references/phase-context-templates.md` and write it to `.feature-flow/design/design-decisions.md`, `.feature-flow/design/verification-results.md`, `.feature-flow/implement/patterns-found.md`, and `.feature-flow/implement/blockers-and-resolutions.md`. These files are session-local working state — do NOT commit them to the feature branch. They are used for context capture during the session and for PR body injection at completion, but are excluded from git via `.gitignore`. After creating the files, verify they are ignored: `git status FEATURE_CONTEXT.md .feature-flow/` should show no output. **Gitignore safety:** Before creating context files, check the project's `.gitignore` for `.feature-flow/` and `FEATURE_CONTEXT.md` entries. If either is missing: (1) Append the missing entries to `.gitignore`: `# feature-flow session-local files (not committed to feature branches)\n.feature-flow/\nFEATURE_CONTEXT.md\nDECISIONS_ARCHIVE.md` (2) Stage and commit: `git add .gitignore && git commit -m "chore: gitignore feature-flow session metadata"`. This commit goes on the base branch (before the worktree branch is created), so all future worktrees inherit it. If both entries already exist, skip silently. **In-progress file write:** Immediately after the worktree and context directories are created (and `.gitignore` is verified), write `.feature-flow/handoffs/in-progress-<slug>.yml` to the **base repo root** (not the worktree — the file must survive worktree removal). **Critical: resolve the base repo using `BASE_REPO=$(cd "$(git rev-parse --git-common-dir)/.." && pwd)` — `git rev-parse --show-toplevel` returns the worktree path when invoked from inside a worktree, which is the wrong location.** Use the schema documented in "In-Progress State File Schema" below. Set `slug` from the slug computed by the slug algorithm above, `issue_number` from the detected issue number (or null), `worktree_path` as the absolute path just created, `branch` from the branch name, `base_branch` from the detected base branch, `scope` from the classified scope, `current_step` to the step-id of the **next** step in the scope's step list (after Worktree setup) — for Feature/Major in standard mode this is `brainstorm`; in fast-track mode (issue-as-design) this is `documentation-lookup`; for Small enhancement standard this is `brainstorm`, fast-track is `documentation-lookup`. Quick fix has no Worktree setup step, so the in-progress file is **not** written for Quick fix sessions. `last_completed_step: null`, `created_at` and `updated_at` as the current ISO UTC timestamp (`date -u +%Y-%m-%dT%H:%M:%SZ`), `phase_summaries` with all four phases set to `completed: false` and empty lists/null values, `feature_flow_version` from the plugin manifest at `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json` (the `version` field) — if the env var is unset (rare; non-plugin contexts), set the field to `null` and continue. Write the file using `python3` + `yaml.dump` so the structure round-trips cleanly. **The initial write does NOT include the `[ -f "$F" ]` existence guard** that subsequent helpers use — this is a fresh-create, not an update. Pass values via env vars (not inline string interpolation) so values containing apostrophes do not break the python `-c` argument. Helper for the initial write: `BASE_REPO=$(cd "$(git rev-parse --git-common-dir)/.." && pwd); mkdir -p "${BASE_REPO}/.feature-flow/handoffs"; F="${BASE_REPO}/.feature-flow/handoffs/in-progress-${SLUG}.yml"; F="$F" SLUG="$SLUG" ISSUE="<N-or-empty>" WORKTREE="<abs-path>" BRANCH="<branch>" BASE="<base>" SCOPE="<scope>" CURRENT="<first-step-id>" TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)" VERSION="<plugin-version-or-null>" python3 -c 'import os, yaml; data={"schema_version":1,"slug":os.environ["SLUG"],"issue_number":(int(os.environ["ISSUE"]) if os.environ["ISSUE"] else None),"worktree_path":os.environ["WORKTREE"],"branch":os.environ["BRANCH"],"base_branch":os.environ["BASE"],"scope":os.environ["SCOPE"],"current_step":os.environ["CURRENT"],"last_completed_step":None,"created_at":os.environ["TS"],"updated_at":os.environ["TS"],"phase_summaries":{"brainstorm":{"completed":False,"key_decisions":[]},"design":{"completed":False,"issue_url":None,"key_decisions":[]},"plan":{"completed":False,"plan_path":None,"open_questions":[]},"implementation":{"completed":False,"tasks_done":0,"tasks_total":0,"blockers":[]}},"feature_flow_version":(os.environ["VERSION"] or None)}; yaml.dump(data, open(os.environ["F"],"w"), default_flow_style=False, allow_unicode=True)'. If the write fails, log a warning and continue — the lifecycle is still valid without the in-progress file (cross-session resume will fall back to legacy artifact discovery). |
 | Copy env files | No skill — inline step (see below) | Env files available in worktree |
 | Implement | `superpowers:subagent-driven-development` | Code written with tests, spec-reviewed, and quality-reviewed per task |
 | Self-review | No skill — inline step (see below) | Code verified against coding standards before formal review |
@@ -719,7 +770,7 @@ Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/p
 | Generate CHANGELOG entry | No skill — inline step (see below) | Changelog fragment written to `.changelogs/<id>.md`; consolidated when `/merge-prs` is invoked |
 | Final verification | No skill — inline step (see below) | All criteria PASS + quality gates pass (or skipped if Phase 4 already passed) |
 | Sync with base branch | No skill — inline step (see below) | Branch merged onto latest base branch; conflicts require manual resolution |
-| Commit and PR | `superpowers:finishing-a-development-branch` | PR URL; PR body includes `feature-flow-metadata` block (all modes). **Handoff file write:** Immediately after `gh pr create` returns the PR number, write `.feature-flow/handoffs/<pr-number>.yml` in the **base repo** (not the worktree — the file must survive worktree removal). Required fields: `schema_version: 1`, `pr_number: <N>`, `branch: <branch>`, `worktree_path: <abs-path>`, `base_branch: <base>`, `scope: <scope>`, `issue_number: <N-or-null>`, `created_at: <iso-utc>`, `slug: <slug>`, `feature_flow_version: <plugin-version>`. The write happens once, in a single step — no intermediate `pending-<slug>.yml` file, no rename. If the write fails, log a warning and continue (the worktree is still valid; the user can retry by running `cleanup-merged` manually later, though cleanup without a handoff requires manual worktree removal). |
+| Commit and PR | `superpowers:finishing-a-development-branch` | PR URL; PR body includes `feature-flow-metadata` block (all modes). **Handoff file write:** Immediately after `gh pr create` returns the PR number, write `.feature-flow/handoffs/<pr-number>.yml` in the **base repo** (not the worktree — the file must survive worktree removal; resolve via `BASE_REPO=$(cd "$(git rev-parse --git-common-dir)/.." && pwd)`, **not** `--show-toplevel`). Required fields: `schema_version: 1`, `pr_number: <N>`, `branch: <branch>`, `worktree_path: <abs-path>`, `base_branch: <base>`, `scope: <scope>`, `issue_number: <N-or-null>`, `created_at: <iso-utc>`, `slug: <slug>`, `feature_flow_version: <plugin-version>`. The write happens once, in a single step — no intermediate `pending-<slug>.yml` file, no rename. If the write fails, log a warning and continue (the worktree is still valid; the user can retry by running `cleanup-merged` manually later, though cleanup without a handoff requires manual worktree removal). **In-progress file removal (write-then-delete):** **After** the numbered handoff file is durably on disk (verify with `[ -f "${BASE_REPO}/.feature-flow/handoffs/<pr-number>.yml" ]`), delete the in-progress file: `rm -f "${BASE_REPO}/.feature-flow/handoffs/in-progress-${SLUG}.yml"` (where `SLUG` is the slug from session context — see the Worktree setup row's slug algorithm). `rm -f` exits cleanly when the file does not exist (initial in-progress write failed); do not error. **Order matters:** the two files briefly co-exist between the handoff write and the in-progress delete, which is harmless (different filenames, no clobber; cleanup-merged distinguishes by filename pattern; resume scans match only `in-progress-*.yml`; PR-state checks match only numbered `*.yml`). If the order were reversed and the numbered handoff write failed, both files would be gone — leaving the worktree fully orphaned. The two file forms are mutually exclusive at steady state — only one exists per slug after the swap completes. |
 | Wait for CI and address reviews | No skill — inline step (see below) | CI green, review comments addressed |
 | Device matrix testing | No skill — manual step | Tested on min OS, small/large screens, slow network |
 | Beta testing | No skill — manual step | TestFlight / Play Console build tested by internal tester |
@@ -727,6 +778,69 @@ Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/p
 | Harden PR | No skill — inline step (see below) | PR hardened for merge (READY or BLOCKED) via bounded remediation loop |
 | Post implementation comment | No skill — inline step (see below) | Issue commented with implementation summary (will auto-close on PR merge) |
 | Handoff | No skill — inline step (see below) | Lifecycle terminal announcement; PR ready for user to merge |
+
+### In-Progress State File Schema
+
+The in-progress file lives at `.feature-flow/handoffs/in-progress-<slug>.yml` in the **base repo** (not inside the worktree — the file must survive worktree removal). It is created immediately after worktree setup, updated throughout the lifecycle, and deleted-then-replaced by the numbered handoff file (`<pr-number>.yml`) at PR creation.
+
+```yaml
+schema_version: 1                          # integer — schema version for migration safety
+slug: <slug>                               # string — 4-char hex slug from feature title (matches branch slug)
+issue_number: <N|null>                     # integer or null — GitHub issue number, if linked
+worktree_path: <abs-path>                  # string — absolute path to the worktree
+branch: <branch-name>                      # string — full branch name (e.g., feature-flow/<slug>-<hex>)
+base_branch: <base>                        # string — the base branch the feature merges into
+scope: <quick|small|feature|major-feature> # string — classified scope from Step 1
+current_step: <step-id>                    # string — step about to run or currently running
+last_completed_step: <step-id|null>        # string or null — the most recently completed step
+created_at: <iso-utc>                      # string — ISO 8601 UTC timestamp at file creation
+updated_at: <iso-utc>                      # string — ISO 8601 UTC timestamp at last write
+phase_summaries:
+  brainstorm:
+    completed: <bool>
+    key_decisions: [<string>, ...]
+  design:
+    completed: <bool>
+    issue_url: <url|null>
+    key_decisions: [<string>, ...]
+  plan:
+    completed: <bool>
+    plan_path: <path|null>
+    open_questions: [<string>, ...]
+  implementation:
+    completed: <bool>
+    tasks_done: <int>
+    tasks_total: <int>
+    blockers: [<string>, ...]
+feature_flow_version: <plugin-version>     # string — read from .claude-plugin/plugin.json `version` field
+```
+
+**Step IDs:** use the lowercase, kebab-case step names corresponding to the Step List for the scope. Quick fix has no Worktree setup step, so the in-progress file is **not** written for Quick fix sessions — that scope's IDs are not enumerated here. Canonical IDs for scopes that **do** write the in-progress file:
+
+- Small enhancement (standard): `worktree-setup`, `brainstorm`, `documentation-lookup`, `create-issue`, `design`, `plan`, `verify-plan-criteria`, `copy-env`, `study-patterns`, `implement`, `self-review`, `code-review`, `changelog`, `final-verification`, `sync`, `pr`, `wait-ci`, `post-comment`
+- Small enhancement (fast-track): same as standard minus `brainstorm`, `design`, `verify-plan-criteria`
+- Feature / Major feature: `worktree-setup`, `brainstorm`, `spike` (Major only — if risky unknowns), `documentation-lookup`, `create-issue`, `design`, `verification`, `plan`, `verify-plan-criteria`, `copy-env`, `study-patterns`, `implement`, `self-review`, `code-review`, `changelog`, `final-verification`, `sync`, `pr`, `wait-ci`, `harden-pr`, `post-comment`, `handoff`
+
+**Step-ID ↔ todo-list-name mapping (for resume rebuild):** When the resume scan rebuilds the todo list (Step 4 "Across sessions" sub-section), it must map step-IDs back to the human-readable subjects used in `references/step-lists.md`. The mapping is positional (the IDs above are listed in the same order as the corresponding step list), so a simple ordinal walk works: read the scope's step list, and for each step in order, the matching ID is found at the same index in the IDs above. For diagnostics, key non-obvious mappings:
+
+| Step-ID | Step-list subject |
+|---------|--------------------|
+| `pr` | "Commit and PR" |
+| `wait-ci` | "Wait for CI and address reviews" |
+| `verify-plan-criteria` | "Verify plan criteria" |
+| `final-verification` | "Final verification" |
+| `documentation-lookup` | "Documentation lookup (Context7)" |
+| `verification` | "Design verification" |
+| `study-patterns` | "Study existing patterns" |
+| `code-review` | "Code review" |
+
+If a session uses an issue-as-design fast-track variant of Feature/Major (skip `brainstorm` + `design`), simply omit those IDs from the executed sequence — the in-progress file's `phase_summaries` for skipped phases stays at `completed: false`.
+
+**`feature_flow_version`:** read from the plugin manifest at `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json` (the `version` field). Guarded example that handles an unset env var without producing an invalid path: `[ -n "$CLAUDE_PLUGIN_ROOT" ] && jq -r '.version' "$CLAUDE_PLUGIN_ROOT/.claude-plugin/plugin.json" || echo null`. When feature-flow is loaded as a Claude Code plugin in another project, `${CLAUDE_PLUGIN_ROOT}` is set to the plugin install dir (e.g., `~/.claude/plugins/cache/feature-flow/feature-flow/<version>/`); the project's CWD does not contain this file. If `${CLAUDE_PLUGIN_ROOT}` is unset (rare; non-plugin contexts), the guarded form returns `null` — set the field to `null` and continue.
+
+**Gitignore coverage:** the existing entry `.feature-flow/handoffs/` in `.gitignore` already excludes `in-progress-*.yml` files — no additional entry is required.
+
+**File lifecycle (mutual exclusion with `<pr-number>.yml`):** Only one of these two file forms exists per slug at a time. The in-progress file is the active state during the lifecycle; once the PR is created, the in-progress file is deleted and the numbered handoff file (`.feature-flow/handoffs/<pr-number>.yml`, schema documented in the Commit-and-PR row above) is written in its place.
 
 ### Orchestration Overrides
 
@@ -832,8 +946,32 @@ if yolo_mode AND current_phase_name in config.yolo.stop_after:
 - Announce: "Resuming lifecycle. Last completed step: [N]. Next: [N+1]."
 
 **Across sessions (new conversation):**
-- Todo lists do not persist across sessions. If the user says "resume the feature lifecycle," ask which feature and which step they were on.
-- Check for artifacts from previous sessions: open GitHub issues (search via `gh issue search`), existing worktrees (via `git worktree list`), and branch history (via `git log --oneline -5`) to infer progress. Design content for sessions started after 2026-04-23 lives in the linked GitHub issue body under `## Design (feature-flow)` — not in `docs/plans/`.
+
+Todo lists do not persist across sessions. When the user says "resume the feature lifecycle" or `start: resume`, run the **Resume scan** below **before** asking the user anything. The scan auto-restores state from the in-progress state file written during the prior session.
+
+**Resume scan — automatic state recovery:**
+
+1. Scan for in-progress files in the base repo (resume can fire from any CWD; use `--git-common-dir` to find the base repo from a worktree as well):
+   ```bash
+   BASE_REPO=$(cd "$(git rev-parse --git-common-dir)/.." && pwd)
+   find "$BASE_REPO/.feature-flow/handoffs" -maxdepth 1 -type f -name 'in-progress-*.yml' 2>/dev/null
+   ```
+
+2. **One file found:** read it with `python3 -c "import yaml, json; print(json.dumps(yaml.safe_load(open('<path>')) or {}))"` (the `or {}` fallback returns an empty JSON object if the file is empty/corrupted, avoiding a `None`-print that downstream parsing cannot handle) and extract `slug`, `issue_number`, `branch`, `worktree_path`, `last_completed_step`, `current_step`, `phase_summaries`, `scope`. If the parsed object is empty (file was empty/corrupted), fall through to the multiple-files / no-files branches as if the file had not been found. Announce the recovered state:
+   ```
+   Resume detected: in-progress-<slug>.yml
+     Feature: <slug> (issue #<N>)
+     Branch: <branch>
+     Worktree: <worktree_path>
+     Last completed: <last_completed_step>
+     Current (resume from): <current_step>
+     Phases done: <list keys where phase_summaries[k].completed is true>
+   ```
+   Then: rebuild the lifecycle todo list from the step list for `scope` (per Step 2), mark all steps up to and including `last_completed_step` as `completed`, and resume execution from `current_step`. In YOLO mode, proceed without asking. In Interactive/Express mode, confirm with the user before resuming.
+
+3. **Multiple files found:** present a list of slugs with their `last_completed_step` and `updated_at` and ask the user which feature to resume via `AskUserQuestion`.
+
+4. **No in-progress files found** (legacy fallback): check for artifacts from previous sessions: open GitHub issues (`gh issue search`), existing worktrees (`git worktree list`), and branch history (`git log --oneline -5`). Design content for sessions started after 2026-04-23 lives in the linked GitHub issue body under `## Design (feature-flow)` — not in `docs/plans/`. If no signals are found, ask the user which feature and which step they were on.
 
 ### Step 5: Completion
 
