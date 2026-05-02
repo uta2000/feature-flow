@@ -702,6 +702,17 @@ Review bots like Gemini Code Review and CodeRabbit post inline code review comme
 
 9. **Update PR metadata remediation_log.** After the fix commit is pushed, append an entry to the `remediation_log` in the PR's `feature-flow-metadata` block. Follow the read-modify-write protocol in ../../references/feature-flow-metadata-schema.md §Update Protocol. Entry fields: `type: "review-bot"`, `description: "addressed N review comments (K declined)"`, `commit: <fix_commit_sha>`, `at: <current UTC timestamp>`. This step is non-fatal — if it fails, log a warning and continue.
 
+### Step Exit / Join Condition
+
+The step exits when **both** loops have reached a terminal state:
+
+- **Phase 1 terminal:** all CI checks are `completed` (success or failure handled), or Phase 1 timed out after 15 minutes.
+- **Phase 2 terminal:** bot-history detection found no bots (skip), or bot review was received and addressed, or Phase 2 timed out after 15 minutes, or Phase 2 was not entered (no bot history).
+
+Both loops complete independently. Do not exit the step while either loop is still running. If Phase 1 finishes first, wait for Phase 2 to reach its terminal state before outputting the final status line. If Phase 2 finishes first (e.g., no bot history → immediate skip), wait for Phase 1. In practice, for repos with no bot history, Phase 2 short-circuits immediately and the step exits as soon as Phase 1 completes — identical to today's behavior.
+
+**Interleaving with CI failures and fix pushes:** If Phase 3 triggers (CI failure → fix push → re-wait for CI), Phase 2 continues running undisturbed alongside the new CI wait. After Phase 3's fix push, do NOT re-enter Phase 2 — per step 2c.8 above, the fix commit does not trigger a new round of bot reviews. Phase 2 terminates at its own pace (bot review received, timeout, or already skipped). The join condition above still applies: both loops must reach terminal state before the step exits.
+
 ### Phase 3: Handle CI failures
 
 1. Identify which checks failed from the `conclusion` field.
