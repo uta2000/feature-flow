@@ -16,6 +16,15 @@ Validates that every task in an implementation plan has machine-verifiable accep
 - Before the user reviews and approves a plan
 - When reviewing an existing plan for feature-flow compliance
 
+## Optional Output Args (used when invoked from orchestrator dispatch)
+
+When invoked as a Pattern A subagent dispatch (per #251), the orchestrator passes two additional arguments so the skill can write its structured return contract back to the lifecycle's in-progress state file:
+
+- `write_contract_to: <absolute-path-to-in-progress-yml>` — when set, writes the return contract to `phase_summaries.<phase_id>.return_contract` in that YAML file after Step 6 (see Step 7 below).
+- `phase_id: <phase-id-string>` — identifies which `phase_summaries` key to write into (e.g., `verify-plan-criteria`). If absent when `write_contract_to` is set, defaults to `verify-plan-criteria`.
+
+Both args are optional. If `write_contract_to` is not present in ARGUMENTS, Step 7 is skipped — the skill behaves identically to its inline-invocation form.
+
 ## Format Detection
 
 Before parsing, determine which format the plan file uses:
@@ -257,6 +266,67 @@ After processing all tasks:
 
 **Result:** X/Y tasks have acceptance criteria. Z/Y tasks have Quality Constraints. Plan is ready for review.
 ```
+
+### Step 7: Write Return Contract (conditional)
+
+**Only executes if `write_contract_to` is set in the skill's ARGUMENTS.** If the arg is absent, skip this step entirely and return the Step 6 report as the skill's output.
+
+Construct the return contract object per the locked spec from #251:
+
+- `schema_version`: `1` (integer — contract schema version, NOT the in-progress state-file schema version)
+- `phase`: the `phase_id` arg value (default `"verify-plan-criteria"`)
+- `status`: one of:
+  - `"success"` — all tasks have criteria, none flagged vague, all quality constraints present
+  - `"partial"` — some tasks were drafted/approved or skipped, but the plan is usable
+  - `"failed"` — one or more tasks could not have criteria established (rare; only when both auto-draft and user-skip paths fail)
+- `plan_path`: absolute path to the plan file checked
+- `criteria_total`: total count of `- [ ]` criteria items across all tasks (including drafted + approved)
+- `criteria_machine_verifiable`: count of criteria items that are not `[MANUAL]`
+- `criteria_added_by_agent`: count of criteria items drafted by this skill in Step 4 (zero if all tasks already had criteria)
+- `tasks_missing_criteria`: list of task identifiers (e.g., `["Task 3", "Task 7"]`) that still have no criteria after Step 5; empty list `[]` if all tasks are covered
+
+Write the contract to the state file using this helper (mirrors the env-var passing pattern in `skills/start/SKILL.md`'s mid-lifecycle update helper at lines 627-637 — apostrophe-safe, no inline interpolation):
+
+```bash
+F="<write_contract_to value>"
+PHASE_ID="<phase_id value, default: verify-plan-criteria>"
+STATUS="<success|partial|failed>"
+PLAN_PATH="<absolute plan path>"
+TOTAL=<criteria_total>
+MACHINE=<criteria_machine_verifiable>
+ADDED=<criteria_added_by_agent>
+MISSING='<json-array-string, e.g. ["Task 3","Task 7"] or []>'
+
+[ -f "$F" ] && F="$F" PHASE_ID="$PHASE_ID" STATUS="$STATUS" PLAN_PATH="$PLAN_PATH" TOTAL="$TOTAL" MACHINE="$MACHINE" ADDED="$ADDED" MISSING="$MISSING" python3 -c '
+import os, json, yaml
+f = os.environ["F"]
+d = yaml.safe_load(open(f)) or {}
+phase = os.environ["PHASE_ID"]
+if "phase_summaries" not in d or phase not in d["phase_summaries"]:
+    print(f"[verify-plan-criteria] WARNING: phase_summaries.{phase} not found in {f}; skipping contract write")
+else:
+    d["phase_summaries"][phase]["return_contract"] = {
+        "schema_version": 1,
+        "phase": phase,
+        "status": os.environ["STATUS"],
+        "plan_path": os.environ["PLAN_PATH"],
+        "criteria_total": int(os.environ["TOTAL"]),
+        "criteria_machine_verifiable": int(os.environ["MACHINE"]),
+        "criteria_added_by_agent": int(os.environ["ADDED"]),
+        "tasks_missing_criteria": json.loads(os.environ["MISSING"]),
+    }
+    yaml.dump(d, open(f, "w"), default_flow_style=False, allow_unicode=True)
+    print(f"[verify-plan-criteria] return_contract written to {f}")
+'
+```
+
+The `[ -f "$F" ]` guard is intentional — when invoked outside a lifecycle context (e.g., in tests or one-off invocations), `write_contract_to` may point to a file that doesn't exist. In that case, log a warning and return normally — the skill's primary output (the Step 6 report) is still valid.
+
+After writing, return the state-file path and a one-line summary as the skill's result text:
+
+`"Return contract written to <write_contract_to>. Criteria: <total> total, <machine> machine-verifiable, <added> added by agent. Status: <status>."`
+
+The orchestrator (Pattern A wrapper in `skills/start/SKILL.md`) reads this state-file path from the result string, loads `phase_summaries.<phase_id>.return_contract` from the YAML, and runs `hooks/scripts/validate-return-contract.js` against the loaded object before proceeding.
 
 ## Quality Rules for Criteria
 

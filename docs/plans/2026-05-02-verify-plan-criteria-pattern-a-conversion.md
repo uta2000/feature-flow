@@ -319,7 +319,7 @@ Also create fixture files in `hooks/scripts/fixtures/`:
 - [ ] `phase_id` argument documented in skill description measured by string presence verified by `grep -n "phase_id" skills/verify-plan-criteria/SKILL.md`
 - [ ] python3 contract-write helper documented in Step 6 measured by string presence verified by `grep -n "phase_summaries" skills/verify-plan-criteria/SKILL.md`
 - [ ] Contract write only executes when `write_contract_to` is set measured by conditional guard text presence verified by `grep -n "write_contract_to.*is set\|if.*write_contract_to" skills/verify-plan-criteria/SKILL.md`
-- [ ] Return contract schema matches the locked spec (7 fields) measured by field name presence verified by `grep -c "criteria_total\|criteria_machine_verifiable\|criteria_added_by_agent\|tasks_missing_criteria\|plan_path\|schema_version" skills/verify-plan-criteria/SKILL.md | grep -qE "^[6-9]" && echo "ok"`
+- [ ] Return contract schema matches the locked spec (7 fields) measured by field name presence verified by `grep -c "criteria_total\|criteria_machine_verifiable\|criteria_added_by_agent\|tasks_missing_criteria\|plan_path\|schema_version" skills/verify-plan-criteria/SKILL.md | awk '{exit ($1>=6)?0:1}' && echo "ok"`
 
 **Quality Constraints:**
 - Error handling: The python3 helper uses `yaml.safe_load(open(f)) or {}` guard (file may not exist if the write is attempted outside a lifecycle context). Wrap the write in a try/except so failure is logged and execution continues.
