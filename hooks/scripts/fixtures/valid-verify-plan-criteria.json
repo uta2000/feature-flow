@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "phase": "verify-plan-criteria",
+  "status": "success",
+  "plan_path": "/tmp/plan.md",
+  "criteria_total": 3,
+  "criteria_machine_verifiable": 3,
+  "criteria_added_by_agent": 0,
+  "tasks_missing_criteria": []
+}
