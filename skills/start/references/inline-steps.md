@@ -575,6 +575,15 @@ This step runs after commit and PR (or after mobile-specific steps like app stor
 
 **Process:**
 
+**On step entry — fire both of the following in a single parallel message (two simultaneous tool calls):**
+
+1. Phase 1 first poll: `gh pr checks <pr_number> --json name,status,conclusion`
+2. Phase 2 bot-history detection: Check the last 5 merged/closed PRs for bot reviews (full script in Phase 2 Step 2a below)
+
+Use both results together to determine (a) initial CI state and (b) whether bot-review polling is needed. Then proceed to the Phase 1 and Phase 2 loops described below.
+
+For subsequent ticks, continue firing Phase 1 and Phase 2 (2b/2c) calls in the same parallel-message pattern — one tool call each, grouped into a single message per tick — until each loop reaches its terminal state. (Phase 2a fires only once at entry; subsequent Phase 2 ticks poll the current PR per Step 2b or execute remediation steps per Step 2c.)
+
 ### Phase 1: Wait for CI checks
 
 1. Get the PR number from the previous step's output.
@@ -599,7 +608,9 @@ This step runs after commit and PR (or after mobile-specific steps like app stor
 
 ### Phase 2: Wait for and address bot review comments
 
-CI and code review are **independent processes**. Review bots (Gemini Code Review, CodeRabbit, etc.) typically post their review 5-10 minutes after the PR is created — well after CI has already passed. This phase detects whether the repo uses review bots and waits for their review to land before proceeding.
+CI and code review are **independent processes**. Review bots (Gemini Code Review, CodeRabbit, etc.) typically post their review 5-10 minutes after the PR is created — well after CI has already passed.
+
+**Step 2a runs concurrently with Phase 1's CI poll loop** (it is fired on step entry alongside the first CI poll — see the parallel-kickoff block above). Steps 2b and 2c run concurrently with any remaining CI polling: once bot history is confirmed, begin polling for bot review on the current PR without waiting for Phase 1 to complete. Both loops run independently and the step exits only when both have terminated (see Step Exit / Join Condition below).
 
 **Step 2a: Detect if the repo uses review bots**
 
@@ -704,21 +715,37 @@ Review bots like Gemini Code Review and CodeRabbit post inline code review comme
 
 4. **Update PR metadata remediation_log.** After the fix commit is pushed, append an entry to the `remediation_log` in the PR's `feature-flow-metadata` block. Follow the read-modify-write protocol in ../../references/feature-flow-metadata-schema.md §Update Protocol. Entry fields: `type: "ci-<category>"` (e.g. `"ci-lint"`, `"ci-test"`), `description: "<check name>: <brief fix description>"`, `commit: <fix_commit_sha>`, `at: <current UTC timestamp>`. This step is non-fatal — if it fails, log a warning and continue.
 
+### Step Exit / Join Condition
+
+The step exits when **both** loops have reached a terminal state:
+
+- **Phase 1 terminal:** all CI checks are `completed` (success or failure handled), or Phase 1 timed out after 15 minutes.
+- **Phase 2 terminal:** bot-history detection found no bots (skip), or bot review was received and addressed, or Phase 2 timed out after 15 minutes, or Phase 2 was not entered (no bot history).
+
+Both loops complete independently. Do not exit the step while either loop is still running. If Phase 1 finishes first, wait for Phase 2 to reach its terminal state before outputting the final status line. If Phase 2 finishes first (e.g., no bot history → immediate skip), wait for Phase 1. In practice, for repos with no bot history, Phase 2 short-circuits immediately and the step exits as soon as Phase 1 completes — identical to today's behavior.
+
+**Interleaving with CI failures and fix pushes:** If Phase 3 triggers (CI failure → fix push → re-wait for CI), Phase 2 continues running undisturbed alongside the new CI wait. After Phase 3's fix push, do NOT re-enter Phase 2 — per step 2c.8 above, the fix commit does not trigger a new round of bot reviews. Phase 2 terminates at its own pace (bot review received, timeout, or already skipped). The join condition above still applies: both loops must reach terminal state before the step exits. If Phase 2c pushes a fix after Phase 1 has already terminated, re-enter Phase 1's polling loop once (with a fresh 15-minute timeout) to confirm the fix commit passes; the join condition waits for this restarted Phase 1 to reach terminal state before the step exits. This re-entry counts against the 2-cycle budget in the Loop Termination section.
+
 ### Phase Ordering
 
-Phase 1 (CI) and Phase 2 (bot review) run sequentially but are logically independent:
+Phase 1 (CI) and Phase 2 (bot review) run in parallel. Bot-history detection (Phase 2 Step 2a) fires on step entry alongside Phase 1's first CI poll. If bot history is found, the Phase 2 polling loop runs concurrently with the remainder of Phase 1's polling loop. The step exits only when both loops have terminated (see Step Exit / Join Condition above).
 
 ```
-Phase 1: Wait for CI → handle failures if any → CI green
-Phase 2: Detect bot history → wait for bot review → address inline comments → push fix → reply to threads
-Phase 1 (again): Re-wait for CI after fix push (if fixes were made)
+Step entry: fire Phase 1 first CI poll AND Phase 2a bot-history detection in parallel
+Phase 1 (CI loop):    poll every 30s → CI green or 15-min timeout → handle failures if any
+Phase 2 (bot loop):
+    no bots detected → skip (terminal)
+    bots detected → poll every 30s → bot review received → address comments → push fix
+                    or 15-min timeout
+After CI fix push: re-wait for CI (Phase 1 only); do NOT re-enter Phase 2
+Step exits when BOTH loops reach terminal state (join: both loops terminal)
 ```
 
-If Phase 1 times out or has no checks, Phase 2 still runs (the bot review is independent of CI). If Phase 2 detects no bot history, it skips immediately.
+If Phase 1 times out or has no checks, Phase 2 still runs (the bot review is independent of CI). If Phase 2 detects no bot history, it skips immediately and the step exits as soon as Phase 1 finishes.
 
 ### Loop Termination
 
-Maximum 2 total fix-and-recheck cycles across Phase 1 and Phase 3 combined. After 2 cycles:
+Maximum 2 total fix-and-recheck cycles across Phase 1, Phase 2c, and Phase 3 combined (any fix push that triggers a Phase 1 re-wait counts, regardless of source phase). After 2 cycles:
 - If checks still failing → warn: "CI still failing after 2 fix attempts. Continuing lifecycle." List failing checks.
 
 Phase 2 (bot review) runs at most once per PR — no loop. If the bot posts additional comments on the fix commit, they are not automatically addressed (this would require a separate manual invocation).
@@ -726,11 +753,13 @@ Phase 2 (bot review) runs at most once per PR — no loop. If the bot posts addi
 **Output:** "CI checks: [N passed, M failed]. Review comments: [X addressed, Y declined]." or "No CI checks configured, no review bot history — skipped."
 
 **YOLO behavior:** Auto-wait silently. Announce periodic status every 60 seconds:
+`YOLO: start — Bot-history detection: [detecting… / no bots / bot_name polling…]`
 `YOLO: start — Waiting for CI checks (N of M complete, K pending: [names])`
-`YOLO: start — CI passed. Waiting for review bot ([bot_name] detected on recent PRs)...`
-After addressing: `YOLO: start — Review comments → N addressed, K declined`
+`YOLO: start — CI passed. Bot-review loop still running ([bot_name], elapsed Xs)...`
+`YOLO: start — Bot review received. CI loop still running (N of M complete)...`
+After both loops terminal: `YOLO: start — CI: [passed/timed out]. Review comments → N addressed, K declined`
 
-**Interactive/Express behavior:** Announce wait and show progress. The user can type "skip" to continue without waiting at either phase.
+**Interactive/Express behavior:** Announce that both loops are starting in parallel and show progress for each. The user can type "skip" to continue without waiting — this terminates both loops immediately.
 
 **Edge cases:**
 
@@ -743,8 +772,8 @@ After addressing: `YOLO: start — Review comments → N addressed, K declined`
 | PR has merge conflicts blocking CI | Warn and continue |
 | Multiple review bots on same repo | Address inline comments from all bots in one pass |
 | Bot suggests change that contradicts design doc | Decline with rationale in the thread reply |
-| CI passes before bot review arrives | Normal — Phase 2 waits independently for the bot review |
-| Bot review arrives before CI passes | Phase 2 will find it when it runs after Phase 1 |
+| CI passes before bot review arrives | Normal — both loops run concurrently; step waits for Phase 2 to finish |
+| Bot review arrives before CI passes | Normal — both loops run concurrently; step waits for Phase 1 to finish |
 
 ---
 
