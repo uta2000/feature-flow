@@ -751,11 +751,12 @@ Phase 2 (bot review) runs at most once per PR — no loop. If the bot posts addi
 **Output:** "CI checks: [N passed, M failed]. Review comments: [X addressed, Y declined]." or "No CI checks configured, no review bot history — skipped."
 
 **YOLO behavior:** Auto-wait silently. Announce periodic status every 60 seconds:
-`YOLO: start — Waiting for CI checks (N of M complete, K pending: [names])`
-`YOLO: start — CI passed. Waiting for review bot ([bot_name] detected on recent PRs)...`
-After addressing: `YOLO: start — Review comments → N addressed, K declined`
+`YOLO: start — Waiting for CI checks (N of M complete, K pending: [names]) | bot-history: [detecting… / no bots / bot_name polling…]`
+`YOLO: start — CI passed. Bot-review loop still running ([bot_name], elapsed Xs)...`
+`YOLO: start — Bot review received. CI loop still running (N of M complete)...`
+After both loops terminal: `YOLO: start — CI: [passed/timed out]. Review comments → N addressed, K declined`
 
-**Interactive/Express behavior:** Announce wait and show progress. The user can type "skip" to continue without waiting at either phase.
+**Interactive/Express behavior:** Announce that both loops are starting in parallel and show progress for each. The user can type "skip" to continue without waiting — this terminates both loops immediately.
 
 **Edge cases:**
 
@@ -768,8 +769,8 @@ After addressing: `YOLO: start — Review comments → N addressed, K declined`
 | PR has merge conflicts blocking CI | Warn and continue |
 | Multiple review bots on same repo | Address inline comments from all bots in one pass |
 | Bot suggests change that contradicts design doc | Decline with rationale in the thread reply |
-| CI passes before bot review arrives | Normal — Phase 2 waits independently for the bot review |
-| Bot review arrives before CI passes | Phase 2 will find it when it runs after Phase 1 |
+| CI passes before bot review arrives | Normal — both loops run concurrently; step waits for Phase 2 to finish |
+| Bot review arrives before CI passes | Normal — both loops run concurrently; step waits for Phase 1 to finish |
 
 ---
 
