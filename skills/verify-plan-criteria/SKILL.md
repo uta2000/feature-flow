@@ -274,7 +274,7 @@ After processing all tasks:
 Construct the return contract object per the locked spec from #251:
 
 - `schema_version`: `1` (integer — contract schema version, NOT the in-progress state-file schema version)
-- `phase`: the `phase_id` arg value (default `"verify-plan-criteria"`)
+- `phase`: hardcoded to `"verify-plan-criteria"` per #251's locked contract spec — this is the lifecycle step name the validator uses to look up the schema in its registry. **Not** the `phase_id` arg value. (`phase_id` names the state-file bucket, e.g. `"plan"`.)
 - `status`: one of:
   - `"success"` — all tasks have criteria, none flagged vague, all quality constraints present
   - `"partial"` — some tasks were drafted/approved or skipped, but the plan is usable
@@ -289,7 +289,7 @@ Write the contract to the state file using this helper (mirrors the env-var pass
 
 ```bash
 F="<write_contract_to value>"
-PHASE_ID="<phase_id value, default: verify-plan-criteria>"
+PHASE_ID="<phase_id value, default: plan>"  # state-file bucket name — must be one of {brainstorm, design, plan, implementation}; verify-plan-criteria lives in the plan bucket
 STATUS="<success|partial|failed>"
 PLAN_PATH="<absolute plan path>"
 TOTAL=<criteria_total>
