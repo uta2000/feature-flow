@@ -726,15 +726,20 @@ Both loops complete independently. Do not exit the step while either loop is sti
 
 ### Phase Ordering
 
-Phase 1 (CI) and Phase 2 (bot review) run sequentially but are logically independent:
+Phase 1 (CI) and Phase 2 (bot review) run in parallel. Bot-history detection (Phase 2 Step 2a) fires on step entry alongside Phase 1's first CI poll. If bot history is found, the Phase 2 polling loop runs concurrently with the remainder of Phase 1's polling loop. The step exits only when both loops have terminated (see Step Exit / Join Condition above).
 
 ```
-Phase 1: Wait for CI → handle failures if any → CI green
-Phase 2: Detect bot history → wait for bot review → address inline comments → push fix → reply to threads
-Phase 1 (again): Re-wait for CI after fix push (if fixes were made)
+Step entry: fire Phase 1 first CI poll AND Phase 2a bot-history detection in parallel
+Phase 1 (CI loop):    poll every 30s → CI green or 15-min timeout → handle failures if any
+Phase 2 (bot loop):
+    no bots detected → skip (terminal)
+    bots detected → poll every 30s → bot review received → address comments → push fix
+                    or 15-min timeout
+After CI fix push: re-wait for CI (Phase 1 only); do NOT re-enter Phase 2
+Step exits when BOTH loops reach terminal state (join: both loops terminal)
 ```
 
-If Phase 1 times out or has no checks, Phase 2 still runs (the bot review is independent of CI). If Phase 2 detects no bot history, it skips immediately.
+If Phase 1 times out or has no checks, Phase 2 still runs (the bot review is independent of CI). If Phase 2 detects no bot history, it skips immediately and the step exits as soon as Phase 1 finishes.
 
 ### Loop Termination
 
