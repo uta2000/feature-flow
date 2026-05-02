@@ -60,9 +60,13 @@ d = yaml.safe_load(open(f)) or {}
 phase = os.environ["PHASE_ID"]
 if "phase_summaries" not in d or phase not in d["phase_summaries"]:
     raise SystemExit(f"FAIL: phase_summaries.{phase} not found in {f}")
+# NOTE: this block intentionally mirrors the Step 7 helper in
+# skills/verify-plan-criteria/SKILL.md exactly (bucket from PHASE_ID env;
+# contracts `phase` field hardcoded to the lifecycle step name per #251).
+# Mirroring rather than duplicating the spec catches drift between the two.
 d["phase_summaries"][phase]["return_contract"] = {
     "schema_version": 1,
-    "phase": "verify-plan-criteria",
+    "phase": "verify-plan-criteria",  # lifecycle step name per #251 — NOT the bucket
     "status": os.environ["STATUS"],
     "plan_path": os.environ["PLAN_PATH"],
     "criteria_total": int(os.environ["TOTAL"]),

@@ -301,13 +301,16 @@ MISSING='<json-array-string, e.g. ["Task 3","Task 7"] or []>'
 import os, json, yaml
 f = os.environ["F"]
 d = yaml.safe_load(open(f)) or {}
-phase = os.environ["PHASE_ID"]
-if "phase_summaries" not in d or phase not in d["phase_summaries"]:
-    print(f"[verify-plan-criteria] WARNING: phase_summaries.{phase} not found in {f}; skipping contract write")
+bucket = os.environ["PHASE_ID"]  # bucket name in phase_summaries (e.g. "plan")
+if "phase_summaries" not in d or bucket not in d["phase_summaries"]:
+    print(f"[verify-plan-criteria] WARNING: phase_summaries.{bucket} not found in {f}; skipping contract write")
 else:
-    d["phase_summaries"][phase]["return_contract"] = {
+    d["phase_summaries"][bucket]["return_contract"] = {
         "schema_version": 1,
-        "phase": phase,
+        # The contracts `phase` field is the lifecycle STEP NAME per #251 spec
+        # (verify-plan-criteria), NOT the bucket key (which would be "plan").
+        # The validator uses this to look up the schema in its registry.
+        "phase": "verify-plan-criteria",
         "status": os.environ["STATUS"],
         "plan_path": os.environ["PLAN_PATH"],
         "criteria_total": int(os.environ["TOTAL"]),

@@ -37,9 +37,9 @@ function validate(phaseId, obj) {
   for (const [field, expectedType] of Object.entries(schema)) {
     checkField(obj, field, expectedType, errors);
   }
-  if (!errors.length && obj.phase !== phaseId) {
-    errors.push(`phase mismatch: expected "${phaseId}", got "${obj.phase}"`);
-  }
+  // NOTE: phase mismatch check removed — phaseId is derived from obj.phase
+  // in main(), so the comparison is always trivially equal here. If a future
+  // caller adds an external --phase argument, restore this check then.
   if (!errors.length && !VALID_STATUSES.has(obj.status)) {
     errors.push(`status: expected one of success|partial|failed, got "${obj.status}"`);
   }
@@ -91,6 +91,8 @@ function main() {
 }
 
 try { main(); } catch (err) {
-  try { process.stderr.write('[validate-return-contract] fail-open: ' + (err && err.message) + '\n'); } catch (_) {}
+  // Fail-closed: any unexpected error exits 1 so the orchestrator triggers
+  // inline-fallback rather than silently accepting an unvalidated contract.
+  try { process.stderr.write('[validate-return-contract] unexpected error: ' + (err && err.message) + '\n'); } catch (_) {}
   process.exit(1);
 }

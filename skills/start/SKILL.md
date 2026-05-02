@@ -713,7 +713,7 @@ Task(
 |------|---------|----------|------|
 | 1 | `Task()` dispatch fails (timeout, tool error, refusal) | `verify-plan-criteria Pattern A: dispatch failed (<reason>). Falling back to inline Skill().` | Run inline `Skill(skill: "feature-flow:verify-plan-criteria", args: "yolo: true. plan_file: <path>")` |
 | 2 | Subagent completes but `return_contract` field is null/absent in state file | `verify-plan-criteria Pattern A: subagent did not write return_contract. Falling back to inline Skill().` | Same inline invocation |
-| 3 | `validate-return-contract.js` exits non-zero | `verify-plan-criteria Pattern A: contract validation failed (<error from validator stdout>). Falling back to inline Skill().` | Same inline invocation |
+| 3 | `validate-return-contract.js` exits non-zero | `verify-plan-criteria Pattern A: contract validation failed (<error from validator>). Falling back to inline Skill().` | Same inline invocation |
 
 The inline path runs the existing skill with no `write_contract_to` arg — Step 7 of the skill is skipped, the skill behaves identically to its pre-#251 form, and the orchestrator captures its report from the Skill tool result text directly.
 
@@ -722,7 +722,8 @@ The inline path runs the existing skill with no `write_contract_to` arg — Step
      measurement (per #253) confirms ≥5% orchestrator context reduction. The wrapper itself stays;
      only the fallback safety net is sunset. -->
 
-**Interactive/Express mode** continues to use inline `Skill` calls (unchanged — these inherit the parent model, which should be Opus at session start):
+**Interactive/Express mode** continues to use inline `Skill` calls for **brainstorming and design-document** (unchanged — these inherit the parent model, which should be Opus at session start). This applies to model-routing-driven dispatches only — Pattern A subagent dispatches (e.g. `verify-plan-criteria`, see "Pattern A subagent dispatch" CRITICAL block above) still use `Task()` in Interactive/Express modes because their rationale is context isolation, not model routing.
+
 ```
 Skill(skill: "superpowers:brainstorming", args: "yolo: true. scope: [scope]. [original args]")
 Skill(skill: "feature-flow:design-document", args: "yolo: true. scope: [scope]. [original args]")
