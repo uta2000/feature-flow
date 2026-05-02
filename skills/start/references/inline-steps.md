@@ -582,6 +582,8 @@ This step runs after commit and PR (or after mobile-specific steps like app stor
 
 Use both results together to determine (a) initial CI state and (b) whether bot-review polling is needed. Then proceed to the Phase 1 and Phase 2 loops described below.
 
+For subsequent polls, continue firing Phase 1 and Phase 2 polls in the same parallel-message pattern — one tool call each, grouped into a single message per tick — until each loop reaches its terminal state.
+
 ### Phase 1: Wait for CI checks
 
 1. Get the PR number from the previous step's output.
@@ -711,7 +713,7 @@ The step exits when **both** loops have reached a terminal state:
 
 Both loops complete independently. Do not exit the step while either loop is still running. If Phase 1 finishes first, wait for Phase 2 to reach its terminal state before outputting the final status line. If Phase 2 finishes first (e.g., no bot history → immediate skip), wait for Phase 1. In practice, for repos with no bot history, Phase 2 short-circuits immediately and the step exits as soon as Phase 1 completes — identical to today's behavior.
 
-**Interleaving with CI failures and fix pushes:** If Phase 3 triggers (CI failure → fix push → re-wait for CI), Phase 2 continues running undisturbed alongside the new CI wait. After Phase 3's fix push, do NOT re-enter Phase 2 — per step 2c.8 above, the fix commit does not trigger a new round of bot reviews. Phase 2 terminates at its own pace (bot review received, timeout, or already skipped). The join condition above still applies: both loops must reach terminal state before the step exits.
+**Interleaving with CI failures and fix pushes:** If Phase 3 triggers (CI failure → fix push → re-wait for CI), Phase 2 continues running undisturbed alongside the new CI wait. After Phase 3's fix push, do NOT re-enter Phase 2 — per step 2c.8 above, the fix commit does not trigger a new round of bot reviews. Phase 2 terminates at its own pace (bot review received, timeout, or already skipped). The join condition above still applies: both loops must reach terminal state before the step exits. If Phase 2c pushes a fix after Phase 1 has already terminated, re-enter Phase 1's polling loop once (with a fresh 15-minute timeout) to confirm the fix commit passes; the join condition waits for this restarted Phase 1 to reach terminal state before the step exits.
 
 ### Phase 3: Handle CI failures
 
@@ -751,7 +753,8 @@ Phase 2 (bot review) runs at most once per PR — no loop. If the bot posts addi
 **Output:** "CI checks: [N passed, M failed]. Review comments: [X addressed, Y declined]." or "No CI checks configured, no review bot history — skipped."
 
 **YOLO behavior:** Auto-wait silently. Announce periodic status every 60 seconds:
-`YOLO: start — Waiting for CI checks (N of M complete, K pending: [names]) | bot-history: [detecting… / no bots / bot_name polling…]`
+`YOLO: start — Bot-history detection: [detecting… / no bots / bot_name polling…]`
+`YOLO: start — Waiting for CI checks (N of M complete, K pending: [names])`
 `YOLO: start — CI passed. Bot-review loop still running ([bot_name], elapsed Xs)...`
 `YOLO: start — Bot review received. CI loop still running (N of M complete)...`
 After both loops terminal: `YOLO: start — CI: [passed/timed out]. Review comments → N addressed, K declined`
