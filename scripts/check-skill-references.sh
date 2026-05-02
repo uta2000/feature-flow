@@ -13,7 +13,6 @@
 set -u
 cd "$(git rev-parse --show-toplevel)" 2>/dev/null || { echo "not in a git repo"; exit 1; }
 
-REPO_ROOT="$(pwd)"
 errors=0
 
 # find_skill_root <dir>
@@ -29,8 +28,8 @@ find_skill_root() {
     fi
     local parent
     parent="$(dirname "$dir")"
-    # Stop at repo root (can't go higher)
-    if [ "$parent" = "$dir" ] || [ "$dir" = "$REPO_ROOT" ]; then
+    # Stop when dirname returns the same dir (filesystem root or '.').
+    if [ "$parent" = "$dir" ]; then
       echo ""
       return 1
     fi
