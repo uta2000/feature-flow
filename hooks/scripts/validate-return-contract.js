@@ -26,7 +26,22 @@ const SCHEMAS = {
     open_questions: 'array',
     tbd_count: 'number',
   },
+  // Wave 3 phase 4 (#251) — Pattern B. Contract is written directly to a tmp
+  // JSON file by the consolidator subagent (no phase_summaries bucket — the
+  // four buckets are all claimed and the natural `implementation` slot will
+  // collide with future Phase 6's subagent-driven-development contract).
+  'verify-acceptance-criteria': {
+    schema_version: 'number',
+    phase: 'string',
+    status: 'string',
+    report_path: 'string',
+    pass_count: 'number',
+    fail_count: 'number',
+    failed_criteria: 'array',
+  },
 };
+
+const FAILED_CRITERIA_ITEM_FIELDS = ['task_id', 'criterion', 'reason'];
 
 const VALID_STATUSES = new Set(['success', 'partial', 'failed']);
 
@@ -72,6 +87,22 @@ function validate(phaseId, obj) {
             break;
           }
         }
+      }
+    }
+  }
+  if (!errors.length && phaseId === 'verify-acceptance-criteria' && Array.isArray(obj.failed_criteria)) {
+    for (const item of obj.failed_criteria) {
+      if (item === null || typeof item !== 'object' || Array.isArray(item)) {
+        errors.push('failed_criteria: all items must be objects');
+        break;
+      }
+      let badField = null;
+      for (const f of FAILED_CRITERIA_ITEM_FIELDS) {
+        if (typeof item[f] !== 'string') { badField = f; break; }
+      }
+      if (badField) {
+        errors.push(`failed_criteria: each item must have string fields task_id, criterion, reason (missing or non-string: ${badField})`);
+        break;
       }
     }
   }

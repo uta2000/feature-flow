@@ -20,6 +20,17 @@ Mechanically checks all acceptance criteria from an implementation plan against 
 - Before claiming work is complete
 - Before committing or creating a PR
 
+## Optional Args (used when invoked from orchestrator dispatch)
+
+When invoked as a Pattern B consolidator subagent (per #251 Wave 3 phase 4), the orchestrator passes these arguments so the skill can skip the hoisted task-verifier dispatch and write its structured return contract back to a tmp JSON file:
+
+- `verifier_report_path: <absolute-path-to-report-md>` — when set, the skill skips Step 3's `task-verifier` dispatch (the orchestrator has already executed it) and reads the pre-written verification report from this Markdown file. The report follows the format defined in `agents/task-verifier.md` Step 4.
+- `write_contract_to: <absolute-path-to-json>` — when set, writes the structured return contract directly to this JSON file path after Step 4 (Present Results) completes (see Step 6 below). **Unlike `design-document`, this is a plain JSON file path, not a state-file YAML path.** verify-acceptance-criteria does not own a `phase_summaries` bucket — see "Why no state-file write" below.
+
+Both args are optional. If `verifier_report_path` is absent, Step 3 dispatches the task-verifier as before. If `write_contract_to` is absent, Step 6 is skipped — the skill behaves identically to its inline-invocation form.
+
+**Why no state-file write:** the four `phase_summaries` buckets (`brainstorm`, `design`, `plan`, `implementation`) are all claimed by phase-boundary writes. Verify-acceptance-criteria is a verification step within the implementation phase, not a phase that owns a bucket; reusing `implementation.return_contract` would collide with the future Phase 6 (`subagent-driven-development`) Pattern B contract. The contract is consumed once by the orchestrator's validator and discarded — no cross-compaction reader needs it from the state file.
+
 ## Format Detection
 
 Before extracting criteria, determine which format the plan file uses.
@@ -118,6 +129,8 @@ If a specific task was requested, only extract criteria for that task.
 
 ### Step 3: Delegate to Task Verifier
 
+**Pattern B consolidator-mode early exit:** If `verifier_report_path` is set in ARGUMENTS, the orchestrator has already dispatched the task-verifier and written its detailed Markdown report to that path. Read the file, treat its content as the verification report produced by Step 3, and skip the `Task()` dispatch below. Jump directly to Step 4 (Present Results) using the loaded report. This branch exists for the Pattern B subagent dispatch wired in `skills/start/SKILL.md` — see "Verify Acceptance Criteria — Pattern B Dispatch" in that file.
+
 Use the Task tool with `subagent_type: "feature-flow:task-verifier"` and `model: "haiku"` (see `../../references/tool-api.md` — Task Tool for correct parameter syntax) to launch the task-verifier agent with:
 
 ```
@@ -195,3 +208,56 @@ the plan is in XML mode and all criteria for a task pass, offer to update `statu
 ```
 
 Only do this if the user agrees.
+
+### Step 6: Write Return Contract (conditional)
+
+**Only executes if `write_contract_to` is set in the skill's ARGUMENTS.** If the arg is absent, skip this step entirely — the skill behaves identically to its pre-#251 inline form.
+
+Construct the return contract object per the locked spec from #251 (exemplar 2 in the issue body, locked before any implementation):
+
+- `schema_version`: `1` (integer — contract schema version)
+- `phase`: hardcoded to `"verify-acceptance-criteria"` per #251's locked contract spec — this is the lifecycle step name the validator uses to look up the schema in its registry.
+- `status`: derived from the verifier verdict —
+  - `"success"` → all criteria PASS or CANNOT_VERIFY (verdict VERIFIED)
+  - `"partial"` → at least one criterion FAIL (verdict INCOMPLETE)
+  - `"failed"` → verifier could not run (verdict BLOCKED — broken build, missing deps)
+- `report_path`: absolute path of the detailed Markdown verification report (the `verifier_report_path` arg if set; otherwise the path to the inline-fallback report)
+- `pass_count`: integer count of PASS rows in the report
+- `fail_count`: integer count of FAIL rows in the report
+- `failed_criteria`: array of objects, one per FAIL row. Each object has string fields `task_id`, `criterion`, `reason` (extracted from the report's Results table). Empty array `[]` when status is `success`.
+
+Write the contract directly to the JSON path using this helper (env-var passing is apostrophe-safe, mirrors the pattern in `skills/design-document/SKILL.md` Step 8):
+
+```bash
+F="<write_contract_to value>"
+STATUS="<success|partial|failed>"
+REPORT="<absolute path to the detailed report>"
+PASS=<integer>
+FAIL=<integer>
+FAILED='<json-array-string, e.g. [] or [{"task_id":"Task 3","criterion":"...","reason":"..."}]>'
+
+F="$F" STATUS="$STATUS" REPORT="$REPORT" PASS="$PASS" FAIL="$FAIL" FAILED="$FAILED" python3 -c '
+import os, json
+contract = {
+    "schema_version": 1,
+    # The contracts `phase` field is the lifecycle STEP NAME per #251 spec.
+    # The validator uses this to look up the schema in its registry.
+    "phase": "verify-acceptance-criteria",
+    "status": os.environ["STATUS"],
+    "report_path": os.environ["REPORT"],
+    "pass_count": int(os.environ["PASS"]),
+    "fail_count": int(os.environ["FAIL"]),
+    "failed_criteria": json.loads(os.environ["FAILED"]),
+}
+json.dump(contract, open(os.environ["F"], "w"))
+print(f"[verify-acceptance-criteria] return_contract written to {os.environ[\"F\"]}")
+'
+```
+
+**No `[ -f "$F" ]` guard** — unlike `design-document` (which writes into an existing state-file YAML), this skill writes a fresh JSON file. The orchestrator passes a tmp path that the helper creates.
+
+After writing, return the contract path and a one-line summary as the skill's result text:
+
+`"Return contract written to <write_contract_to>. Verification: status=<status>, pass=<N>, fail=<N>."`
+
+The orchestrator (Pattern B wrapper in `skills/start/SKILL.md`) reads this path from the result string and runs `hooks/scripts/validate-return-contract.js` against it before proceeding.

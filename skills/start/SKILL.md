@@ -680,7 +680,7 @@ Runs inline as a Bash call paired with the TaskUpdate. The `$(cd "$(git rev-pars
 - **Pattern A (wrap):** orchestrator dispatches one Task subagent that invokes the phase skill and returns a structured contract. Used for phases that do NOT internally fan out subagents.
 - **Pattern B (hoist + consolidator):** orchestrator dispatches the parallel fanout itself (subagents cannot dispatch sub-subagents per #251 Q1), then dispatches a single consolidator subagent that ingests fanout results, runs the rest of the skill, and returns a structured contract. Used for phases that DO internally fan out.
 
-Currently converted: `verify-plan-criteria` (Pattern A — see "Verify Plan Criteria — Pattern A Dispatch" subsection below), `design-document` (Pattern B — see "Design Document — Pattern B Dispatch" subsection below). Skipped by design analysis: `merge-prs` (no orchestrator-side benefit; see issue #251 comment). Future conversions: `verify-acceptance-criteria`, `code-review`, `implementation` per #251's conversion order. Each converted phase has its own wrapper subsection documenting the dispatch shape, return-contract validation, and inline-fallback path. **In Express and Interactive modes, Pattern A and Pattern B still apply** — the skills being wrapped do not require user interaction at the points where dispatch happens, so subagent isolation is safe in all modes.
+Currently converted: `verify-plan-criteria` (Pattern A — see "Verify Plan Criteria — Pattern A Dispatch" subsection below), `design-document` (Pattern B — see "Design Document — Pattern B Dispatch" subsection below), `verify-acceptance-criteria` (Pattern B — see "Verify Acceptance Criteria — Pattern B Dispatch" subsection below). Skipped by design analysis: `merge-prs` (no orchestrator-side benefit; see issue #251 comment). Future conversions: `code-review`, `implementation` per #251's conversion order. Each converted phase has its own wrapper subsection documenting the dispatch shape, return-contract validation, and inline-fallback path. **In Express and Interactive modes, Pattern A and Pattern B still apply** — the skills being wrapped do not require user interaction at the points where dispatch happens, so subagent isolation is safe in all modes.
 
 **Why:** The `Skill` tool has no `model` parameter — it inherits the parent model. The `Task` tool has an explicit `model` parameter. In YOLO mode there is no user interaction, so running skills inside a Task subagent works identically to running them inline. The `/model` command must NEVER be used — it writes to `~/.claude/settings.json` (a global config file) and affects all other terminal windows and tmux panes.
 
@@ -864,6 +864,81 @@ Skill(skill: "superpowers:brainstorming", args: "express: true. scope: [scope]. 
 
 For inline steps (CHANGELOG generation, self-review, code review, study existing patterns), the mode flag is already in the conversation context — no explicit propagation is needed.
 
+### Verify Acceptance Criteria — Pattern B Dispatch
+
+**Note:** INLINE-FALLBACK IS A ROLLOUT-ONLY FEATURE.
+<!-- feature-flow vNEXT+1 removes inline-fallback once two consecutive successful real-session uses are observed. -->
+
+**Applies in ALL modes** (YOLO, Express, Interactive — see the "Subagent dispatch patterns A and B" CRITICAL block above). `verify-acceptance-criteria` is the second Pattern B conversion (per #251 Wave 3 phase 4). Because the skill internally dispatches a single `task-verifier` subagent at Step 3 (which subagents cannot do per #251 Q1 — recursive dispatch silently fails), the orchestrator hoists the task-verifier dispatch to itself, then dispatches a single consolidator subagent that runs the rest of the skill (Steps 4-6) in isolation. The orchestrator never sees the plan content, the extracted criteria, or the detailed verification report — only the validated return contract.
+
+**Why skip the state-file bucket** (architectural deviation from `design-document` Pattern B): the four `phase_summaries` buckets (`brainstorm`, `design`, `plan`, `implementation`) are all claimed by phase-boundary writes. Verify-acceptance-criteria runs inside the Final Verification inline step, well after the implementation phase boundary; it is a verification step within the implementation phase, not a phase that owns a bucket. Reusing `phase_summaries.implementation.return_contract` would collide with the future Phase 6 (`subagent-driven-development`) Pattern B contract. The contract is consumed once by the orchestrator's validator and discarded — no cross-compaction reader needs it from the state file. Writing directly to a tmp JSON file avoids the collision and avoids a schema_version bump.
+
+**Sub-step 1 — Hoisted task-verifier dispatch (orchestrator-side):**
+
+The orchestrator dispatches the `feature-flow:task-verifier` subagent directly. The task-verifier reads the plan, extracts criteria, runs verifications, and writes the detailed Markdown report to a tmp path. Model per #251: `model: "haiku"` (focused mechanical verification — matches the existing inline-skill dispatch).
+
+```
+SLUG=<slug-from-session-context>
+REPORT_PATH="/tmp/ff-verify-ac-report-${SLUG}.md"
+PLAN_FILE="<absolute path to plan>"
+
+Task(
+  subagent_type: "feature-flow:task-verifier",
+  model: "haiku",
+  description: "verify-acceptance-criteria task-verifier",
+  prompt: "Read the implementation plan at ${PLAN_FILE}. Extract every \`**Acceptance Criteria:**\` section and its \`- [ ]\` items (or for XML plans, every \`<criterion>\` element). Verify each criterion against the codebase per agents/task-verifier.md Steps 1-3 (categorize, execute, diagnose). Write the detailed Markdown report (Results table + Summary + Verdict) to ${REPORT_PATH}. Then return ONLY a short JSON summary: {\"report_path\": \"${REPORT_PATH}\", \"verdict\": \"VERIFIED|INCOMPLETE|BLOCKED\", \"pass_count\": <int>, \"fail_count\": <int>, \"failed_criteria\": [{\"task_id\": \"Task N\", \"criterion\": \"<text>\", \"reason\": \"<one-line evidence>\"}, ...]}."
+)
+```
+
+**Sub-step 2 — Consolidator dispatch:**
+
+```
+CONTRACT_PATH="/tmp/ff-verify-ac-contract-${SLUG}.json"
+
+Task(
+  subagent_type: "general-purpose",
+  model: "sonnet",
+  description: "verify-acceptance-criteria Pattern B consolidator",
+  prompt: "Invoke Skill(skill: 'feature-flow:verify-acceptance-criteria', args: 'plan_file: ${PLAN_FILE}. verifier_report_path: ${REPORT_PATH}. write_contract_to: ${CONTRACT_PATH}'). The skill will skip Step 3 (already run by orchestrator), present the report from Step 4, optionally update plan checkboxes in Step 5, and write the return contract in Step 6. Return the contract path and a one-line summary."
+)
+```
+
+**Why `model: "sonnet"` for the consolidator:** Steps 4-5 do summary writing + checkbox edits across potentially many criteria; Sonnet handles the structured presentation without missing edge cases. Haiku is too brittle for the diagnose/present split; Opus is over-spec for what is mostly bookkeeping over an already-produced report.
+
+**Why `model: "haiku"` for the task-verifier:** Mechanical verification (file existence, grep, exit codes) plus pattern-matching diagnosis is exactly Haiku's wheelhouse. This matches the existing inline-skill choice for task-verifier dispatch.
+
+**Post-dispatch sequence (orchestrator-side):**
+
+1. **Verify the contract file was written:**
+   ```bash
+   [ -f "${CONTRACT_PATH}" ] && echo ok || echo missing
+   ```
+   If `missing` → trigger **inline-fallback** (case 3 below).
+2. **Validate the contract:**
+   ```bash
+   node hooks/scripts/validate-return-contract.js "${CONTRACT_PATH}"
+   ```
+   Exit 0 → proceed. Non-zero → trigger **inline-fallback** (case 4 below).
+3. **Read pass/fail counts** from the validated contract for downstream metadata-block population (`acceptance_criteria_count`, etc.). Proceed to next lifecycle step (Sync with base branch / Commit and PR).
+
+**Inline-fallback path** (rollout-only — four failure cases):
+
+| Case | Trigger | Announce | Next |
+|------|---------|----------|------|
+| 1 | Sub-step 1 task-verifier dispatch fails (timeout, tool error, refusal) | `verify-acceptance-criteria Pattern B: task-verifier dispatch failed (<reason>). Falling back to inline Skill().` | Run inline `Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: <path>")` (no `verifier_report_path` — the skill runs its own Step 3) |
+| 2 | Consolidator `Task()` dispatch fails (timeout, tool error, refusal) | `verify-acceptance-criteria Pattern B: consolidator dispatch failed (<reason>). Falling back to inline Skill().` | Same inline invocation |
+| 3 | Consolidator completes but `write_contract_to` JSON file is missing or empty | `verify-acceptance-criteria Pattern B: consolidator did not write contract. Falling back to inline Skill().` | Same inline invocation |
+| 4 | `validate-return-contract.js` exits non-zero | `verify-acceptance-criteria Pattern B: contract validation failed (<error from validator>). Falling back to inline Skill().` | Same inline invocation |
+
+**The inline-fallback target is the bare `Skill()` form (the pre-#251 path). This is safe** — verify-acceptance-criteria's pre-#251 inline form ran in the orchestrator's own context, where the task-verifier `Task()` dispatch works. (Unlike `design-document`'s pre-#251 YOLO Task() wrapper which was latently broken; this skill never had a YOLO Task() wrapper to begin with — it was always invoked inline from the Final Verification step.)
+
+<!-- SUNSET NOTE: feature-flow vNEXT+1 removes this inline-fallback table and the four failure-case
+     handlers once two consecutive successful real-session uses of Pattern B are observed and the
+     measurement (per #253) confirms ≥5% orchestrator context reduction. The wrapper itself stays;
+     only the fallback safety net is sunset. -->
+
+**Call site:** the Pattern B wrapper is invoked from the Final Verification inline step (`skills/start/references/inline-steps.md` "Final Verification Step" section). The "Always run verify-acceptance-criteria" rule there now resolves to "Always run verify-acceptance-criteria via Pattern B dispatch" — see that section for integration with the quality-gate-skip logic.
+
 **Lifecycle Context Object:** As the lifecycle executes, maintain a context object that accumulates artifact paths as they become known. Include all known paths in the `args` of every subsequent `Skill` invocation, after the mode flag and scope:
 
 | Path key | When it becomes available |
@@ -952,7 +1027,7 @@ If the in-progress file does not exist (initial write failed), skip phase-bounda
 | Self-review | No skill — inline step (see below) | Code verified against coding standards before formal review |
 | Code review | No skill — inline step (see below) | All Critical/Important findings fixed, tests pass |
 | Generate CHANGELOG entry | No skill — inline step (see below) | Changelog fragment written to `.changelogs/<id>.md`; consolidated when `/merge-prs` is invoked |
-| Final verification | No skill — inline step (see below) | All criteria PASS + quality gates pass (or skipped if Phase 4 already passed) |
+| Final verification | No skill — inline step (see below). Calls `feature-flow:verify-acceptance-criteria` (invoked via Pattern B dispatch — orchestrator-side hoisted task-verifier `Task()` with `model: "haiku"` + consolidator `Task()` with `model: "sonnet"`; structured return contract written directly to a tmp JSON path — **no state-file bucket**, see "Verify Acceptance Criteria — Pattern B Dispatch" section above; inline-fallback path retained for rollout) | All criteria PASS + quality gates pass (or skipped if Phase 4 already passed); return contract validated via `hooks/scripts/validate-return-contract.js` |
 | Sync with base branch | No skill — inline step (see below) | Branch merged onto latest base branch; conflicts require manual resolution |
 | Commit and PR | `superpowers:finishing-a-development-branch` | PR URL; PR body includes `feature-flow-metadata` block (all modes). **Handoff file write:** Immediately after `gh pr create` returns the PR number, write `.feature-flow/handoffs/<pr-number>.yml` in the **base repo** (not the worktree — the file must survive worktree removal; resolve via `BASE_REPO=$(cd "$(git rev-parse --git-common-dir)/.." && pwd)`, **not** `--show-toplevel`). Required fields: `schema_version: 1`, `pr_number: <N>`, `branch: <branch>`, `worktree_path: <abs-path>`, `base_branch: <base>`, `scope: <scope>`, `issue_number: <N-or-null>`, `created_at: <iso-utc>`, `slug: <slug>`, `feature_flow_version: <plugin-version>`. The write happens once, in a single step — no intermediate `pending-<slug>.yml` file, no rename. If the write fails, log a warning and continue (the worktree is still valid; the user can retry by running `cleanup-merged` manually later, though cleanup without a handoff requires manual worktree removal). **In-progress file removal (write-then-delete):** **After** the numbered handoff file is durably on disk (verify with `[ -f "${BASE_REPO}/.feature-flow/handoffs/<pr-number>.yml" ]`), delete the in-progress file: `rm -f "${BASE_REPO}/.feature-flow/handoffs/in-progress-${SLUG}.yml"` (where `SLUG` is the slug from session context — see the Worktree setup row's slug algorithm). `rm -f` exits cleanly when the file does not exist (initial in-progress write failed); do not error. **Order matters:** the two files briefly co-exist between the handoff write and the in-progress delete, which is harmless (different filenames, no clobber; cleanup-merged distinguishes by filename pattern; resume scans match only `in-progress-*.yml`; PR-state checks match only numbered `*.yml`). If the order were reversed and the numbered handoff write failed, both files would be gone — leaving the worktree fully orphaned. The two file forms are mutually exclusive at steady state — only one exists per slug after the swap completes. |
 | Wait for CI and address reviews | No skill — inline step (see below) | CI green, review comments addressed |

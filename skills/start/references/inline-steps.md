@@ -486,7 +486,7 @@ This step runs after CHANGELOG generation and before commit and PR. It verifies 
    - If marker matches HEAD (`$CURRENT_HEAD` = `$SAVED_HEAD`) **and** `git status --porcelain` is empty: Skip `verification-before-completion`. Announce: "Quality gates already passed (verified at HEAD, working tree clean) — skipping redundant checks."
    - If marker does not match HEAD **or** working tree is dirty: Run `verification-before-completion` normally.
 
-2. **Always run `verify-acceptance-criteria`:** This checks plan-specific criteria and must always run regardless of quality gate skip.
+2. **Always run `verify-acceptance-criteria` via Pattern B dispatch:** This checks plan-specific criteria and must always run regardless of quality gate skip. As of #251 Wave 3 phase 4, the call is dispatched as Pattern B (orchestrator-side hoisted task-verifier dispatch with `model: "haiku"` + consolidator `Task()` with `model: "sonnet"`). The contract is written to `/tmp/ff-verify-ac-contract-<slug>.json` (no state-file write — see "Verify Acceptance Criteria — Pattern B Dispatch" in `skills/start/SKILL.md` for rationale and the inline-fallback path). The Pattern B wrapper applies in all modes (YOLO, Express, Interactive). The contract's `pass_count`, `fail_count`, and `failed_criteria` populate the metadata-block fields below in step 3.
 
 3. **Write verification marker:** After all checks pass (both acceptance criteria and any quality gates that ran), write the HEAD commit hash to the git directory for the stop hook to read:
    ```bash
