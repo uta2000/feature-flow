@@ -919,7 +919,7 @@ Task(
    node hooks/scripts/validate-return-contract.js "${CONTRACT_PATH}"
    ```
    Exit 0 → proceed. Non-zero → trigger **inline-fallback** (case 4 below).
-3. **Read pass/fail counts** from the validated contract for downstream metadata-block population (`acceptance_criteria_count`, etc.). Proceed to next lifecycle step (Sync with base branch / Commit and PR).
+3. **Read pass/fail counts** from the validated contract and sum them (`pass_count + fail_count`) to derive the `acceptance_criteria_count` metadata-block field. Proceed to next lifecycle step (Sync with base branch / Commit and PR).
 
 **Inline-fallback path** (rollout-only — four failure cases):
 

@@ -101,7 +101,7 @@ function validate(phaseId, obj) {
         if (typeof item[f] !== 'string') { badField = f; break; }
       }
       if (badField) {
-        errors.push(`failed_criteria: each item must have string fields task_id, criterion, reason (missing or non-string: ${badField})`);
+        errors.push(`failed_criteria: each item must have string fields ${FAILED_CRITERIA_ITEM_FIELDS.join(', ')} (missing or non-string: ${badField})`);
         break;
       }
     }
