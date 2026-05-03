@@ -13,7 +13,19 @@ const SCHEMAS = {
     criteria_machine_verifiable: 'number',
     criteria_added_by_agent: 'number',
     tasks_missing_criteria: 'array',
-  }
+  },
+  // bucket key = 'design' (phase_summaries); step name = 'design-document' (contract phase field)
+  'design-document': {
+    schema_version: 'number',
+    phase: 'string',
+    status: 'string',
+    design_issue_url: 'string',
+    issue_number: 'number',
+    design_section_present: 'boolean',
+    key_decisions: 'array',
+    open_questions: 'array',
+    tbd_count: 'number',
+  },
 };
 
 const VALID_STATUSES = new Set(['success', 'partial', 'failed']);
@@ -48,6 +60,18 @@ function validate(phaseId, obj) {
       if (typeof item !== 'string') {
         errors.push('tasks_missing_criteria: all items must be strings');
         break;
+      }
+    }
+  }
+  if (!errors.length && phaseId === 'design-document') {
+    for (const field of ['key_decisions', 'open_questions']) {
+      if (Array.isArray(obj[field])) {
+        for (const item of obj[field]) {
+          if (typeof item !== 'string') {
+            errors.push(`${field}: all items must be strings`);
+            break;
+          }
+        }
       }
     }
   }

@@ -675,7 +675,12 @@ Runs inline as a Bash call paired with the TaskUpdate. The `$(cd "$(git rev-pars
 
 **YOLO Model Routing (CRITICAL):** In YOLO mode, brainstorming and design document phases MUST be dispatched as `Task` calls with explicit `model` params — not as inline `Skill` calls. This gives full per-phase model control regardless of the orchestrator's model. Planning is also dispatched as a `Task` with `model: "sonnet"`.
 
-**Pattern A subagent dispatch (CRITICAL — applies in ALL modes, not just YOLO):** Some lifecycle phases are dispatched as `Task()` subagents per #251's subagent-driven phase architecture, regardless of mode. These dispatches are for **context isolation** (the orchestrator never sees the skill's intermediate work — only a structured return contract written to the in-progress state file), not for model routing. Currently converted: `verify-plan-criteria` (see "Verify Plan Criteria — Pattern A Dispatch" subsection below). Future conversions: `merge-prs`, `design-document`, `verify-acceptance-criteria`, `code-review`, `implementation` per #251's conversion order. Each Pattern A phase has its own wrapper subsection documenting the dispatch shape, return-contract validation, and inline-fallback path. **In Express and Interactive modes, Pattern A still applies** — the skill being wrapped (`verify-plan-criteria` etc.) does not require user interaction, so subagent isolation is safe in all modes.
+**Subagent dispatch patterns A and B (CRITICAL — applies in ALL modes, not just YOLO):** Some lifecycle phases are dispatched as `Task()` subagents per #251's subagent-driven phase architecture, regardless of mode. These dispatches are for **context isolation** (the orchestrator never sees the skill's intermediate work — only a structured return contract written to the in-progress state file), not for model routing. Two patterns are in use:
+
+- **Pattern A (wrap):** orchestrator dispatches one Task subagent that invokes the phase skill and returns a structured contract. Used for phases that do NOT internally fan out subagents.
+- **Pattern B (hoist + consolidator):** orchestrator dispatches the parallel fanout itself (subagents cannot dispatch sub-subagents per #251 Q1), then dispatches a single consolidator subagent that ingests fanout results, runs the rest of the skill, and returns a structured contract. Used for phases that DO internally fan out.
+
+Currently converted: `verify-plan-criteria` (Pattern A — see "Verify Plan Criteria — Pattern A Dispatch" subsection below), `design-document` (Pattern B — see "Design Document — Pattern B Dispatch" subsection below). Skipped by design analysis: `merge-prs` (no orchestrator-side benefit; see issue #251 comment). Future conversions: `verify-acceptance-criteria`, `code-review`, `implementation` per #251's conversion order. Each converted phase has its own wrapper subsection documenting the dispatch shape, return-contract validation, and inline-fallback path. **In Express and Interactive modes, Pattern A and Pattern B still apply** — the skills being wrapped do not require user interaction at the points where dispatch happens, so subagent isolation is safe in all modes.
 
 **Why:** The `Skill` tool has no `model` parameter — it inherits the parent model. The `Task` tool has an explicit `model` parameter. In YOLO mode there is no user interaction, so running skills inside a Task subagent works identically to running them inline. The `/model` command must NEVER be used — it writes to `~/.claude/settings.json` (a global config file) and affects all other terminal windows and tmux panes.
 
@@ -685,9 +690,9 @@ YOLO mode invocations:
 Task(subagent_type: "general-purpose", model: "opus", description: "YOLO brainstorming",
      prompt: "Invoke Skill(skill: 'superpowers:brainstorming', args: 'yolo: true. scope: [scope]. [context args]'). Return the complete brainstorming output including all self-answered design decisions.")
 
-# Design document — Opus for architectural decisions
-Task(subagent_type: "general-purpose", model: "opus", description: "YOLO design document",
-     prompt: "Invoke Skill(skill: 'feature-flow:design-document', args: 'yolo: true. scope: [scope]. [context args]'). Return the design document path and key decisions.")
+# Design document — Pattern B (hoist + consolidator). See "Design Document — Pattern B Dispatch" subsection below for the full dispatch shape.
+# (The pre-#251 single-Task wrapper at this location was latently broken: subagents cannot dispatch sub-subagents,
+# so the inner Explore fanout inside design-document silently failed. Pattern B fixes this.)
 
 # Implementation planning — Sonnet for structured task decomposition
 Task(subagent_type: "general-purpose", model: "sonnet", description: "YOLO implementation plan",
@@ -749,18 +754,112 @@ The inline path runs the existing skill with no `write_contract_to` arg — Step
      measurement (per #253) confirms ≥5% orchestrator context reduction. The wrapper itself stays;
      only the fallback safety net is sunset. -->
 
-**Interactive/Express mode** continues to use inline `Skill` calls for **brainstorming and design-document** (unchanged — these inherit the parent model, which should be Opus at session start). This applies to model-routing-driven dispatches only — Pattern A subagent dispatches (e.g. `verify-plan-criteria`, see "Pattern A subagent dispatch" CRITICAL block above) still use `Task()` in Interactive/Express modes because their rationale is context isolation, not model routing.
+### Design Document — Pattern B Dispatch
+
+**Note:** INLINE-FALLBACK IS A ROLLOUT-ONLY FEATURE.
+<!-- feature-flow vNEXT+1 removes inline-fallback once two consecutive successful real-session uses are observed. -->
+
+**Applies in ALL modes** (YOLO, Express, Interactive — see the "Subagent dispatch patterns A and B" CRITICAL block above). `design-document` is the first lifecycle phase converted to Pattern B subagent dispatch (per issue #251). Because the skill internally fans out 3-4 Explore agents (which subagents cannot do per #251 Q1), the orchestrator hoists the fanout to itself, then dispatches a single consolidator subagent that runs the rest of the skill (Steps 2-7) in isolation. The orchestrator never sees the consolidator's intermediate work — only the validated return contract.
+
+**Sub-step 1 — Hoisted parallel Explore fanout (orchestrator-side):**
+
+The orchestrator dispatches 3-4 Explore agents in parallel (single message), one per area. Models per #251: `model: "haiku"` (cheap, parallelizable, structured findings).
+
+```
+# Hoisted from skills/design-document/SKILL.md Step 1
+Task(subagent_type: "Explore", model: "haiku", description: "Format patterns",
+     prompt: "Read existing design docs in docs/plans/ and extract document structure, section patterns, and conventions. Read-only. Return JSON: {area: 'format', findings: [string, ...]}.")
+
+Task(subagent_type: "Explore", model: "haiku", description: "Stack & dependencies",
+     prompt: "Examine dependency files (package.json, config files), project structure, and tech stack conventions. Return JSON: {area: 'stack', findings: [string, ...]}.")
+
+Task(subagent_type: "Explore", model: "haiku", description: "Relevant code",
+     prompt: "Search for and read source files related to the feature being designed. Feature description: <inherited from lifecycle context>. Return JSON: {area: 'code', findings: [string, ...]}.")
+
+# Documentation agent (conditional — only if .feature-flow.yml has context7 field, Context7 MCP is available, and no documentation lookup ran earlier)
+Task(subagent_type: "Explore", model: "haiku", description: "Documentation (Context7)",
+     prompt: "Query Context7 libraries from .feature-flow.yml `context7` field for current patterns the design should follow. Return JSON: {area: 'docs', findings: [string, ...]}.")
+```
+
+**Sub-step 2 — Consolidate findings into a JSON file** (so the consolidator subagent can read them via `findings_path`):
+
+```bash
+BASE_REPO=$(cd "$(git rev-parse --git-common-dir)/.." && pwd)
+SLUG=<slug-from-session-context>
+FINDINGS="/tmp/ff-design-findings-${SLUG}.json"
+
+# Collect each Explore agent's structured return into a single JSON file
+python3 -c "
+import json
+agents = [<list of {area, findings} dicts collected from the parallel Task() returns above>]
+json.dump({'agents': agents}, open('${FINDINGS}', 'w'))
+"
+```
+
+**Sub-step 3 — Consolidator dispatch:**
+
+```
+ISSUE=<linked-issue-number>
+STATE_FILE="${BASE_REPO}/.feature-flow/handoffs/in-progress-${SLUG}.yml"
+
+Task(
+  subagent_type: "general-purpose",
+  model: "sonnet",
+  description: "design-document Pattern B consolidator",
+  prompt: "Invoke Skill(skill: 'feature-flow:design-document', args: 'yolo: true. scope: [scope]. issue: ${ISSUE}. design_issue: ${ISSUE}. findings_path: ${FINDINGS}. write_contract_to: ${STATE_FILE}. phase_id: design'). Return the state-file path and a one-line summary of the contract."
+)
+```
+
+**Why `phase_id: design` (not `design-document`):** `phase_id` names the **state-file bucket** in `phase_summaries` — one of the four fixed keys (`brainstorm`, `design`, `plan`, `implementation`). The `design-document` lifecycle step lives in the `design` bucket. The contract's own `phase` field stays `"design-document"` per #251's locked spec. Two distinct concepts, same word "phase" — don't confuse them. (This bug bit PR #262 self-review for verify-plan-criteria; same trap applies here.)
+
+**Why `model: "sonnet"` for the consolidator:** design-document Steps 2-7 do non-trivial writing (synthesizing brainstorm decisions + Explore findings into structured Markdown sections, then merging into the GitHub issue body). Sonnet handles the writing well. Haiku is too brittle for cross-section coherence; opus is over-spec for structured Markdown synthesis where the inputs are already gathered.
+
+**Why `model: "haiku"` for the Explore fanout:** each agent's job is a focused read-and-summarize; haiku is the cost-optimal choice for parallel structured retrieval. Matches the existing design-document skill's recommendation.
+
+**Post-dispatch sequence (orchestrator-side):**
+
+1. **Read state file** and extract `phase_summaries.design.return_contract`:
+   ```bash
+   python3 -c "import json, yaml; d = yaml.safe_load(open('${STATE_FILE}')); rc = (d.get('phase_summaries', {}).get('design') or {}).get('return_contract'); json.dump(rc, open('/tmp/ff-return-contract-${SLUG}.json','w')) if rc else None; print('missing' if not rc else 'ok')"
+   ```
+   If output is `missing` → trigger **inline-fallback** (case 3 below).
+2. **Validate the contract:**
+   ```bash
+   node hooks/scripts/validate-return-contract.js /tmp/ff-return-contract-${SLUG}.json
+   ```
+   Exit 0 → proceed. Non-zero → trigger **inline-fallback** (case 4 below).
+3. **Proceed to next lifecycle step** (Design verification / Implementation plan).
+
+**Inline-fallback path** (rollout-only — four failure cases):
+
+| Case | Trigger | Announce | Next |
+|------|---------|----------|------|
+| 1 | One or more Explore agents fail/timeout AND the failure leaves <2 successful agents | `design-document Pattern B: Explore fanout failed (<reason>). Falling back to inline Skill().` | Run inline `Skill(skill: "feature-flow:design-document", args: "yolo: true. scope: <scope>. issue: <N>")` (no `findings_path` — the skill runs its own Step 1) |
+| 2 | Consolidator `Task()` dispatch fails (timeout, tool error, refusal) | `design-document Pattern B: consolidator dispatch failed (<reason>). Falling back to inline Skill().` | Same inline invocation |
+| 3 | Consolidator completes but `return_contract` field is null/absent in state file | `design-document Pattern B: consolidator did not write return_contract. Falling back to inline Skill().` | Same inline invocation |
+| 4 | `validate-return-contract.js` exits non-zero | `design-document Pattern B: contract validation failed (<error from validator>). Falling back to inline Skill().` | Same inline invocation |
+
+**The inline-fallback target is the bare `Skill()` form (Interactive/Express equivalent), NOT the pre-#251 YOLO Task() wrapper at line ~688.** The pre-#251 wrapper is latently broken — it dispatched `feature-flow:design-document` inside a `general-purpose` subagent which then attempted recursive Explore fanout (forbidden per #251 Q1). The bare `Skill()` invocation runs in the orchestrator's own context where the Explore fanout works.
+
+<!-- SUNSET NOTE: feature-flow vNEXT+1 removes this inline-fallback table and the four failure-case
+     handlers once two consecutive successful real-session uses of Pattern B are observed and the
+     measurement (per #253) confirms ≥5% orchestrator context reduction. The wrapper itself stays;
+     only the fallback safety net is sunset. -->
+
+**Interactive/Express mode** continues to use inline `Skill` calls for **brainstorming** (unchanged — inherits the parent model, which should be Opus at session start). `design-document` now uses Pattern B in all modes (the YOLO Task() wrapper at line ~688 is replaced by the Pattern B sub-steps above; the Interactive/Express bare Skill() invocations below are the inline-fallback path only). This applies to model-routing-driven dispatches only — Pattern A and Pattern B subagent dispatches still use `Task()` in Interactive/Express modes because their rationale is context isolation, not model routing.
 
 ```
 Skill(skill: "superpowers:brainstorming", args: "yolo: true. scope: [scope]. [original args]")
-Skill(skill: "feature-flow:design-document", args: "yolo: true. scope: [scope]. [original args]")
+# Note: design-document is dispatched via Pattern B above. The bare Skill() form below is the inline-fallback only.
+# Skill(skill: "feature-flow:design-document", args: "yolo: true. scope: [scope]. [original args]")  -- fallback path
 ```
 
-**Express Propagation:** When Express mode is active, prepend `express: true. scope: [scope].` to the `args` parameter of every `Skill` invocation. Express inherits all YOLO auto-selection overrides — skills that check for `yolo: true` should also check for `express: true` and behave the same way (auto-select decisions). The only difference is at the orchestrator level where checkpoints are shown instead of suppressed. Express mode uses inline `Skill` calls (not Task dispatch) to preserve the user's ability to interact at checkpoints:
+**Express Propagation:** When Express mode is active, prepend `express: true. scope: [scope].` to the `args` parameter of every `Skill` invocation. Express inherits all YOLO auto-selection overrides — skills that check for `yolo: true` should also check for `express: true` and behave the same way (auto-select decisions). The only difference is at the orchestrator level where checkpoints are shown instead of suppressed. Express mode uses inline `Skill` calls (not Task dispatch) for the brainstorming phase to preserve the user's ability to interact at checkpoints:
 
 ```
 Skill(skill: "superpowers:brainstorming", args: "express: true. scope: [scope]. [original args]")
-Skill(skill: "feature-flow:design-document", args: "express: true. scope: [scope]. [original args]")
+# Note: design-document is dispatched via Pattern B above. The bare Skill() form below is the inline-fallback only.
+# Skill(skill: "feature-flow:design-document", args: "express: true. scope: [scope]. [original args]")  -- fallback path
 ```
 
 For inline steps (CHANGELOG generation, self-review, code review, study existing patterns), the mode flag is already in the conversation context — no explicit propagation is needed.
@@ -803,7 +902,7 @@ Skill(skill: "feature-flow:verify-acceptance-criteria", args: "plan_file: /abs/p
 
 - **Brainstorm phase boundary** (after `superpowers:brainstorming` returns): set `phase_summaries.brainstorm.completed: true`, populate `key_decisions` with up to 5 string entries pulled from the brainstorming output (scope, approach, major design choices). In fast-track mode this phase is skipped — leave `completed: false`.
 
-- **Design phase boundary** (after `feature-flow:design-document` returns, or after `feature-flow:design-verification` returns in fast-track mode where the issue body is the design): set `phase_summaries.design.completed: true`, set `issue_url` to the GitHub issue URL of the design issue, and populate `key_decisions` with up to 5 design choices.
+- **Design phase boundary** (after `feature-flow:design-document` returns, or after `feature-flow:design-verification` returns in fast-track mode where the issue body is the design): set `phase_summaries.design.completed: true`, set `issue_url` to the GitHub issue URL of the design issue, and populate `key_decisions` with up to 5 design choices. **Pattern B note:** when design-document is invoked via the Pattern B wrapper (the default in all modes), the consolidator subagent has already written `phase_summaries.design.return_contract` (with status, design_issue_url, key_decisions, etc.). The orchestrator's phase-boundary write at this point updates the bucket's other fields (`completed`, `issue_url`, `key_decisions`) without overwriting `return_contract`.
 
 - **Plan phase boundary** (after `superpowers:writing-plans` returns): set `phase_summaries.plan.completed: true`, set `plan_path` to the absolute path of the saved plan markdown file, and populate `open_questions` with any unresolved questions surfaced during planning (empty list if none).
 
@@ -841,7 +940,7 @@ If the in-progress file does not exist (initial write failed), skip phase-bounda
 | Brainstorm requirements | `superpowers:brainstorming` | Decisions on scope, approach, UX. **For Feature and Major Feature scopes:** brainstorming includes the design preferences preamble — captures or loads project-wide design preferences before feature-specific questions begin. See `references/orchestration-overrides.md` → "Design Preferences Preamble". |
 | Spike / PoC | `feature-flow:spike` | Confirmed/denied assumptions |
 | Documentation lookup | No skill — inline step (see below) | Current patterns from official docs injected into context |
-| Design document | `feature-flow:design-document` | GitHub issue body (between `<!-- feature-flow:design:start -->` markers) **Context capture:** After the design document is written to the issue body, write key scope decisions, approach choices, and rejected alternatives to `.feature-flow/design/design-decisions.md` (append to the existing template — do not overwrite). |
+| Design document | `feature-flow:design-document` (invoked via Pattern B dispatch — orchestrator-side parallel Explore fanout with `model: "haiku"` + consolidator `Task()` with `model: "sonnet"`; structured return contract written to state file at `phase_summaries.design.return_contract`; inline-fallback path retained for rollout — see **Design Document — Pattern B Dispatch** section above) | GitHub issue body (between `<!-- feature-flow:design:start -->` markers); return contract validated via `hooks/scripts/validate-return-contract.js`. **Context capture:** After the design document is written to the issue body, write key scope decisions, approach choices, and rejected alternatives to `.feature-flow/design/design-decisions.md` (append to the existing template — do not overwrite). |
 | Study existing patterns | No skill — inline step (see below) | Understanding of codebase conventions for the areas being modified |
 | Design verification | `feature-flow:design-verification` | Blockers/gaps identified and fixed **Context capture:** After verification completes, write the blockers found and their resolutions to `.feature-flow/design/verification-results.md` (append to the existing template — do not overwrite). Include the verification score summary and any design changes required. |
 | Create issue | `feature-flow:create-issue` | GitHub issue URL. **If an issue number was detected in Step 1**, pass it to create-issue as the `issue` context — the skill will update the existing issue instead of creating a new one. |

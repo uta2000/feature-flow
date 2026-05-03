@@ -99,5 +99,67 @@ test('wrong field type exits 1', () => {
   if (r.code === 0) throw new Error('expected non-zero exit for string criteria_total');
 });
 
+// design-document tests (Wave 3 phase 3 — Pattern B)
+const VALID_DD = {
+  schema_version: 1,
+  phase: 'design-document',
+  status: 'success',
+  design_issue_url: 'https://github.com/uta2000/feature-flow/issues/251',
+  issue_number: 251,
+  design_section_present: true,
+  key_decisions: ['Pattern B: hoist + consolidator'],
+  open_questions: [],
+  tbd_count: 0
+};
+
+test('design-document: valid contract exits 0', () => {
+  const p = writeFixture(VALID_DD);
+  const r = run(p);
+  if (r.code !== 0) throw new Error(`expected exit 0, got ${r.code}\n${r.stderr}`);
+});
+
+test('design-document: missing required field exits 1', () => {
+  const bad = { ...VALID_DD }; delete bad.issue_number;
+  const p = writeFixture(bad);
+  const r = run(p);
+  if (r.code === 0) throw new Error('expected non-zero exit for missing issue_number');
+  if (!r.stdout.includes('missing required field')) throw new Error(`expected "missing required field" in output; got: ${r.stdout}`);
+});
+
+test('design-document: wrong field type (issue_number string) exits 1', () => {
+  const bad = { ...VALID_DD, issue_number: '251' };
+  const p = writeFixture(bad);
+  const r = run(p);
+  if (r.code === 0) throw new Error('expected non-zero exit for string issue_number');
+});
+
+test('design-document: design_section_present non-boolean exits 1', () => {
+  const bad = { ...VALID_DD, design_section_present: 'true' };
+  const p = writeFixture(bad);
+  const r = run(p);
+  if (r.code === 0) throw new Error('expected non-zero exit for non-boolean design_section_present');
+});
+
+test('design-document: key_decisions with non-string item exits 1', () => {
+  const bad = { ...VALID_DD, key_decisions: [1, 2] };
+  const p = writeFixture(bad);
+  const r = run(p);
+  if (r.code === 0) throw new Error('expected non-zero exit for non-string key_decisions item');
+});
+
+test('design-document: open_questions with non-string item exits 1', () => {
+  const bad = { ...VALID_DD, open_questions: [{ q: 'x' }] };
+  const p = writeFixture(bad);
+  const r = run(p);
+  if (r.code === 0) throw new Error('expected non-zero exit for non-string open_questions item');
+});
+
+test('design-document: partial status with tbd_count > 0 is valid', () => {
+  const partial = { ...VALID_DD, status: 'partial', tbd_count: 3 };
+  const p = writeFixture(partial);
+  const r = run(p);
+  if (r.code !== 0) throw new Error(`expected exit 0 for partial status; got ${r.code}\n${r.stderr}`);
+});
+
 console.log(`\nResults: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
