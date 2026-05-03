@@ -39,9 +39,29 @@ const SCHEMAS = {
     fail_count: 'number',
     failed_criteria: 'array',
   },
+  // Wave 3 phase 5 (#251) — Pattern B. Bucket-skip variant — same shape as
+  // verify-acceptance-criteria above. Contract is written directly to a tmp
+  // JSON file by the consolidator subagent; code-review is a verification
+  // step within the implementation phase, not a phase that owns a bucket.
+  'code-review': {
+    schema_version: 'number',
+    phase: 'string',
+    status: 'string',
+    verdict: 'string',
+    report_path: 'string',
+    critical_count: 'number',
+    important_count: 'number',
+    suggestion_count: 'number',
+    fixed_in_pipeline: 'array',
+    deferred: 'array',
+  },
 };
 
 const FAILED_CRITERIA_ITEM_FIELDS = ['task_id', 'criterion', 'reason'];
+const FIXED_IN_PIPELINE_ITEM_FIELDS = ['severity', 'summary'];
+const DEFERRED_ITEM_FIELDS = ['severity', 'summary', 'reason'];
+const VALID_VERDICTS = new Set(['approve', 'needs_changes', 'blocked']);
+const VALID_SEVERITIES = new Set(['critical', 'important', 'suggestion']);
 
 const VALID_STATUSES = new Set(['success', 'partial', 'failed']);
 
@@ -103,6 +123,51 @@ function validate(phaseId, obj) {
       if (badField) {
         errors.push(`failed_criteria: each item must have string fields ${FAILED_CRITERIA_ITEM_FIELDS.join(', ')} (missing or non-string: ${badField})`);
         break;
+      }
+    }
+  }
+  if (!errors.length && phaseId === 'code-review') {
+    if (!VALID_VERDICTS.has(obj.verdict)) {
+      errors.push(`verdict: expected one of approve|needs_changes|blocked, got "${obj.verdict}"`);
+    }
+    if (!errors.length && Array.isArray(obj.fixed_in_pipeline)) {
+      for (const item of obj.fixed_in_pipeline) {
+        if (item === null || typeof item !== 'object' || Array.isArray(item)) {
+          errors.push('fixed_in_pipeline: all items must be objects');
+          break;
+        }
+        let badField = null;
+        for (const f of FIXED_IN_PIPELINE_ITEM_FIELDS) {
+          if (typeof item[f] !== 'string') { badField = f; break; }
+        }
+        if (badField) {
+          errors.push(`fixed_in_pipeline: each item must have string fields ${FIXED_IN_PIPELINE_ITEM_FIELDS.join(', ')} (missing or non-string: ${badField})`);
+          break;
+        }
+        if (!VALID_SEVERITIES.has(item.severity)) {
+          errors.push(`fixed_in_pipeline: severity must be one of critical|important|suggestion, got "${item.severity}"`);
+          break;
+        }
+      }
+    }
+    if (!errors.length && Array.isArray(obj.deferred)) {
+      for (const item of obj.deferred) {
+        if (item === null || typeof item !== 'object' || Array.isArray(item)) {
+          errors.push('deferred: all items must be objects');
+          break;
+        }
+        let badField = null;
+        for (const f of DEFERRED_ITEM_FIELDS) {
+          if (typeof item[f] !== 'string') { badField = f; break; }
+        }
+        if (badField) {
+          errors.push(`deferred: each item must have string fields ${DEFERRED_ITEM_FIELDS.join(', ')} (missing or non-string: ${badField})`);
+          break;
+        }
+        if (!VALID_SEVERITIES.has(item.severity)) {
+          errors.push(`deferred: severity must be one of critical|important|suggestion, got "${item.severity}"`);
+          break;
+        }
       }
     }
   }

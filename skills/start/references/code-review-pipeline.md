@@ -214,6 +214,23 @@ A single opus subagent orchestrates three personas sequentially (Staff Engineer 
 
 All failure announcements include the `[session:$LIFECYCLE_SESSION]` correlation token.
 
+## Pattern B handoff (orchestrator → consolidator)
+
+As of Wave 3 phase 5 (#251), Phases 2-5 run inside a **consolidator subagent** (Pattern B). The orchestrator continues to own Phases 0, 1a, 1b, and 1c (subagents cannot recursively dispatch per #251 Q1, so the parallel reviewer fanout MUST stay orchestrator-side). The orchestrator then dispatches a single `general-purpose` consolidator subagent (`model: "sonnet"`) that ingests the reviewer outputs, runs Phases 2-5 in isolation, writes the report, and writes the structured return contract.
+
+**Consolidator inputs (passed in dispatch prompt):**
+
+1. The Phase 1a pr-review-toolkit summary (Auto-Fixed / Critical / Important / Minor sections, or the `null` sentinel if Phase 1a was skipped).
+2. The Phase 1b structured findings list from each report-only agent that ran (or empty list if none ran / all skipped).
+3. The Phase 1c senior panel findings list (or empty list when scope < Major feature, or `null` when Phase 1c failed under one of the four dispositions).
+4. The `lifecycle_session` slug (`YYYY-MM-DD-<kebab-slug>` from `.feature-flow/session.txt`). Every Phase 5 report entry the consolidator emits MUST carry the `[session:$LIFECYCLE_SESSION]` correlation token — the same requirement that already applies in inline mode, preserved across the handoff so grep-correlation across pipeline phases, the Phase 5 report, and the PR body still works.
+
+**Consolidator owns Phases 2, 3, 4, 5 + contract write.** Specifically: Phase 2 (merge / dedupe / conflict detection), Phase 3 (apply rule-based fixes via Edit/Write/Bash + commit), Phase 4 (targeted re-verification — see Pattern B caveats below), Phase 5 (report + contract write).
+
+**Pattern B Phase 4 caveat — agent re-dispatch unavailable:** the consolidator has Edit/Write/Bash/Skill but cannot dispatch `Agent`/`Task` subagents (#251 Q1). Each Phase 4 row that would normally trigger an agent re-dispatch instead writes a `deferred[]` entry to the return contract with `reason: "agent re-dispatch unavailable in Pattern B consolidator"`. See Phase 4 below for the full rule and the verdict-honesty constraint that follows.
+
+**Inline-fallback (rollout-only):** see "Code Review — Pattern B Dispatch" in `skills/start/SKILL.md`. The fallback runs the same Phases 2-5 inline at the orchestrator level, identically to the pre-#251 behavior.
+
 ## Phase 2: Conflict Detection
 
 After all Phase 1b agents complete, consolidate findings from both phases and detect conflicts before applying fixes.
@@ -294,21 +311,20 @@ From the Phase 3 fix log, identify which targeted checks apply. Multiple checks 
 | If this was true in Phase 3… | Run this targeted check |
 |------------------------------|-------------------------|
 | `pr-test-analyzer` had Critical/Important findings | Run the project test suite |
-| `superpowers:code-reviewer` flagged rule 6 ("all acceptance criteria met") | Run `verify-acceptance-criteria` |
-| Any *other* reporting agent (not covered by rows above) had Critical/Important findings | Re-dispatch ONLY that specific agent on changed files only (`git diff [base-branch]...HEAD`) |
+| Any *other* reporting agent (not `pr-test-analyzer`, not covered by rows above) had Critical/Important findings | **Pattern B:** record a `deferred[]` entry per finding (see "Pattern B agent-re-dispatch rule" below). **Inline fallback:** re-dispatch ONLY that specific agent on changed files (`git diff [base-branch]...HEAD`). |
 | `silent-failure-hunter` or `code-simplifier` made direct fixes | Read back the changed files to confirm the fix is correct (no regression, no silent swallow introduced) |
-| No Critical/Important findings from any agent (all clean) | Run `verify-acceptance-criteria` only as a baseline sanity check |
 
-*Note: Rows are evaluated top-to-bottom; a more specific row takes precedence over the catch-all (row 3). Multiple non-overlapping rows may apply — run all matching targeted checks.*
+*Note: Rows are evaluated top-to-bottom; a more specific row takes precedence over the catch-all. Multiple non-overlapping rows may apply — run all matching targeted checks. The previous `superpowers:code-reviewer rule 6 → run verify-acceptance-criteria` row and the previous `No Critical/Important findings → run verify-acceptance-criteria as baseline sanity check` row were both deleted in Wave 3 phase 5 (#251): the Final Verification inline step (`skills/start/references/inline-steps.md` "Final Verification Step") runs verify-acceptance-criteria immediately after the code-review step, making both invocations redundant.*
+
+**Pattern B agent-re-dispatch rule:** inside the consolidator, `Agent`/`Task` dispatch is unavailable (#251 Q1 — recursive dispatch fails silently). For every Phase 4 row above that would normally trigger an agent re-dispatch, the consolidator writes one `deferred[]` entry to the return contract per affected finding, with `severity` carried over from the original finding and `reason: "agent re-dispatch unavailable in Pattern B consolidator"`. **Verdict honesty constraint:** the consolidator MUST NOT return `verdict: "approve"` while `deferred[]` is non-empty due to agent re-dispatch unavailability; if any critical or important finding is in `deferred[]`, the verdict MUST be at least `needs_changes`. (Inline-fallback mode runs the actual re-dispatch; no `deferred[]` entries are written in that path.)
 
 **Step 2: Run targeted checks (parallel where possible)**
 
 Run only the targeted checks from Step 1. Announce which checks are being run: "Targeted re-verification: [check list]."
 
-- **Tests:** Detect test runner from project (`package.json` scripts.test → `npm test` | `Cargo.toml` → `cargo test` | `go.mod` → `go test ./...` | `mix.exs` → `mix test` | `pyproject.toml`/`pytest.ini`/`setup.cfg`/`tox.ini` → `python -m pytest` | `deno.json`/`deno.jsonc` → `deno test` | `bun.lockb`/`bun.lock`/`bunfig.toml` → `bun test`). If no runner detected, skip with log: "No test runner detected — skipping." If runner is detected but the binary is not installed (ENOENT / exit code 127), log a warning and skip: "Test binary not installed — skipping test verification." Do not count a missing binary as a test failure. Timeout: 60 seconds — if the suite times out, log a warning and skip (do not count as a failure).
-- **verify-acceptance-criteria:** Run the `feature-flow:verify-acceptance-criteria` skill with the plan file path.
-- **Agent re-dispatch:** Dispatch only the specific agent(s) that had Critical/Important findings, with `git diff [base-branch]...HEAD` for context. Use the same model as the original Phase 1b dispatch. All re-dispatched agents launch in a single parallel message. If an agent crashes or produces no output, do not treat it as clean — log: "Agent [name] re-dispatch produced no result — listing as unresolved in Phase 5."
-- **Read-back verification:** Read the specific files modified by direct-fix agents and confirm the fix is syntactically correct and no regression is visible.
+- **Tests:** Detect test runner from project (`package.json` scripts.test → `npm test` | `Cargo.toml` → `cargo test` | `go.mod` → `go test ./...` | `mix.exs` → `mix test` | `pyproject.toml`/`pytest.ini`/`setup.cfg`/`tox.ini` → `python -m pytest` | `deno.json`/`deno.jsonc` → `deno test` | `bun.lockb`/`bun.lock`/`bunfig.toml` → `bun test`). If no runner detected, skip with log: "No test runner detected — skipping." If runner is detected but the binary is not installed (ENOENT / exit code 127), log a warning and skip: "Test binary not installed — skipping test verification." Do not count a missing binary as a test failure. Timeout: 60 seconds — if the suite times out, log a warning and skip (do not count as a failure). Tests run in both Pattern B and inline-fallback paths (Bash works in subagents).
+- **Agent re-dispatch (inline-fallback only):** Dispatch only the specific agent(s) that had Critical/Important findings, with `git diff [base-branch]...HEAD` for context. Use the same model as the original Phase 1b dispatch. All re-dispatched agents launch in a single parallel message. If an agent crashes or produces no output, do not treat it as clean — log: "Agent [name] re-dispatch produced no result — listing as unresolved in Phase 5." **Pattern B path skips this entirely; see "Pattern B agent-re-dispatch rule" above for the `deferred[]` mapping.**
+- **Read-back verification:** Read the specific files modified by direct-fix agents and confirm the fix is syntactically correct and no regression is visible. Read-back runs in both Pattern B and inline-fallback paths.
 
 **Step 3: If all targeted checks pass → pipeline is clean**
 
@@ -323,19 +339,22 @@ If still failing after this additional pass → report remaining issues to the d
 
 **Maximum 2 total fix-verify iterations** after Phase 3 (targeted re-verify → optional 1 additional pass). Stop after 2 iterations — report remaining issues for manual resolution. This cap applies only to rule-based fix-verify loops. Judgment findings from Phase 1c are surfaced once in Phase 5 and do not re-enter the loop.
 
-## Phase 5: Report
+## Phase 5: Report and Contract Write
 
-**Zero-agent guard:** If all tier-selected agents were skipped (plugins unavailable), do not proceed through Phases 1a–4. Announce: "All tier-selected agents for [scope] (Tier T) were unavailable. Code review pipeline could not run — manual review recommended." Skip to Phase 5 and include a warning in the report.
+**Zero-agent guard:** If all tier-selected agents were skipped (plugins unavailable), do not proceed through Phases 1a–4. Announce: "All tier-selected agents for [scope] (Tier T) were unavailable. Code review pipeline could not run — manual review recommended." Skip to Phase 5 and include a warning in the report. In Pattern B, the consolidator still writes a return contract with `verdict: "blocked"`, `status: "failed"`, and a `deferred[]` entry per skipped tier-selected agent.
+
+**Session token requirement:** Every entry the consolidator emits in the report below MUST carry the `[session:$LIFECYCLE_SESSION]` correlation token (the slug passed in via the Pattern B handoff). This is the same requirement that already applies in inline mode, preserved across Pattern B so grep-correlation across pipeline phases, the Phase 5 report, and the PR body still works.
 
 Output a summary:
 
 ```
-## Code Review Pipeline Results
+## Code Review Pipeline Results [session:$LIFECYCLE_SESSION]
 
 **Agents dispatched:** N (Tier T — [scope])
 **Stack filter:** [stack entries used for filtering]
 **Model override:** [None | user-requested: \<model\>]
 **Iterations:** M/2
+**Verdict:** approve | needs_changes | blocked
 
 ### Fixed (pr-review-toolkit pre-pass)
 - [agent] [file:line] [what was auto-fixed]
@@ -368,7 +387,65 @@ Output a summary:
 ### Remaining (unfixed after 2 iterations)
 - [file:line] [description + context for manual resolution]
 
+### Deferred (Pattern B — agent re-dispatch unavailable)
+- [severity] [file:line] [description] — agent re-dispatch unavailable in Pattern B consolidator
+
 **Status:** Clean / N issues remaining
 ```
+
+### Contract Write (Pattern B only)
+
+When invoked from the Pattern B wrapper (`skills/start/SKILL.md` "Code Review — Pattern B Dispatch"), the consolidator receives a `write_contract_to` JSON path in its dispatch prompt. After emitting the report above, write the structured return contract to that path. The contract's `phase` field is hardcoded to `"code-review"` per #251's locked spec — the validator uses this to look up the schema.
+
+**Construct the contract object:**
+
+- `schema_version`: `1`
+- `phase`: hardcoded `"code-review"`
+- `status`: `success` (clean pipeline, all critical+important addressed) | `partial` (deferred entries present OR remaining-after-2-iterations entries present) | `failed` (zero-agent guard fired, or consolidator could not assemble verdict)
+- `verdict`: `approve` (no critical, no `deferred[]`) | `needs_changes` (any critical OR any `deferred[]` present) | `blocked` (zero-agent guard, or pipeline cannot return a verdict)
+- `report_path`: absolute path of the written report
+- `critical_count`, `important_count`, `suggestion_count`: integer counts across the entire pipeline (Phase 1a + 1b + 1c)
+- `fixed_in_pipeline`: array of `{severity: "critical|important|suggestion", summary: "<one-line>"}` for every finding addressed in Phase 1a auto-fix or Phase 3 single-pass fix
+- `deferred`: array of `{severity, summary, reason}` for every Phase 4 row that mapped to deferral, plus any Minor-tier or unfixed-after-2-iterations entry the consolidator chose to surface in the contract
+
+Use the env-var-passing helper pattern (apostrophe-safe; mirrors `skills/verify-acceptance-criteria/SKILL.md` Step 6):
+
+```bash
+F="<write_contract_to value>"
+STATUS="<success|partial|failed>"
+VERDICT="<approve|needs_changes|blocked>"
+REPORT="<absolute path to the written report>"
+CRIT=<integer> IMP=<integer> SUG=<integer>
+FIXED='<json-array-string for fixed_in_pipeline>'
+DEFERRED='<json-array-string for deferred>'
+
+F="$F" STATUS="$STATUS" VERDICT="$VERDICT" REPORT="$REPORT" \
+CRIT="$CRIT" IMP="$IMP" SUG="$SUG" \
+FIXED="$FIXED" DEFERRED="$DEFERRED" python3 -c '
+import os, json
+contract = {
+    "schema_version": 1,
+    # The contracts `phase` field is the lifecycle STEP NAME per #251 spec.
+    # The validator uses this to look up the schema in its registry.
+    "phase": "code-review",
+    "status": os.environ["STATUS"],
+    "verdict": os.environ["VERDICT"],
+    "report_path": os.environ["REPORT"],
+    "critical_count": int(os.environ["CRIT"]),
+    "important_count": int(os.environ["IMP"]),
+    "suggestion_count": int(os.environ["SUG"]),
+    "fixed_in_pipeline": json.loads(os.environ["FIXED"]),
+    "deferred": json.loads(os.environ["DEFERRED"]),
+}
+json.dump(contract, open(os.environ["F"], "w"))
+print(f"[code-review] return_contract written to {os.environ[\"F\"]}")
+'
+```
+
+**No `[ -f "$F" ]` guard** — fresh-create JSON file, mirrors the verify-acceptance-criteria pattern (no state-file YAML mediation). After writing, return the contract path and the verdict as the consolidator's result text:
+
+`"Return contract written to <write_contract_to>. Verdict: <verdict> (critical=<N>, important=<N>, suggestion=<N>, deferred=<N>)."`
+
+The orchestrator (Pattern B wrapper in `skills/start/SKILL.md`) reads this path from the result string and runs `hooks/scripts/validate-return-contract.js` against it before proceeding.
 
 *(Turn Bridge Rule applies — call `TaskUpdate` immediately after outputting the code review report.)*

@@ -680,7 +680,7 @@ Runs inline as a Bash call paired with the TaskUpdate. The `$(cd "$(git rev-pars
 - **Pattern A (wrap):** orchestrator dispatches one Task subagent that invokes the phase skill and returns a structured contract. Used for phases that do NOT internally fan out subagents.
 - **Pattern B (hoist + consolidator):** orchestrator dispatches the parallel fanout itself (subagents cannot dispatch sub-subagents per #251 Q1), then dispatches a single consolidator subagent that ingests fanout results, runs the rest of the skill, and returns a structured contract. Used for phases that DO internally fan out.
 
-Currently converted: `verify-plan-criteria` (Pattern A — see "Verify Plan Criteria — Pattern A Dispatch" subsection below), `design-document` (Pattern B — see "Design Document — Pattern B Dispatch" subsection below), `verify-acceptance-criteria` (Pattern B — see "Verify Acceptance Criteria — Pattern B Dispatch" subsection below). Skipped by design analysis: `merge-prs` (no orchestrator-side benefit; see issue #251 comment). Future conversions: `code-review`, `implementation` per #251's conversion order. Each converted phase has its own wrapper subsection documenting the dispatch shape, return-contract validation, and inline-fallback path. **In Express and Interactive modes, Pattern A and Pattern B still apply** — the skills being wrapped do not require user interaction at the points where dispatch happens, so subagent isolation is safe in all modes.
+Currently converted: `verify-plan-criteria` (Pattern A — see "Verify Plan Criteria — Pattern A Dispatch" subsection below), `design-document` (Pattern B — see "Design Document — Pattern B Dispatch" subsection below), `verify-acceptance-criteria` (Pattern B — see "Verify Acceptance Criteria — Pattern B Dispatch" subsection below), `code-review` (Pattern B — see "Code Review — Pattern B Dispatch" subsection below). Skipped by design analysis: `merge-prs` (no orchestrator-side benefit; see issue #251 comment). Future conversions: `implementation` per #251's conversion order. Each converted phase has its own wrapper subsection documenting the dispatch shape, return-contract validation, and inline-fallback path. **In Express and Interactive modes, Pattern A and Pattern B still apply** — the skills being wrapped do not require user interaction at the points where dispatch happens, so subagent isolation is safe in all modes.
 
 **Why:** The `Skill` tool has no `model` parameter — it inherits the parent model. The `Task` tool has an explicit `model` parameter. In YOLO mode there is no user interaction, so running skills inside a Task subagent works identically to running them inline. The `/model` command must NEVER be used — it writes to `~/.claude/settings.json` (a global config file) and affects all other terminal windows and tmux panes.
 
@@ -939,6 +939,88 @@ Task(
 
 **Call site:** the Pattern B wrapper is invoked from the Final Verification inline step (`skills/start/references/inline-steps.md` "Final Verification Step" section). The "Always run verify-acceptance-criteria" rule there now resolves to "Always run verify-acceptance-criteria via Pattern B dispatch" — see that section for integration with the quality-gate-skip logic.
 
+### Code Review — Pattern B Dispatch
+
+**Note:** INLINE-FALLBACK IS A ROLLOUT-ONLY FEATURE.
+<!-- feature-flow vNEXT+1 removes inline-fallback once two consecutive successful real-session uses are observed. -->
+
+**Applies in ALL modes** (YOLO, Express, Interactive — see the "Subagent dispatch patterns A and B" CRITICAL block above) at every scope where the existing pipeline runs (Small enhancement, Feature, Major feature — Quick fix is already skipped per `skills/start/references/code-review-pipeline.md` "Quick fix guard"). `code-review` is the third Pattern B conversion (per #251 Wave 3 phase 5). The pipeline internally fans out the parallel reviewer dispatches across Phase 1a (pr-review-toolkit), Phase 1b (report-only agents), and Phase 1c (senior panel). Subagents cannot recursively dispatch (#251 Q1), so the orchestrator continues to dispatch those reviewer fanouts itself, then dispatches a single consolidator subagent that runs Phases 2-5 in isolation: conflict detection, fix application, targeted re-verification, report assembly, and contract write. The orchestrator never sees the reviewer findings list, the conflict-resolution decisions, or the fix-application diff — only the validated return contract.
+
+**Why skip the state-file bucket** (architectural deviation — same rationale as `verify-acceptance-criteria`): the four `phase_summaries` buckets (`brainstorm`, `design`, `plan`, `implementation`) are all claimed by phase-boundary writes. Code-review is a verification step within the implementation phase, not a phase that owns a bucket. Reusing `phase_summaries.implementation.return_contract` would collide with the future Phase 6 (`subagent-driven-development`) Pattern B contract. The contract is consumed once by the orchestrator's validator and discarded — no cross-compaction reader needs it from the state file. Writing directly to a tmp JSON file avoids the collision and avoids a schema_version bump.
+
+**Sub-step 1 — Phase 0 deterministic pre-filter (orchestrator-side, unchanged):**
+
+The orchestrator runs the existing Phase 0 logic from `skills/start/references/code-review-pipeline.md` — detect TypeScript / ESLint / Biome, run them in parallel, fix deterministic findings, build the exclusion-context summary. No subagent dispatch yet. Phase 0 is fast (linters) and produces a small text output; isolating it in a subagent is not load-bearing.
+
+**Sub-step 2 — Phase 1a/1b/1c parallel reviewer dispatches (orchestrator-side, unchanged):**
+
+The orchestrator dispatches the existing reviewers per the existing rules in `skills/start/references/code-review-pipeline.md` — Phase 1a pr-review-toolkit subagent (gated, sequential pre-pass), then Phase 1b report-only agents in parallel with Phase 1c senior panel (Major-feature only). These dispatches MUST stay orchestrator-side because subagents cannot recursively dispatch (#251 Q1). The orchestrator collects each reviewer's structured output (Phase 1a Auto-Fixed/Critical/Important/Minor sections; Phase 1b structured findings; Phase 1c findings + persona/finding_type fields).
+
+**Sub-step 3 — Consolidator dispatch:**
+
+```
+SLUG=<slug-from-session-context>
+LIFECYCLE_SESSION=<lifecycle-session-slug-from-.feature-flow/session.txt>
+CONTRACT_PATH="/tmp/ff-code-review-contract-${SLUG}.json"
+REPORT_PATH="/tmp/ff-code-review-report-${SLUG}.md"
+PLAN_FILE="<absolute path to plan>"
+
+Task(
+  subagent_type: "general-purpose",
+  model: "sonnet",
+  description: "code-review Pattern B consolidator",
+  prompt: "Run Phases 2-5 of the code-review pipeline per `skills/start/references/code-review-pipeline.md`. You are receiving the parallel reviewer outputs from the orchestrator (which already executed Phases 0, 1a, 1b, 1c).
+
+Inputs:
+- Phase 1a pr-review-toolkit summary: <inline structured summary OR null if Phase 1a was skipped>
+- Phase 1b structured findings: <inline list per agent>
+- Phase 1c senior panel findings: <inline list OR empty list when scope < Major feature OR null when Phase 1c failed>
+- Lifecycle session slug: ${LIFECYCLE_SESSION}
+- Plan file (for the verdict-honesty constraint context): ${PLAN_FILE}
+- Report path to write: ${REPORT_PATH}
+- Contract path to write: ${CONTRACT_PATH}
+
+Execute Phase 2 (merge / dedupe / conflict-detect), Phase 3 (apply rule-based fixes via Edit/Write/Bash and commit), Phase 4 (targeted re-verification — for any agent re-dispatch row that triggers, write a deferred[] entry instead per the Pattern B agent-re-dispatch rule in code-review-pipeline.md), Phase 5 (write the report to ${REPORT_PATH} with [session:${LIFECYCLE_SESSION}] correlation tokens on every entry, then write the return contract to ${CONTRACT_PATH} per the Phase 5 'Contract Write' subsection). Return the contract path and a one-line verdict summary."
+)
+```
+
+**Why `model: "sonnet"`:** consolidation requires structured-output discipline (deduplication, conflict detection, contract field assembly) plus mechanical edits (Phase 3 fix application). Sonnet handles both well; Haiku is too brittle for the conflict-resolution heuristics; Opus is over-spec for what is mostly bookkeeping over already-produced findings. Senior-panel dispatches (Phase 1c) already use Opus at the orchestrator level; the consolidator does not need to re-decide architectural questions, only consolidate.
+
+**Post-dispatch sequence (orchestrator-side):**
+
+1. **Verify the contract file was written:**
+   ```bash
+   [ -f "${CONTRACT_PATH}" ] && echo ok || echo missing
+   ```
+   If `missing` → trigger **inline-fallback** (case 3 below).
+2. **Validate the contract:**
+   ```bash
+   node hooks/scripts/validate-return-contract.js "${CONTRACT_PATH}"
+   ```
+   Exit 0 → proceed. Non-zero → trigger **inline-fallback** (case 4 below).
+3. **Read `verdict` from the validated contract** and feed the lifecycle decision:
+   - `verdict: "approve"` → continue normally to next lifecycle step (Generate CHANGELOG entry / Final verification).
+   - `verdict: "needs_changes"` → continue but flag the PR; the post-implementation comment and PR body should reflect that critical/important findings remain. The lifecycle does not auto-halt — the user makes the merge decision.
+   - `verdict: "blocked"` → halt the lifecycle. Surface the contract's `deferred[]` entries to the user and stop. Do not proceed to commit/PR.
+
+**Inline-fallback path** (rollout-only — four failure cases):
+
+| Case | Trigger | Announce | Next |
+|------|---------|----------|------|
+| 1 | Sub-step 2 reviewer dispatch failure (existing per-reviewer handlers retained — this row covers cascading failures only) | `code-review Pattern B: reviewer dispatch failed (<reason>). Continuing inline at orchestrator level.` | Run Phases 2-5 inline at the orchestrator level per `skills/start/references/code-review-pipeline.md` |
+| 2 | Consolidator `Task()` dispatch fails (timeout, tool error, refusal) | `code-review Pattern B: consolidator dispatch failed (<reason>). Falling back to inline pipeline.` | Run Phases 2-5 inline at the orchestrator level (orchestrator can do agent re-dispatch in Phase 4 — no `deferred[]` mapping needed in fallback path) |
+| 3 | Consolidator completes but `write_contract_to` JSON file is missing or empty | `code-review Pattern B: consolidator did not write contract. Falling back to inline pipeline.` | Same inline pipeline path |
+| 4 | `validate-return-contract.js` exits non-zero | `code-review Pattern B: contract validation failed (<error from validator>). Falling back to inline pipeline.` | Same inline pipeline path |
+
+**The inline-fallback target is the existing in-place pipeline** — Phases 2-5 run at the orchestrator level identically to the pre-#251 behavior. Phase 4 agent re-dispatch works in the inline path (orchestrator CAN dispatch agents); no `deferred[]` entries are written in fallback mode.
+
+<!-- SUNSET NOTE: feature-flow vNEXT+1 removes this inline-fallback table and the four failure-case
+     handlers once two consecutive successful real-session uses of Pattern B are observed and the
+     measurement (per #253) confirms ≥5% orchestrator context reduction. The wrapper itself stays;
+     only the fallback safety net is sunset. -->
+
+**Call site:** the Pattern B wrapper is invoked from the Code Review Pipeline Step (`skills/start/SKILL.md` "Code Review Pipeline Step" section, which itself defers to `skills/start/references/code-review-pipeline.md`). The "Quick fix guard" at the top of that pipeline doc still applies — Quick fix scope skips both Pattern B and the inline pipeline.
+
 **Lifecycle Context Object:** As the lifecycle executes, maintain a context object that accumulates artifact paths as they become known. Include all known paths in the `args` of every subsequent `Skill` invocation, after the mode flag and scope:
 
 | Path key | When it becomes available |
@@ -1025,7 +1107,7 @@ If the in-progress file does not exist (initial write failed), skip phase-bounda
 | Copy env files | No skill — inline step (see below) | Env files available in worktree |
 | Implement | `superpowers:subagent-driven-development` | Code written with tests, spec-reviewed, and quality-reviewed per task |
 | Self-review | No skill — inline step (see below) | Code verified against coding standards before formal review |
-| Code review | No skill — inline step (see below) | All Critical/Important findings fixed, tests pass |
+| Code review | No skill — inline step (see below). Invoked via Pattern B dispatch — orchestrator-side Phase 0 + Phase 1a/1b/1c parallel reviewer dispatches + consolidator `Task()` with `model: "sonnet"` running Phases 2-5; structured return contract written directly to `/tmp/ff-code-review-contract-<slug>.json` — **no state-file bucket**, see "Code Review — Pattern B Dispatch" section above; inline-fallback path retained for rollout. Pattern B applies in all modes (YOLO, Express, Interactive). | All Critical/Important findings fixed (or surfaced as `deferred[]` for the verdict honesty check), tests pass; `verdict ∈ {approve, needs_changes}` returned via validated contract — `verdict: "blocked"` halts the lifecycle; return contract validated via `hooks/scripts/validate-return-contract.js` |
 | Generate CHANGELOG entry | No skill — inline step (see below) | Changelog fragment written to `.changelogs/<id>.md`; consolidated when `/merge-prs` is invoked |
 | Final verification | No skill — inline step (see below). Calls `feature-flow:verify-acceptance-criteria` (invoked via Pattern B dispatch — orchestrator-side hoisted task-verifier `Task()` with `model: "haiku"` + consolidator `Task()` with `model: "sonnet"`; structured return contract written directly to a tmp JSON path — **no state-file bucket**, see "Verify Acceptance Criteria — Pattern B Dispatch" section above; inline-fallback path retained for rollout) | All criteria PASS + quality gates pass (or skipped if Phase 4 already passed); return contract validated via `hooks/scripts/validate-return-contract.js` |
 | Sync with base branch | No skill — inline step (see below) | Branch merged onto latest base branch; conflicts require manual resolution |
