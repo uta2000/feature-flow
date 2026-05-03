@@ -26,9 +26,9 @@ Per #251 Wave 3 phase 5 contract comment (locked before any implementation):
   "report_path": "string (absolute path to the persisted code-review report on disk)",
   "critical_count": "integer",
   "important_count": "integer",
-  "suggestion_count": "integer",
-  "fixed_in_pipeline": [{"severity": "critical|important|suggestion", "summary": "string"}],
-  "deferred":          [{"severity": "critical|important|suggestion", "summary": "string", "reason": "string"}]
+  "minor_count": "integer",
+  "fixed_in_pipeline": [{"severity": "critical|important|minor", "summary": "string"}],
+  "deferred":          [{"severity": "critical|important|minor", "summary": "string", "reason": "string"}]
 }
 ```
 
@@ -46,14 +46,14 @@ Per #251 Wave 3 phase 5 contract comment (locked before any implementation):
 
 ### Task 1 — Extend validator schema for `code-review`
 
-Add a `SCHEMAS['code-review']` entry to `hooks/scripts/validate-return-contract.js`. Add closed-enum validation for `verdict`. Add per-item validation for `fixed_in_pipeline[]` (each item: `{severity: string ∈ {critical, important, suggestion}, summary: string}`) and `deferred[]` (each item: `{severity: string ∈ {critical, important, suggestion}, summary: string, reason: string}`).
+Add a `SCHEMAS['code-review']` entry to `hooks/scripts/validate-return-contract.js`. Add closed-enum validation for `verdict`. Add per-item validation for `fixed_in_pipeline[]` (each item: `{severity: string ∈ {critical, important, minor}, summary: string}`) and `deferred[]` (each item: `{severity: string ∈ {critical, important, minor}, summary: string, reason: string}`).
 
 **Acceptance Criteria:**
 - [ ] `hooks/scripts/validate-return-contract.js` `SCHEMAS` object contains a `'code-review'` key
-- [ ] The schema declares 10 fields: `schema_version`, `phase`, `status`, `verdict`, `report_path`, `critical_count`, `important_count`, `suggestion_count`, `fixed_in_pipeline`, `deferred`
+- [ ] The schema declares 10 fields: `schema_version`, `phase`, `status`, `verdict`, `report_path`, `critical_count`, `important_count`, `minor_count`, `fixed_in_pipeline`, `deferred`
 - [ ] Validator code includes a closed-enum check rejecting any `verdict` value other than `approve`, `needs_changes`, `blocked`
-- [ ] Validator code includes a per-item check for `fixed_in_pipeline[]`: each item must be an object with string fields `severity`, `summary`; `severity` must be one of `critical | important | suggestion`
-- [ ] Validator code includes a per-item check for `deferred[]`: each item must be an object with string fields `severity`, `summary`, `reason`; `severity` must be one of `critical | important | suggestion`
+- [ ] Validator code includes a per-item check for `fixed_in_pipeline[]`: each item must be an object with string fields `severity`, `summary`; `severity` must be one of `critical | important | minor`
+- [ ] Validator code includes a per-item check for `deferred[]`: each item must be an object with string fields `severity`, `summary`, `reason`; `severity` must be one of `critical | important | minor`
 - [ ] Running `node hooks/scripts/validate-return-contract.js hooks/scripts/fixtures/valid-code-review.json` exits 0 (after Task 2 ships the fixture)
 
 ### Task 2 — Add fixture and unit tests for `code-review` schema
@@ -63,7 +63,7 @@ Create a valid fixture and extend the validator unit tests with code-review cove
 **Acceptance Criteria:**
 - [ ] File exists at `hooks/scripts/fixtures/valid-code-review.json`
 - [ ] Fixture's `phase` field is the string `"code-review"`
-- [ ] Fixture has `verdict: "approve"`, `critical_count: 0`, `important_count: 0`, `suggestion_count: 0`, `fixed_in_pipeline: []`, `deferred: []` (clean success case)
+- [ ] Fixture has `verdict: "approve"`, `critical_count: 0`, `important_count: 0`, `minor_count: 0`, `fixed_in_pipeline: []`, `deferred: []` (clean success case)
 - [ ] `hooks/scripts/validate-return-contract.test.js` defines a `VALID_CR` constant with all 10 fields
 - [ ] Test "code-review: valid contract exits 0" passes
 - [ ] Test "code-review: missing required field exits 1" passes (delete `verdict`)

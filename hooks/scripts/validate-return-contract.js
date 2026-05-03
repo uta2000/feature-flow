@@ -51,7 +51,7 @@ const SCHEMAS = {
     report_path: 'string',
     critical_count: 'number',
     important_count: 'number',
-    suggestion_count: 'number',
+    minor_count: 'number',
     fixed_in_pipeline: 'array',
     deferred: 'array',
   },
@@ -61,7 +61,7 @@ const FAILED_CRITERIA_ITEM_FIELDS = ['task_id', 'criterion', 'reason'];
 const FIXED_IN_PIPELINE_ITEM_FIELDS = ['severity', 'summary'];
 const DEFERRED_ITEM_FIELDS = ['severity', 'summary', 'reason'];
 const VALID_VERDICTS = new Set(['approve', 'needs_changes', 'blocked']);
-const VALID_SEVERITIES = new Set(['critical', 'important', 'suggestion']);
+const VALID_SEVERITIES = new Set(['critical', 'important', 'minor']);
 
 const VALID_STATUSES = new Set(['success', 'partial', 'failed']);
 
@@ -145,7 +145,7 @@ function validate(phaseId, obj) {
           break;
         }
         if (!VALID_SEVERITIES.has(item.severity)) {
-          errors.push(`fixed_in_pipeline: severity must be one of critical|important|suggestion, got "${item.severity}"`);
+          errors.push(`fixed_in_pipeline: severity must be one of critical|important|minor, got "${item.severity}"`);
           break;
         }
       }
@@ -165,7 +165,7 @@ function validate(phaseId, obj) {
           break;
         }
         if (!VALID_SEVERITIES.has(item.severity)) {
-          errors.push(`deferred: severity must be one of critical|important|suggestion, got "${item.severity}"`);
+          errors.push(`deferred: severity must be one of critical|important|minor, got "${item.severity}"`);
           break;
         }
       }

@@ -6,7 +6,7 @@
   "report_path": "/tmp/ff-code-review-report-0380.md",
   "critical_count": 0,
   "important_count": 0,
-  "suggestion_count": 0,
+  "minor_count": 0,
   "fixed_in_pipeline": [],
   "deferred": []
 }

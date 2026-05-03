@@ -402,10 +402,10 @@ When invoked from the Pattern B wrapper (`skills/start/SKILL.md` "Code Review â€
 - `schema_version`: `1`
 - `phase`: hardcoded `"code-review"`
 - `status`: `success` (clean pipeline, all critical+important addressed) | `partial` (deferred entries present OR remaining-after-2-iterations entries present) | `failed` (zero-agent guard fired, or consolidator could not assemble verdict)
-- `verdict`: `approve` (no critical, no `deferred[]`) | `needs_changes` (any critical OR any `deferred[]` present) | `blocked` (zero-agent guard, or pipeline cannot return a verdict)
+- `verdict`: `approve` (all critical and important findings fixed in pipeline, no `deferred[]` entries) | `needs_changes` (any unfixed critical or important findings remain, OR any `deferred[]` entry present) | `blocked` (zero-agent guard fired, or pipeline cannot return a verdict)
 - `report_path`: absolute path of the written report
-- `critical_count`, `important_count`, `suggestion_count`: integer counts across the entire pipeline (Phase 1a + 1b + 1c)
-- `fixed_in_pipeline`: array of `{severity: "critical|important|suggestion", summary: "<one-line>"}` for every finding addressed in Phase 1a auto-fix or Phase 3 single-pass fix
+- `critical_count`, `important_count`, `minor_count`: integer counts across the entire pipeline (Phase 1a + 1b + 1c)
+- `fixed_in_pipeline`: array of `{severity: "critical|important|minor", summary: "<one-line>"}` for every finding addressed in Phase 1a auto-fix or Phase 3 single-pass fix
 - `deferred`: array of `{severity, summary, reason}` for every Phase 4 row that mapped to deferral, plus any Minor-tier or unfixed-after-2-iterations entry the consolidator chose to surface in the contract
 
 Use the env-var-passing helper pattern (apostrophe-safe; mirrors `skills/verify-acceptance-criteria/SKILL.md` Step 6):
@@ -433,7 +433,7 @@ contract = {
     "report_path": os.environ["REPORT"],
     "critical_count": int(os.environ["CRIT"]),
     "important_count": int(os.environ["IMP"]),
-    "suggestion_count": int(os.environ["SUG"]),
+    "minor_count": int(os.environ["SUG"]),
     "fixed_in_pipeline": json.loads(os.environ["FIXED"]),
     "deferred": json.loads(os.environ["DEFERRED"]),
 }
@@ -444,7 +444,7 @@ print(f"[code-review] return_contract written to {os.environ[\"F\"]}")
 
 **No `[ -f "$F" ]` guard** â€” fresh-create JSON file, mirrors the verify-acceptance-criteria pattern (no state-file YAML mediation). After writing, return the contract path and the verdict as the consolidator's result text:
 
-`"Return contract written to <write_contract_to>. Verdict: <verdict> (critical=<N>, important=<N>, suggestion=<N>, deferred=<N>)."`
+`"Return contract written to <write_contract_to>. Verdict: <verdict> (critical=<N>, important=<N>, minor=<N>, deferred=<N>)."`
 
 The orchestrator (Pattern B wrapper in `skills/start/SKILL.md`) reads this path from the result string and runs `hooks/scripts/validate-return-contract.js` against it before proceeding.
 

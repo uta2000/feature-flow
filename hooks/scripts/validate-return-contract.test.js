@@ -235,7 +235,7 @@ const VALID_CR = {
   report_path: '/tmp/ff-code-review-report-0380.md',
   critical_count: 0,
   important_count: 0,
-  suggestion_count: 0,
+  minor_count: 0,
   fixed_in_pipeline: [],
   deferred: []
 };
@@ -290,7 +290,7 @@ test('code-review: needs_changes verdict with non-empty fixed_in_pipeline + defe
     verdict: 'needs_changes',
     critical_count: 1,
     important_count: 2,
-    suggestion_count: 0,
+    minor_count: 0,
     fixed_in_pipeline: [
       { severity: 'important', summary: 'tightened input validation in foo.ts' },
       { severity: 'important', summary: 'removed silent catch in bar.ts' }

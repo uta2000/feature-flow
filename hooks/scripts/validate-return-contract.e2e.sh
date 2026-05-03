@@ -208,7 +208,7 @@ echo "  e2e PASS (verify-acceptance-criteria Pattern B): consolidator → tmp-js
 # step name `code-review`).
 F="$CR_CONTRACT_JSON" STATUS="success" VERDICT="approve" \
 REPORT="/tmp/ff-code-review-report-${SLUG}.md" \
-CRIT="0" IMP="0" SUG="0" \
+CRIT="0" IMP="0" MIN="0" \
 FIXED='[]' DEFERRED='[]' python3 -c '
 import os, json
 contract = {
@@ -219,7 +219,7 @@ contract = {
     "report_path": os.environ["REPORT"],
     "critical_count": int(os.environ["CRIT"]),
     "important_count": int(os.environ["IMP"]),
-    "suggestion_count": int(os.environ["SUG"]),
+    "minor_count": int(os.environ["MIN"]),
     "fixed_in_pipeline": json.loads(os.environ["FIXED"]),
     "deferred": json.loads(os.environ["DEFERRED"]),
 }
