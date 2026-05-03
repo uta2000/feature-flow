@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "phase": "verify-acceptance-criteria",
+  "status": "success",
+  "report_path": "/tmp/ff-verify-ac-report-ddc1.md",
+  "pass_count": 18,
+  "fail_count": 0,
+  "failed_criteria": []
+}

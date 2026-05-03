@@ -148,3 +148,44 @@ json.dump(rc, open(os.environ["DD_CONTRACT_JSON"], "w"))
 node "${SCRIPT_DIR}/validate-return-contract.js" "$DD_CONTRACT_JSON"
 
 echo "  e2e PASS (design-document Pattern B): consolidator → state-file → orchestrator-read → validator pipeline works"
+
+# ----------------------------------------------------------------------------
+# Pattern B round-trip — verify-acceptance-criteria (Wave 3 phase 4, #251)
+# Architectural deviation: this contract is written DIRECTLY to a tmp JSON
+# file by the consolidator subagent. There is no state-file mediation — the
+# four phase_summaries buckets (brainstorm/design/plan/implementation) are
+# all claimed and the natural `implementation` slot would collide with
+# future Phase 6 (subagent-driven-development) Pattern B. See
+# "Verify Acceptance Criteria — Pattern B Dispatch" in skills/start/SKILL.md
+# for full rationale.
+# ----------------------------------------------------------------------------
+
+VAC_CONTRACT_JSON="/tmp/ff-verify-ac-contract-${SLUG}.json"
+trap 'rm -f "$STATE_FILE" "$CONTRACT_JSON" "$DD_CONTRACT_JSON" "$VAC_CONTRACT_JSON"' EXIT
+
+# Step 8 (Pattern B): consolidator subagent writes verify-acceptance-criteria
+# return contract directly to the tmp JSON path. Mirrors the Step 6 helper
+# in skills/verify-acceptance-criteria/SKILL.md exactly (no PHASE_ID — no
+# bucket — contract `phase` field hardcoded to the lifecycle step name
+# `verify-acceptance-criteria`).
+F="$VAC_CONTRACT_JSON" STATUS="success" \
+REPORT="/tmp/ff-verify-ac-report-${SLUG}.md" \
+PASS="18" FAIL="0" FAILED='[]' python3 -c '
+import os, json
+contract = {
+    "schema_version": 1,
+    "phase": "verify-acceptance-criteria",  # lifecycle step name per #251 — there is no bucket
+    "status": os.environ["STATUS"],
+    "report_path": os.environ["REPORT"],
+    "pass_count": int(os.environ["PASS"]),
+    "fail_count": int(os.environ["FAIL"]),
+    "failed_criteria": json.loads(os.environ["FAILED"]),
+}
+json.dump(contract, open(os.environ["F"], "w"))
+'
+
+# Step 9 (Pattern B): orchestrator validator (no read-helper step — the
+# consolidator wrote directly to the tmp path, no state-file extraction).
+node "${SCRIPT_DIR}/validate-return-contract.js" "$VAC_CONTRACT_JSON"
+
+echo "  e2e PASS (verify-acceptance-criteria Pattern B): consolidator → tmp-json → validator pipeline works (no state-file)"

@@ -161,5 +161,70 @@ test('design-document: partial status with tbd_count > 0 is valid', () => {
   if (r.code !== 0) throw new Error(`expected exit 0 for partial status; got ${r.code}\n${r.stderr}`);
 });
 
+// verify-acceptance-criteria tests (Wave 3 phase 4 — Pattern B, #251)
+const VALID_VAC = {
+  schema_version: 1,
+  phase: 'verify-acceptance-criteria',
+  status: 'success',
+  report_path: '/tmp/ff-verify-ac-report-ddc1.md',
+  pass_count: 18,
+  fail_count: 0,
+  failed_criteria: []
+};
+
+test('verify-acceptance-criteria: valid contract exits 0', () => {
+  const p = writeFixture(VALID_VAC);
+  const r = run(p);
+  if (r.code !== 0) throw new Error(`expected exit 0, got ${r.code}\n${r.stderr}`);
+});
+
+test('verify-acceptance-criteria: missing required field exits 1', () => {
+  const bad = { ...VALID_VAC }; delete bad.pass_count;
+  const p = writeFixture(bad);
+  const r = run(p);
+  if (r.code === 0) throw new Error('expected non-zero exit for missing pass_count');
+  if (!r.stdout.includes('missing required field')) throw new Error(`expected "missing required field" in output; got: ${r.stdout}`);
+});
+
+test('verify-acceptance-criteria: failed_criteria with non-object item exits 1', () => {
+  const bad = { ...VALID_VAC, status: 'partial', failed_criteria: ['Task 1: foo'] };
+  const p = writeFixture(bad);
+  const r = run(p);
+  if (r.code === 0) throw new Error('expected non-zero exit for string item in failed_criteria');
+});
+
+test('verify-acceptance-criteria: failed_criteria object missing task_id exits 1', () => {
+  const bad = { ...VALID_VAC, status: 'partial', failed_criteria: [{ criterion: 'x', reason: 'y' }] };
+  const p = writeFixture(bad);
+  const r = run(p);
+  if (r.code === 0) throw new Error('expected non-zero exit for failed_criteria item missing task_id');
+});
+
+test('verify-acceptance-criteria: failed_criteria object with non-string field exits 1', () => {
+  const bad = { ...VALID_VAC, status: 'partial', failed_criteria: [{ task_id: 1, criterion: 'x', reason: 'y' }] };
+  const p = writeFixture(bad);
+  const r = run(p);
+  if (r.code === 0) throw new Error('expected non-zero exit for non-string task_id');
+});
+
+test('verify-acceptance-criteria: partial status with non-empty failed_criteria is valid', () => {
+  const partial = {
+    ...VALID_VAC,
+    status: 'partial',
+    fail_count: 1,
+    failed_criteria: [{ task_id: 'Task 3', criterion: 'File exists at src/foo.ts', reason: 'file not found' }]
+  };
+  const p = writeFixture(partial);
+  const r = run(p);
+  if (r.code !== 0) throw new Error(`expected exit 0 for partial with valid failed_criteria; got ${r.code}\n${r.stderr}`);
+});
+
+test('verify-acceptance-criteria: failed status is valid', () => {
+  const failed_status = { ...VALID_VAC, status: 'failed' };
+  const p = writeFixture(failed_status);
+  const r = run(p);
+  if (r.code !== 0) throw new Error(`expected exit 0 for failed status; got ${r.code}\n${r.stderr}`);
+});
+
 console.log(`\nResults: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
