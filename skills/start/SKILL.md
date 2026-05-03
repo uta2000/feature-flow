@@ -717,7 +717,7 @@ Task(
   subagent_type: "general-purpose",
   model: "sonnet",
   description: "verify-plan-criteria Pattern A",
-  prompt: "Invoke Skill(skill: 'feature-flow:verify-plan-criteria', args: 'yolo: true. plan_file: ${PLAN_PATH}. write_contract_to: ${STATE_FILE}. phase_id: plan'). Return the state-file path and a one-line summary of the contract."
+  prompt: "MUST invoke Skill(skill: 'feature-flow:verify-plan-criteria', args: 'yolo: true. plan_file: ${PLAN_PATH}. write_contract_to: ${STATE_FILE}. phase_id: plan'). Do NOT improvise the contract — Step 7 of the skill writes it for you. Required field values verbatim (no paraphrasing): phase MUST be \"verify-plan-criteria\" (not \"plan\"); status MUST be one of \"success\"|\"partial\"|\"failed\" (not \"passed\"|\"ok\"|\"complete\"); schema_version MUST be 1; plan_path, criteria_total, criteria_machine_verifiable, criteria_added_by_agent, tasks_missing_criteria all required (see hooks/scripts/validate-return-contract.js SCHEMAS map for the locked schema). Return the state-file path and a one-line summary of the contract."
 )
 ```
 
