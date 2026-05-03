@@ -17,6 +17,16 @@ Turn brainstorming decisions into a structured, implementable design document. T
 - Before writing an implementation plan
 - When translating requirements into technical design
 
+## Optional Args (used when invoked from orchestrator dispatch)
+
+When invoked as a Pattern B consolidator subagent (per #251), the orchestrator passes these arguments so the skill can skip the hoisted-fanout step and write its structured return contract back to the lifecycle's in-progress state file:
+
+- `findings_path: <absolute-path-to-findings-json>` — when set, the skill skips Step 1's Explore-agent dispatch and reads the pre-fetched findings from this JSON file instead. The file contains the consolidated `{schema, pipeline, ui, format, code, ...}` findings produced by the orchestrator-side parallel fanout. Format: `{"agents": [{"area": string, "findings": string[]}, ...]}`.
+- `write_contract_to: <absolute-path-to-in-progress-yml>` — when set, writes the return contract to `phase_summaries.<phase_id>.return_contract` in that YAML file after Step 4 (issue body merge) completes (see Step 8 below).
+- `phase_id: <bucket-name>` — identifies which **`phase_summaries` bucket** to write into. Must be one of the four fixed buckets: `brainstorm`, `design`, `plan`, or `implementation`. If absent when `write_contract_to` is set, defaults to `design` (the bucket that contains the `design-document` lifecycle step). **Do not confuse `phase_id` with the contract's own `phase` field** — `phase_id` is the bucket key (`design`); the contract's `phase` field is the lifecycle step name (`design-document`) per #251's locked spec.
+
+All three args are optional. If `findings_path` is absent, Step 1 dispatches Explore agents as before. If `write_contract_to` is absent, Step 8 is skipped — the skill behaves identically to its inline-invocation form.
+
 ## Process
 
 ### Step 1: Gather Context
@@ -25,6 +35,8 @@ Collect the inputs needed to write the document:
 
 1. **From the conversation:** Extract all decisions made during brainstorming — scope, approach, UX flow, data model, technical choices
 2. **From the codebase and documentation:** Dispatch parallel Explore agents to gather context from multiple areas simultaneously.
+
+**Pattern B consolidator-mode early exit:** If `findings_path` is set in ARGUMENTS, the orchestrator has already executed the parallel fanout. Read the JSON at that path, treat its `agents[]` array as the unified context summary, and skip the entire `#### Parallel Context Gathering` and `#### Failure Handling` subsections below. Jump directly to `#### Consolidation`. The clarification `AskUserQuestion` at the end of Consolidation is still suppressed when `yolo: true` or `express: true` is set (existing behavior). This branch exists for the Pattern B subagent dispatch wired in `skills/start/SKILL.md` — see "Design Document — Pattern B Dispatch" in that file.
 
 #### Parallel Context Gathering
 
@@ -401,6 +413,73 @@ Recommended next steps:
 1. Run `design-verification` to check this design against the codebase
 2. Run `writing-plans` to create an implementation plan with acceptance criteria
 ```
+
+### Step 8: Write Return Contract (conditional)
+
+**Only executes if `write_contract_to` is set in the skill's ARGUMENTS.** If the arg is absent, skip this step entirely — the skill behaves identically to its pre-#251 inline form.
+
+Construct the return contract object per the locked spec from #251 (issue comment locking the contract was posted before this implementation):
+
+- `schema_version`: `1` (integer — contract schema version, NOT the in-progress state-file schema_version which is `2`)
+- `phase`: hardcoded to `"design-document"` per #251's locked contract spec — this is the lifecycle step name the validator uses to look up the schema in its registry. **Not** the `phase_id` arg value. (`phase_id` names the state-file bucket, e.g. `"design"`.)
+- `status`: one of:
+  - `"success"` — design merged into issue body, no `[TBD]` markers, all required sections written
+  - `"partial"` — design merged but `tbd_count > 0` OR one or more required sections were skipped
+  - `"failed"` — design could not be merged (issue body write failed, marker integrity check failed and append also failed)
+- `design_issue_url`: full URL of the GitHub issue containing the merged design section (e.g., `https://github.com/owner/repo/issues/N`)
+- `issue_number`: integer issue number
+- `design_section_present`: boolean — `true` if `<!-- feature-flow:design:start -->` markers were merged into the issue body in Step 4 (either replaced existing markers or appended new ones), `false` if Step 4's append fallback also failed
+- `key_decisions`: list of up to 5 decision strings extracted from the design (scope, approach, major design choices)
+- `open_questions`: list of unresolved question strings flagged during writing (empty list `[]` if none)
+- `tbd_count`: integer count of `[TBD]` markers in the merged design body
+
+Write the contract to the state file using this helper (mirrors the env-var passing pattern in `skills/verify-plan-criteria/SKILL.md` Step 7 — apostrophe-safe, no inline interpolation):
+
+```bash
+F="<write_contract_to value>"
+PHASE_ID="<phase_id value, default: design>"  # state-file bucket name — must be one of {brainstorm, design, plan, implementation}; design-document lives in the design bucket
+STATUS="<success|partial|failed>"
+DESIGN_URL="<full GitHub issue URL>"
+ISSUE_NUM=<integer issue number>
+PRESENT=<true|false>  # design_section_present
+DECISIONS='<json-array-string, e.g. ["decision 1","decision 2"]>'
+QUESTIONS='<json-array-string, e.g. [] or ["q1"]>'
+TBD=<integer tbd_count>
+
+[ -f "$F" ] && F="$F" PHASE_ID="$PHASE_ID" STATUS="$STATUS" DESIGN_URL="$DESIGN_URL" ISSUE_NUM="$ISSUE_NUM" PRESENT="$PRESENT" DECISIONS="$DECISIONS" QUESTIONS="$QUESTIONS" TBD="$TBD" python3 -c '
+import os, json, yaml
+f = os.environ["F"]
+d = yaml.safe_load(open(f)) or {}
+bucket = os.environ["PHASE_ID"]  # bucket name in phase_summaries (e.g. "design")
+if "phase_summaries" not in d or bucket not in d["phase_summaries"]:
+    print(f"[design-document] WARNING: phase_summaries.{bucket} not found in {f}; skipping contract write")
+else:
+    d["phase_summaries"][bucket]["return_contract"] = {
+        "schema_version": 1,
+        # The contracts `phase` field is the lifecycle STEP NAME per #251 spec
+        # (design-document), NOT the bucket key (which would be "design").
+        # The validator uses this to look up the schema in its registry.
+        "phase": "design-document",
+        "status": os.environ["STATUS"],
+        "design_issue_url": os.environ["DESIGN_URL"],
+        "issue_number": int(os.environ["ISSUE_NUM"]),
+        "design_section_present": os.environ["PRESENT"].lower() == "true",
+        "key_decisions": json.loads(os.environ["DECISIONS"]),
+        "open_questions": json.loads(os.environ["QUESTIONS"]),
+        "tbd_count": int(os.environ["TBD"]),
+    }
+    yaml.dump(d, open(f, "w"), default_flow_style=False, allow_unicode=True)
+    print(f"[design-document] return_contract written to {f}")
+'
+```
+
+The `[ -f "$F" ]` guard is intentional — when invoked outside a lifecycle context (e.g., in tests or one-off invocations), `write_contract_to` may point to a file that doesn't exist. In that case, log a warning and return normally — the skill's primary output (the design merge announcement from Step 4) is still valid.
+
+After writing, return the state-file path and a one-line summary as the skill's result text:
+
+`"Return contract written to <write_contract_to>. Design: status=<status>, issue #<issue_number>, decisions=<count>, tbd_count=<tbd>."`
+
+The orchestrator (Pattern B wrapper in `skills/start/SKILL.md`) reads this state-file path from the result string, loads `phase_summaries.<phase_id>.return_contract` from the YAML, and runs `hooks/scripts/validate-return-contract.js` against the loaded object before proceeding.
 
 ## Quality Rules
 

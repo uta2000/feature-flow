@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "phase": "design-document",
+  "status": "success",
+  "design_issue_url": "https://github.com/uta2000/feature-flow/issues/251",
+  "issue_number": 251,
+  "design_section_present": true,
+  "key_decisions": [
+    "Pattern B: hoist Explore fanout to orchestrator + dispatch consolidator subagent",
+    "schema_version 1 for contract (independent of state-file schema_version 2)",
+    "Inline-fallback target is pre-#251 inline Skill() (Interactive/Express form)"
+  ],
+  "open_questions": [],
+  "tbd_count": 0
+}
