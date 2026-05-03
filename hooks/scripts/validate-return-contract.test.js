@@ -226,5 +226,83 @@ test('verify-acceptance-criteria: failed status is valid', () => {
   if (r.code !== 0) throw new Error(`expected exit 0 for failed status; got ${r.code}\n${r.stderr}`);
 });
 
+// code-review tests (Wave 3 phase 5 — Pattern B, #251)
+const VALID_CR = {
+  schema_version: 1,
+  phase: 'code-review',
+  status: 'success',
+  verdict: 'approve',
+  report_path: '/tmp/ff-code-review-report-0380.md',
+  critical_count: 0,
+  important_count: 0,
+  minor_count: 0,
+  fixed_in_pipeline: [],
+  deferred: []
+};
+
+test('code-review: valid contract exits 0', () => {
+  const p = writeFixture(VALID_CR);
+  const r = run(p);
+  if (r.code !== 0) throw new Error(`expected exit 0, got ${r.code}\n${r.stderr}`);
+});
+
+test('code-review: missing required field exits 1', () => {
+  const bad = { ...VALID_CR }; delete bad.verdict;
+  const p = writeFixture(bad);
+  const r = run(p);
+  if (r.code === 0) throw new Error('expected non-zero exit for missing verdict');
+  if (!r.stdout.includes('missing required field')) throw new Error(`expected "missing required field" in output; got: ${r.stdout}`);
+});
+
+test('code-review: invalid verdict value exits 1', () => {
+  const bad = { ...VALID_CR, verdict: 'approved' };
+  const p = writeFixture(bad);
+  const r = run(p);
+  if (r.code === 0) throw new Error('expected non-zero exit for invalid verdict enum');
+  if (!r.stdout.includes('verdict')) throw new Error(`expected verdict error in output; got: ${r.stdout}`);
+});
+
+test('code-review: fixed_in_pipeline with non-object item exits 1', () => {
+  const bad = { ...VALID_CR, status: 'partial', fixed_in_pipeline: ['critical: foo'] };
+  const p = writeFixture(bad);
+  const r = run(p);
+  if (r.code === 0) throw new Error('expected non-zero exit for string item in fixed_in_pipeline');
+});
+
+test('code-review: fixed_in_pipeline with bad severity exits 1', () => {
+  const bad = { ...VALID_CR, status: 'partial', fixed_in_pipeline: [{ severity: 'high', summary: 'x' }] };
+  const p = writeFixture(bad);
+  const r = run(p);
+  if (r.code === 0) throw new Error('expected non-zero exit for invalid severity in fixed_in_pipeline');
+});
+
+test('code-review: deferred missing reason exits 1', () => {
+  const bad = { ...VALID_CR, status: 'partial', verdict: 'needs_changes', deferred: [{ severity: 'critical', summary: 'x' }] };
+  const p = writeFixture(bad);
+  const r = run(p);
+  if (r.code === 0) throw new Error('expected non-zero exit for deferred item missing reason');
+});
+
+test('code-review: needs_changes verdict with non-empty fixed_in_pipeline + deferred is valid', () => {
+  const partial = {
+    ...VALID_CR,
+    status: 'partial',
+    verdict: 'needs_changes',
+    critical_count: 1,
+    important_count: 2,
+    minor_count: 0,
+    fixed_in_pipeline: [
+      { severity: 'important', summary: 'tightened input validation in foo.ts' },
+      { severity: 'important', summary: 'removed silent catch in bar.ts' }
+    ],
+    deferred: [
+      { severity: 'critical', summary: 'pr-test-analyzer flagged missing edge case', reason: 'agent re-dispatch unavailable in Pattern B consolidator' }
+    ]
+  };
+  const p = writeFixture(partial);
+  const r = run(p);
+  if (r.code !== 0) throw new Error(`expected exit 0 for needs_changes with valid items; got ${r.code}\n${r.stderr}`);
+});
+
 console.log(`\nResults: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

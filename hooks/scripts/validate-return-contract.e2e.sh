@@ -161,7 +161,8 @@ echo "  e2e PASS (design-document Pattern B): consolidator → state-file → or
 # ----------------------------------------------------------------------------
 
 VAC_CONTRACT_JSON="/tmp/ff-verify-ac-contract-${SLUG}.json"
-trap 'rm -f "$STATE_FILE" "$CONTRACT_JSON" "$DD_CONTRACT_JSON" "$VAC_CONTRACT_JSON"' EXIT
+CR_CONTRACT_JSON="/tmp/ff-code-review-contract-${SLUG}.json"
+trap 'rm -f "$STATE_FILE" "$CONTRACT_JSON" "$DD_CONTRACT_JSON" "$VAC_CONTRACT_JSON" "$CR_CONTRACT_JSON"' EXIT
 
 # Step 8 (Pattern B): consolidator subagent writes verify-acceptance-criteria
 # return contract directly to the tmp JSON path. Mirrors the Step 6 helper
@@ -189,3 +190,44 @@ json.dump(contract, open(os.environ["F"], "w"))
 node "${SCRIPT_DIR}/validate-return-contract.js" "$VAC_CONTRACT_JSON"
 
 echo "  e2e PASS (verify-acceptance-criteria Pattern B): consolidator → tmp-json → validator pipeline works (no state-file)"
+
+# ----------------------------------------------------------------------------
+# Pattern B round-trip — code-review (Wave 3 phase 5, #251)
+# Architectural deviation: this contract is written DIRECTLY to a tmp JSON
+# file by the consolidator subagent. There is no state-file mediation — same
+# bucket-skip rationale as verify-acceptance-criteria above (the four buckets
+# are claimed; the natural `implementation` slot is reserved for future
+# Phase 6 subagent-driven-development). See "Code Review — Pattern B Dispatch"
+# in skills/start/SKILL.md for full rationale.
+# ----------------------------------------------------------------------------
+
+# Step 10 (Pattern B): consolidator subagent writes code-review return
+# contract directly to the tmp JSON path. Mirrors the Phase 5 Contract Write
+# helper in skills/start/references/code-review-pipeline.md exactly (no
+# PHASE_ID — no bucket — contract `phase` field hardcoded to the lifecycle
+# step name `code-review`).
+F="$CR_CONTRACT_JSON" STATUS="success" VERDICT="approve" \
+REPORT="/tmp/ff-code-review-report-${SLUG}.md" \
+CRIT="0" IMP="0" MIN="0" \
+FIXED='[]' DEFERRED='[]' python3 -c '
+import os, json
+contract = {
+    "schema_version": 1,
+    "phase": "code-review",  # lifecycle step name per #251 — there is no bucket
+    "status": os.environ["STATUS"],
+    "verdict": os.environ["VERDICT"],
+    "report_path": os.environ["REPORT"],
+    "critical_count": int(os.environ["CRIT"]),
+    "important_count": int(os.environ["IMP"]),
+    "minor_count": int(os.environ["MIN"]),
+    "fixed_in_pipeline": json.loads(os.environ["FIXED"]),
+    "deferred": json.loads(os.environ["DEFERRED"]),
+}
+json.dump(contract, open(os.environ["F"], "w"))
+'
+
+# Step 11 (Pattern B): orchestrator validator (no read-helper step — the
+# consolidator wrote directly to the tmp path, no state-file extraction).
+node "${SCRIPT_DIR}/validate-return-contract.js" "$CR_CONTRACT_JSON"
+
+echo "  e2e PASS (code-review Pattern B): consolidator → tmp-json → validator pipeline works (no state-file)"
