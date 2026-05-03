@@ -350,7 +350,7 @@
 
   ```markdown
   **`findings_path` short-circuit (Pattern B only):** If `findings_path` is present in ARGUMENTS, the orchestrator has already dispatched the parallel Explore agents and written their results to a JSON file at that path. In this case:
-  1. Read the JSON file at `findings_path`. It contains an array of `{area: string, findings: string[]}` objects.
+  1. Read the JSON file at `findings_path`. It contains a single object `{"agents": [{"area": string, "findings": string[]}, ...]}` — the `agents` array is the list of Explore returns; iterate over it.
   2. Use these as the agent findings for the Consolidation block below — skip the agent dispatch entirely.
   3. Jump directly to **Consolidation** (do not dispatch Task agents, do not announce parallel dispatch).
 
@@ -900,6 +900,6 @@
 
 1. **#253 measurement tooling availability:** Is the per-phase instrumentation from issue #253 deployed? If not, Task 7 must use a proxy estimate. The plan assumes proxy is acceptable but the decision rule (≥5%) still applies. If proxy cannot be computed, Task 7 becomes a manual judgment call — surface to user before proceeding.
 
-2. **`findings_path` JSON leniency:** The Explore agent return format is `{area: string, findings: string[]}` per `skills/design-document/SKILL.md:46-49`. The format is controlled by the orchestrator's own dispatch prompt so drift is unlikely, but if a real session fails on malformed findings JSON, the `findings_path` branch in Step 1 should use lenient parsing (extract `area` + `findings` keys, ignore extras) rather than strict shape validation.
+2. **`findings_path` JSON leniency:** The findings file at `findings_path` contains a top-level object `{"agents": [{"area": string, "findings": string[]}, ...]}`. Each `agents[]` entry mirrors the Explore-agent return format documented at `skills/design-document/SKILL.md:46-49`. The wrapping `{"agents": [...]}` shape is set by the orchestrator's findings-write helper in `skills/start/SKILL.md` "Design Document — Pattern B Dispatch" sub-step 2. The format is controlled by the orchestrator's own dispatch prompt so drift is unlikely, but if a real session fails on malformed findings JSON, the `findings_path` branch in Step 1 should use lenient parsing (extract `area` + `findings` keys per agent entry, ignore extras) rather than strict shape validation.
 
 </plan>
