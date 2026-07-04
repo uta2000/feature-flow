@@ -14,7 +14,7 @@ tool_selector:
   auto_launch_gsd: false          # If true, launch GSD automatically without asking
 gotchas:
   - "Hook stdout with exit 0 is DISCARDED by Claude Code for PreToolUse/PostToolUse/Stop — blocking requires hookSpecificOutput.permissionDecision 'deny' JSON (PreToolUse) or top-level decision 'block' JSON (Stop); only SessionStart/UserPromptSubmit stdout reaches context (issue #275)"
-  - "$CLAUDE_FILE_PATH is not a documented Claude Code hook env var (only CLAUDE_PROJECT_DIR/CLAUDE_ENV_FILE exist) — hooks must read tool_input.file_path from stdin JSON"
+  - "$CLAUDE_FILE_PATH is not a documented Claude Code hook env var — hooks must read tool_input.file_path from stdin JSON (documented env vars like CLAUDE_PROJECT_DIR and CLAUDE_PLUGIN_ROOT are fine; CLAUDE_PLUGIN_ROOT is used in every hooks.json command)"
   - "CI runs only scripts/check-skill-references.sh — hooks.json validity and node *.test.js suites are NEVER run by CI; verify locally before merge"
   - "Settings SKILL.md enforces max 4 options per AskUserQuestion — adding new dashboard categories requires merging with existing ones, not adding a 5th option"
   - "analyze-session.py uses camelCase processed fields internally (toolCalls, toolResults, toolUseId) — NOT the raw JSONL snake_case. Any new section must use these internal field names, not content[].type='tool_result' scanning."
