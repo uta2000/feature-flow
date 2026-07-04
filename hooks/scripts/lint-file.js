@@ -4,27 +4,27 @@
 const { spawnSync } = require('child_process');
 const { existsSync } = require('fs');
 const path = require('path');
+const { readHookInput } = require('./lib/read-hook-input');
 
-let data = '';
-process.stdin.on('data', chunk => (data += chunk));
-process.stdin.on('end', () => {
-  try {
-    const input = JSON.parse(data);
-    const filePath = input.tool_input?.file_path || '';
-    if (!isSourceFile(filePath)) process.exit(0);
+function main() {
+  const payload = readHookInput();
+  if (!payload) process.exit(0);
 
-    const errors = runLinter(filePath);
-    if (errors) {
-      const name = path.basename(filePath);
-      console.log(
-        `[feature-flow] LINT ERRORS in ${name} — fix these before continuing:\n${errors}`
-      );
-    }
-  } catch (e) {
-    console.error(`[feature-flow] lint-file hook error: ${e?.message || 'unknown'}`);
+  const filePath = payload.tool_input?.file_path || '';
+  if (!isSourceFile(filePath)) process.exit(0);
+
+  const errors = runLinter(filePath);
+  if (errors) {
+    const name = path.basename(filePath);
+    console.log(JSON.stringify({
+      hookSpecificOutput: {
+        hookEventName: 'PostToolUse',
+        additionalContext: `[feature-flow] LINT ERRORS in ${name} — fix these before continuing:\n${errors}`,
+      },
+    }));
   }
   process.exit(0);
-});
+}
 
 function isSourceFile(f) {
   if (!/\.(ts|tsx|js|jsx)$/.test(f)) return false;
@@ -63,4 +63,11 @@ function hasEslintConfig() {
 
 function hasBiomeConfig() {
   return existsSync('biome.json') || existsSync('biome.jsonc');
+}
+
+try {
+  main();
+} catch (err) {
+  try { process.stderr.write('[lint-file] fail-open due to internal error: ' + (err && err.message) + '\n'); } catch (_) { /* stderr unavailable */ }
+  process.exit(0);
 }
