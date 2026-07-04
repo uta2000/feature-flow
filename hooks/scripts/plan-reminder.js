@@ -18,7 +18,7 @@ function main() {
 
   const toolInput = payload.tool_input || {};
   const filePath = toolInput.file_path || '';
-  if (!/plans\/.*\.md/.test(filePath)) process.exit(0);
+  if (!/plans\/.*\.md$/.test(filePath)) process.exit(0);
 
   advise(
     '[feature-flow] Plan file written. Run verify-plan-criteria before proceeding. ' +

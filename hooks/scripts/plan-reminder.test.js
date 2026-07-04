@@ -44,6 +44,11 @@ assert('exits 0 silently for a non-plan markdown file', (() => {
   return r.exitCode === 0 && (r.stdout || '').trim() === '';
 })());
 
+assert('exits 0 silently for a .md.ts file under plans/ (anchored regex)', (() => {
+  const r = run({ tool_name: 'Write', tool_input: { file_path: '/repo/docs/plans/foo.md.ts', content: 'x' } });
+  return r.exitCode === 0 && (r.stdout || '').trim() === '';
+})());
+
 assert('exits 0 silently for a non-markdown file under plans/', (() => {
   const r = run({ tool_name: 'Write', tool_input: { file_path: '/repo/docs/plans/data.json', content: '{}' } });
   return r.exitCode === 0 && (r.stdout || '').trim() === '';
