@@ -1191,7 +1191,7 @@ with:
 ```
 
 **Acceptance Criteria:**
-- [ ] `node hooks/scripts/verdict-gate.test.js` exits 0 and prints `9 passed, 0 failed` (all 9 existing assertions still pass — 7 unchanged silent-path assertions plus the 2 updated deny-path assertions)
+- [ ] `node hooks/scripts/verdict-gate.test.js` exits 0 and prints `12 passed, 0 failed` (10 pre-existing assertions — 8 silent-path/exit-code plus the 2 updated deny-path assertions — plus 2 fail-open stdin tests added by the code-review fix pass)
 - [ ] `grep -c "console.log(block)" hooks/scripts/verdict-gate.js` outputs `0` (old string-block signal fully removed)
 - [ ] A pending-strict-consultation fixture piped through the script (as constructed by the test's `runGate` helper) outputs JSON where `.hookSpecificOutput.permissionDecision === "deny"`
 
@@ -1367,7 +1367,7 @@ process.exit(failed > 0 ? 1 : 0);
 ```
 
 **Acceptance Criteria:**
-- [ ] `node hooks/scripts/quality-gate.test.js` exits 0 and prints `5 passed, 0 failed`
+- [ ] `node hooks/scripts/quality-gate.test.js` exits 0 and prints `6 passed, 0 failed` (5 planned assertions plus the marker-skip short-circuit test added by the code-review fix pass)
 - [ ] `grep -c "BLOCK: Code quality" hooks/scripts/quality-gate.js` outputs `0` (old string signal fully removed)
 - [ ] `grep -n "stop_hook_active" hooks/scripts/quality-gate.js` finds at least one match
 - [ ] In a tmp dir with a `package.json` whose `scripts.lint` exits 1: `echo '{"stop_hook_active":false}' | node hooks/scripts/quality-gate.js` (run with that dir as cwd) outputs JSON with `.decision === "block"` and `.reason` containing `"Code quality checks failed"`
@@ -1765,7 +1765,7 @@ git commit -m "fix(hooks): lint-file.js emits PostToolUse additionalContext JSON
 - [ ] `grep -c "quality-gate.js" hooks/hooks.json` outputs `1` (unchanged wiring, Stop)
 - [ ] `grep -c "lint-file.js" hooks/hooks.json` outputs `2` (unchanged wiring, PostToolUse Write + Edit)
 - [ ] `grep -o "console.log/debug is a PostToolUse advisory warning, not a block" hooks/hooks.json` outputs a match (banner rule 4 updated)
-- [ ] `grep -o "Stop hook runs tsc, lint, and type-sync checks and blocks session end on failures" hooks/hooks.json` outputs a match (banner rule 5 updated)
+- [ ] `grep -o "Stop hook runs tsc, lint, type-sync, and test checks and blocks session end on failures" hooks/hooks.json` outputs a match (banner rule 5 updated; \"and test\" added by pr-review-toolkit auto-fix — the gate does run test suites)
 
 - [ ] **Step 2: Commit**
 
