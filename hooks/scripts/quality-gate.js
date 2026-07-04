@@ -6,11 +6,19 @@ const { promisify } = require('util');
 const execAsync = promisify(exec);
 const { existsSync, readFileSync, writeFileSync, readdirSync, statSync } = require('fs');
 const path = require('path');
+const { readHookInput } = require('./lib/read-hook-input');
 
 const failures = [];
 const warnings = [];
 
 async function main() {
+  // Respect the harness's loop-protection flag: when a previous Stop block already fired
+  // for this turn, re-running the full check suite would just re-block in a loop.
+  const payload = readHookInput();
+  if (payload && payload.stop_hook_active === true) {
+    return;
+  }
+
   // Skip if lifecycle already verified at this commit with clean working tree
   try {
     const markerPath = path.join(
@@ -55,7 +63,10 @@ async function main() {
   if (failures.length > 0) {
     const report = failures.join('\n\n');
     const warn = warnings.length > 0 ? '\n\n' + warnings.join('\n') : '';
-    console.log(`BLOCK: Code quality checks failed. Fix before ending session:\n\n${report}${warn}`);
+    console.log(JSON.stringify({
+      decision: 'block',
+      reason: `Code quality checks failed. Fix before ending session:\n\n${report}${warn}`,
+    }));
   } else if (warnings.length > 0) {
     console.error(warnings.join('\n'));
   }
