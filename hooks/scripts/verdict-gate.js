@@ -3,11 +3,7 @@
 
 const fs = require('fs');
 const path = require('path');
-
-function readStdinSync() {
-  try { return fs.readFileSync(0, 'utf8'); }
-  catch { return ''; }
-}
+const { readHookInput } = require('./lib/read-hook-input');
 
 function loadState(cwd) {
   const p = path.join(cwd, '.feature-flow', 'session-state.json');
@@ -28,14 +24,8 @@ function isVerdictCallForPending(args, pendingId) {
 }
 
 function main() {
-  const raw = readStdinSync();
-  if (!raw) process.exit(0);
-
-  let payload;
-  try { payload = JSON.parse(raw); } catch (err) {
-    try { process.stderr.write(`[verdict-gate] hook payload not valid JSON: ${err && err.message}; fail-open\n`); } catch (_) { /* stderr unavailable */ }
-    process.exit(0);
-  }
+  const payload = readHookInput();
+  if (!payload) process.exit(0);
 
   const toolName = payload.tool_name || '';
   if (toolName !== 'Skill') process.exit(0);
@@ -57,8 +47,8 @@ function main() {
   }
 
   const signalStr = pending.signal_key ? ` (signal: ${pending.signal_key})` : '';
-  const block = [
-    `BLOCK: Consultation ${pending.id} (mode: ${pending.mode}${signalStr}) requires a verdict before any other skill call.`,
+  const reason = [
+    `Consultation ${pending.id} (mode: ${pending.mode}${signalStr}) requires a verdict before any other skill call.`,
     'This is a sequencing block, not a prohibition — record the verdict and your next call can proceed.',
     '',
     `Invoke: Skill(skill: "feature-flow:consult-codex", args: "verdict --id ${pending.id} --decision <accept|reject> --reason <short text>")`,
@@ -67,7 +57,13 @@ function main() {
     '- reject: you will not apply it (reason must reference what\'s already been tried)'
   ].join('\n');
 
-  console.log(block);
+  console.log(JSON.stringify({
+    hookSpecificOutput: {
+      hookEventName: 'PreToolUse',
+      permissionDecision: 'deny',
+      permissionDecisionReason: reason,
+    },
+  }));
   process.exit(0);
 }
 
