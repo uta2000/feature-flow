@@ -13,6 +13,9 @@ tool_selector:
   confidence_threshold: 0.7        # Only recommend GSD if confidence >= 70%
   auto_launch_gsd: false          # If true, launch GSD automatically without asking
 gotchas:
+  - "Hook stdout with exit 0 is DISCARDED by Claude Code for PreToolUse/PostToolUse/Stop — blocking requires hookSpecificOutput.permissionDecision 'deny' JSON (PreToolUse) or top-level decision 'block' JSON (Stop); only SessionStart/UserPromptSubmit stdout reaches context (issue #275)"
+  - "$CLAUDE_FILE_PATH is not a documented Claude Code hook env var (only CLAUDE_PROJECT_DIR/CLAUDE_ENV_FILE exist) — hooks must read tool_input.file_path from stdin JSON"
+  - "CI runs only scripts/check-skill-references.sh — hooks.json validity and node *.test.js suites are NEVER run by CI; verify locally before merge"
   - "Settings SKILL.md enforces max 4 options per AskUserQuestion — adding new dashboard categories requires merging with existing ones, not adding a 5th option"
   - "analyze-session.py uses camelCase processed fields internally (toolCalls, toolResults, toolUseId) — NOT the raw JSONL snake_case. Any new section must use these internal field names, not content[].type='tool_result' scanning."
   - "Bash tool_results dominate context in ~50% of sessions (73-77% of tool_result chars). Any 'top context contributors' ranking that excludes Bash produces systematically wrong results for roughly half of all sessions."
