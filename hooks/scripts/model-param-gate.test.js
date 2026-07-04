@@ -24,6 +24,7 @@ function run(payload) {
 function denyReason(r) {
   try {
     const parsed = JSON.parse(r.stdout);
+    if (parsed.hookSpecificOutput?.hookEventName !== 'PreToolUse') return null;
     if (parsed.hookSpecificOutput?.permissionDecision !== 'deny') return null;
     return parsed.hookSpecificOutput.permissionDecisionReason || '';
   } catch {

@@ -25,6 +25,20 @@ function advise(context) {
   }));
 }
 
+function scanFileForConsoleWarn(filePath) {
+  let content;
+  try {
+    content = fs.readFileSync(filePath, 'utf8');
+  } catch {
+    return null;
+  }
+  const warnings = [];
+  content.split('\n').forEach((line, idx) => {
+    if (hasConsoleWarn(line)) warnings.push(`L${idx + 1}: console.log/debug`);
+  });
+  return warnings;
+}
+
 function main() {
   const payload = readHookInput();
   if (!payload) process.exit(0);
@@ -37,17 +51,8 @@ function main() {
   const name = filePath.split('/').pop();
 
   if (toolName === 'Write') {
-    let content;
-    try {
-      content = fs.readFileSync(filePath, 'utf8');
-    } catch {
-      process.exit(0);
-    }
-    const warnings = [];
-    content.split('\n').forEach((line, idx) => {
-      if (hasConsoleWarn(line)) warnings.push(`L${idx + 1}: console.log/debug`);
-    });
-    if (warnings.length === 0) process.exit(0);
+    const warnings = scanFileForConsoleWarn(filePath);
+    if (!warnings || warnings.length === 0) process.exit(0);
     advise(`[feature-flow] Debug statements in ${name}:\n${warnings.join('\n')}\nRemember to remove before self-review.`);
   } else if (toolName === 'Edit') {
     const newString = toolInput.new_string || '';

@@ -50,7 +50,8 @@ assert('advises with additionalContext when the fake eslint reports errors', (()
   let parsed;
   try { parsed = JSON.parse(r.stdout); } catch { return false; }
   const ctx = parsed.hookSpecificOutput?.additionalContext || '';
-  return ctx.includes('LINT ERRORS') && ctx.includes('some rule');
+  return parsed.hookSpecificOutput?.hookEventName === 'PostToolUse'
+    && ctx.includes('LINT ERRORS') && ctx.includes('some rule');
 })());
 
 assert('exits 0 silently when the fake eslint reports no errors', (() => {

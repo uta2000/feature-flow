@@ -81,5 +81,30 @@ assert('invalid JSON stdin: fails open, runs checks normally', (() => {
   return r.exitCode === 0 && (r.stdout || '').trim() === '';
 })());
 
+assert('verification marker: clean tree at verified commit short-circuits (no block despite failing lint); dirty tree re-runs and blocks', (() => {
+  const tmp = mkTmp();
+  mkFailingProject(tmp);
+  execSync('git init -q', { cwd: tmp });
+  execSync('git config user.email "test@example.com"', { cwd: tmp });
+  execSync('git config user.name "Test"', { cwd: tmp });
+  execSync('git add -A', { cwd: tmp });
+  execSync('git commit -q -m init', { cwd: tmp });
+  const head = execSync('git rev-parse HEAD', { cwd: tmp, encoding: 'utf8' }).trim();
+  const gitDir = execSync('git rev-parse --git-dir', { cwd: tmp, encoding: 'utf8' }).trim();
+  fs.writeFileSync(path.join(tmp, gitDir, 'feature-flow-verified'), head + '\n');
+
+  const clean = runGate(tmp, { stop_hook_active: false });
+  const cleanOk = clean.exitCode === 0 && (clean.stdout || '').trim() === '';
+
+  fs.writeFileSync(path.join(tmp, 'README.md'), 'dirty\n');
+  const dirty = runGate(tmp, { stop_hook_active: false });
+  let parsed;
+  try { parsed = JSON.parse(dirty.stdout); } catch { parsed = null; }
+  const dirtyOk = dirty.exitCode === 0 && parsed && parsed.decision === 'block';
+
+  fs.rmSync(tmp, { recursive: true });
+  return cleanOk && dirtyOk;
+})());
+
 console.log(`\n=== quality-gate.js: ${passed} passed, ${failed} failed ===`);
 process.exit(failed > 0 ? 1 : 0);

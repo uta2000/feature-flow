@@ -62,7 +62,8 @@ assert('blocks non-verdict Skill when strict consultation is pending', (() => {
   let parsed;
   try { parsed = JSON.parse(r.stdout); } catch { return false; }
   const reason = parsed.hookSpecificOutput?.permissionDecisionReason || '';
-  return parsed.hookSpecificOutput?.permissionDecision === 'deny'
+  return parsed.hookSpecificOutput?.hookEventName === 'PreToolUse'
+    && parsed.hookSpecificOutput?.permissionDecision === 'deny'
     && reason.includes('c2')
     && reason.includes('verdict --id c2');
 })());
@@ -158,7 +159,35 @@ assert('blocks when skill name does not match consult-codex despite verdict-styl
   let parsed;
   try { parsed = JSON.parse(r.stdout); } catch { return false; }
   const reason = parsed.hookSpecificOutput?.permissionDecisionReason || '';
-  return parsed.hookSpecificOutput?.permissionDecision === 'deny' && reason.includes('c7');
+  return parsed.hookSpecificOutput?.hookEventName === 'PreToolUse'
+    && parsed.hookSpecificOutput?.permissionDecision === 'deny'
+    && reason.includes('c7');
+})());
+
+assert('exits 0 silently on empty stdin', (() => {
+  const tmp = mkTmp();
+  let r;
+  try {
+    const out = execSync(`node ${SCRIPT}`, { cwd: tmp, input: '', encoding: 'utf8' });
+    r = { exitCode: 0, stdout: out };
+  } catch (err) {
+    r = { exitCode: err.status || 1, stdout: err.stdout || '' };
+  }
+  fs.rmSync(tmp, { recursive: true });
+  return r.exitCode === 0 && (r.stdout || '').trim() === '';
+})());
+
+assert('exits 0 silently on malformed JSON stdin', (() => {
+  const tmp = mkTmp();
+  let r;
+  try {
+    const out = execSync(`node ${SCRIPT}`, { cwd: tmp, input: '{ not json', encoding: 'utf8' });
+    r = { exitCode: 0, stdout: out };
+  } catch (err) {
+    r = { exitCode: err.status || 1, stdout: err.stdout || '' };
+  }
+  fs.rmSync(tmp, { recursive: true });
+  return r.exitCode === 0 && (r.stdout || '').trim() === '';
 })());
 
 console.log(`\n=== verdict-gate.js: ${passed} passed, ${failed} failed ===`);

@@ -27,6 +27,7 @@ function run(cwd, payload) {
 function advisoryContext(r) {
   try {
     const parsed = JSON.parse(r.stdout);
+    if (parsed.hookSpecificOutput?.hookEventName !== 'PreToolUse') return null;
     return parsed.hookSpecificOutput?.additionalContext || null;
   } catch {
     return null;
@@ -40,9 +41,9 @@ assert('advises (additionalContext, no permissionDecision) when .feature-flow.ym
   fs.writeFileSync(path.join(tmp, '.feature-flow.yml'), 'stack:\n  - node\ncontext7:\n  - node\n');
   const r = run(tmp, { tool_name: 'Write', tool_input: { file_path: '/repo/src/foo.ts' } });
   fs.rmSync(tmp, { recursive: true });
+  const ctx = advisoryContext(r) || '';
   let parsed;
   try { parsed = JSON.parse(r.stdout); } catch { return false; }
-  const ctx = parsed.hookSpecificOutput?.additionalContext || '';
   return ctx.includes('Context7') && parsed.hookSpecificOutput.permissionDecision === undefined;
 })());
 

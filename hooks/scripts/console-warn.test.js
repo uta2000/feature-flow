@@ -27,6 +27,7 @@ function run(payload) {
 function advisoryContext(r) {
   try {
     const parsed = JSON.parse(r.stdout);
+    if (parsed.hookSpecificOutput?.hookEventName !== 'PostToolUse') return null;
     return parsed.hookSpecificOutput?.additionalContext || null;
   } catch {
     return null;
@@ -89,6 +90,11 @@ assert('exits 0 silently on invalid JSON stdin', (() => {
 
 assert('exits 0 silently when tool_input is missing entirely', (() => {
   const r = run({ tool_name: 'Edit' });
+  return r.exitCode === 0 && (r.stdout || '').trim() === '';
+})());
+
+assert('Edit: exits 0 silently for a commented-out console.log', (() => {
+  const r = run({ tool_name: 'Edit', tool_input: { file_path: '/repo/src/foo.ts', new_string: '// console.log(debug aid)' } });
   return r.exitCode === 0 && (r.stdout || '').trim() === '';
 })());
 

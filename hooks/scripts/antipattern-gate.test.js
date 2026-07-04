@@ -24,6 +24,7 @@ function run(payload) {
 function denyReason(r) {
   try {
     const parsed = JSON.parse(r.stdout);
+    if (parsed.hookSpecificOutput?.hookEventName !== 'PreToolUse') return null;
     if (parsed.hookSpecificOutput?.permissionDecision !== 'deny') return null;
     return parsed.hookSpecificOutput.permissionDecisionReason || '';
   } catch {
@@ -89,8 +90,7 @@ assert('exits 0 silently for an unrelated tool_name (e.g. Bash)', (() => {
 
 assert('exits 0 silently on empty stdin', (() => {
   const r = run('');
-  const out = execSync(`node ${SCRIPT}`, { input: '', encoding: 'utf8' });
-  return out.trim() === '';
+  return r.exitCode === 0 && (r.stdout || '').trim() === '';
 })());
 
 assert('exits 0 silently on invalid JSON stdin', (() => {
@@ -103,6 +103,17 @@ assert('exits 0 silently on invalid JSON stdin', (() => {
 assert('exits 0 silently when tool_input is missing entirely', (() => {
   const r = run({ tool_name: 'Write' });
   return r.exitCode === 0 && (r.stdout || '').trim() === '';
+})());
+
+assert('exempts `as any` occurring after a `//` marker on the same line', (() => {
+  const r = run({ tool_name: 'Write', tool_input: { file_path: '/repo/src/foo.ts', content: '// eslint says as any is fine' } });
+  return r.exitCode === 0 && (r.stdout || '').trim() === '';
+})());
+
+assert('denies Write with whitespace-only catch block', (() => {
+  const r = run({ tool_name: 'Write', tool_input: { file_path: '/repo/src/foo.ts', content: 'try { f(); } catch (e) {   }' } });
+  const reason = denyReason(r);
+  return reason && reason.includes('empty catch');
 })());
 
 console.log(`\n=== antipattern-gate.js: ${passed} passed, ${failed} failed ===`);

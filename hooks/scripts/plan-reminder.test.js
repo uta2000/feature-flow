@@ -24,6 +24,7 @@ function run(payload) {
 function advisoryContext(r) {
   try {
     const parsed = JSON.parse(r.stdout);
+    if (parsed.hookSpecificOutput?.hookEventName !== 'PostToolUse') return null;
     return parsed.hookSpecificOutput?.additionalContext || null;
   } catch {
     return null;
