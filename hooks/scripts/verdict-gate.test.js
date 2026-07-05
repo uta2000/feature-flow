@@ -59,7 +59,13 @@ assert('blocks non-verdict Skill when strict consultation is pending', (() => {
   ]});
   const r = runGate(tmp, { skill: 'feature-flow:some-other-skill', args: 'foo' });
   fs.rmSync(tmp, { recursive: true });
-  return r.stdout.includes('BLOCK') && r.stdout.includes('c2') && r.stdout.includes('verdict --id c2');
+  let parsed;
+  try { parsed = JSON.parse(r.stdout); } catch { return false; }
+  const reason = parsed.hookSpecificOutput?.permissionDecisionReason || '';
+  return parsed.hookSpecificOutput?.hookEventName === 'PreToolUse'
+    && parsed.hookSpecificOutput?.permissionDecision === 'deny'
+    && reason.includes('c2')
+    && reason.includes('verdict --id c2');
 })());
 
 assert('allows the verdict call itself through', (() => {
@@ -150,7 +156,38 @@ assert('blocks when skill name does not match consult-codex despite verdict-styl
     args: 'verdict --id c7 --decision accept --reason ok'
   });
   fs.rmSync(tmp, { recursive: true });
-  return r.stdout.includes('BLOCK') && r.stdout.includes('c7');
+  let parsed;
+  try { parsed = JSON.parse(r.stdout); } catch { return false; }
+  const reason = parsed.hookSpecificOutput?.permissionDecisionReason || '';
+  return parsed.hookSpecificOutput?.hookEventName === 'PreToolUse'
+    && parsed.hookSpecificOutput?.permissionDecision === 'deny'
+    && reason.includes('c7');
+})());
+
+assert('exits 0 silently on empty stdin', (() => {
+  const tmp = mkTmp();
+  let r;
+  try {
+    const out = execSync(`node ${SCRIPT}`, { cwd: tmp, input: '', encoding: 'utf8' });
+    r = { exitCode: 0, stdout: out };
+  } catch (err) {
+    r = { exitCode: err.status || 1, stdout: err.stdout || '' };
+  }
+  fs.rmSync(tmp, { recursive: true });
+  return r.exitCode === 0 && (r.stdout || '').trim() === '';
+})());
+
+assert('exits 0 silently on malformed JSON stdin', (() => {
+  const tmp = mkTmp();
+  let r;
+  try {
+    const out = execSync(`node ${SCRIPT}`, { cwd: tmp, input: '{ not json', encoding: 'utf8' });
+    r = { exitCode: 0, stdout: out };
+  } catch (err) {
+    r = { exitCode: err.status || 1, stdout: err.stdout || '' };
+  }
+  fs.rmSync(tmp, { recursive: true });
+  return r.exitCode === 0 && (r.stdout || '').trim() === '';
 })());
 
 console.log(`\n=== verdict-gate.js: ${passed} passed, ${failed} failed ===`);
