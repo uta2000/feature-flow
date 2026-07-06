@@ -56,7 +56,7 @@ async function main() {
   await Promise.allSettled(
     checks.map(([name, fn]) =>
       fn().catch(e => {
-        const detail = e.message?.slice(0, 100) || 'unknown error';
+        const detail = errorDetail(e);
         warnings.push(`[feature-flow] ${name} check could not complete: ${detail}`);
         incomplete.push(`[${name}] check crashed before producing a result: ${detail}`);
       })
@@ -67,7 +67,7 @@ async function main() {
   const hasTypeErrors = failures.some(f => f.startsWith('[TSC]'));
   if (!hasTypeErrors) {
     await checkTests().catch(e => {
-      const detail = e.message?.slice(0, 100) || 'unknown error';
+      const detail = errorDetail(e);
       warnings.push(`[feature-flow] Test check could not complete: ${detail}`);
       incomplete.push(`[TEST] check crashed before producing a result: ${detail}`);
     });
@@ -365,6 +365,16 @@ function detectRuntimeTestCommand(runtime, command, hint) {
 
 function execOutput(e) {
   return ((e.stdout || '') + (e.stderr || '')).trim();
+}
+
+// Safely extract a short detail string from any thrown/rejected value. A Promise
+// can reject with null, undefined, a plain string, or a non-Error object, so
+// `e.message?.slice(...)` would throw a TypeError on a null/undefined rejection —
+// which, inside these .catch handlers, would silently drop the incomplete status
+// and re-open the cache-poisoning hole. Never let detail extraction throw.
+function errorDetail(e) {
+  const msg = (e && (e.message || e)) || 'unknown error';
+  return String(msg).slice(0, 100);
 }
 
 function findTypesFile() {
