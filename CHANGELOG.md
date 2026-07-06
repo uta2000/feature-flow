@@ -4,6 +4,9 @@ All notable changes to the feature-flow plugin.
 
 ## [Unreleased]
 
+### Added
+- **CI runs the hook test suites + hooks.json validity check on every PR (#279)** — New `.github/workflows/hook-tests.yml` (separate from `check-references.yml`, which is left untouched so its behavior is unchanged) runs on `pull_request` and `push: main`. It executes all 12 hook test suites (`hooks/scripts/*.test.js` + `hooks/scripts/lib/*.test.js`), validates that `hooks/hooks.json` parses as JSON, and runs the `validate-return-contract.e2e.sh` integration harness. The safety-critical guardrail hooks fixed in #275 previously had zero automated regression coverage — a PR breaking every hook would still show a green check. POSIX/Linux-only (`ubuntu-latest`) by design: the suites include a bash e2e harness and `/bin/sh` fixtures; Windows runners are out of scope while CI is Linux-only. The test-suite step uses an explicit failure accumulator (`rc=1` on any non-zero suite, `exit $rc`) rather than `set -e`, so a failing suite fails the check independent of the runner shell's `set -e` loop semantics and CI surfaces every failing suite, not just the first.
+
 ## [1.38.0] - 2026-07-05
 
 ### Fixed

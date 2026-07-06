@@ -1,0 +1,44 @@
+name: Hook Tests
+
+# Runs the plugin's own hook test suites and validates the hook wiring file.
+# The hooks under hooks/scripts/ are safety-critical guardrail code (see #275);
+# this workflow is their regression net so a refactor cannot silently break them.
+#
+# POSIX-only: the suites include a bash e2e harness and /bin/sh fixtures, so this
+# runs on ubuntu-latest only. Windows runners are intentionally out of scope
+# while CI is Linux-only.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  hook-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run hook test suites
+        # Explicit failure accumulator instead of `set -e`: runs every suite (so
+        # CI surfaces all failures, not just the first) and fails if any suite
+        # exits non-zero — independent of the runner shell's `set -e` semantics.
+        run: |
+          rc=0
+          for f in hooks/scripts/*.test.js hooks/scripts/lib/*.test.js; do
+            [ -e "$f" ] || continue
+            echo "--- $f ---"
+            node "$f" || rc=1
+          done
+          exit $rc
+
+      - name: Validate hooks.json
+        run: python3 -c "import json; json.load(open('hooks/hooks.json'))"
+
+      - name: Run return-contract e2e harness
+        run: bash hooks/scripts/validate-return-contract.e2e.sh
