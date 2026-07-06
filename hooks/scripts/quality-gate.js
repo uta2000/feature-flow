@@ -20,6 +20,13 @@ const incomplete = [];
 // in tests without waiting the full production duration.
 const TEST_TIMEOUT_MS = Number(process.env.FF_QG_TEST_TIMEOUT_MS) || 60000;
 
+// Output buffer cap for captured subprocess output. exec() defaults to 1 MB and
+// REJECTS (killing the child) once a command's combined stdout+stderr crosses it —
+// so a PASSING but chatty test/lint/tsc run would overflow and be mis-reported.
+// 64 MB is ample headroom for any realistic run. Overridable via env so the
+// overflow path can be exercised in tests without generating 64 MB of output.
+const MAX_BUFFER = Number(process.env.FF_QG_MAX_BUFFER) || 64 * 1024 * 1024;
+
 async function main() {
   // Respect the harness's loop-protection flag: when a previous Stop block already fired
   // for this turn, re-running the full check suite would just re-block in a loop.
@@ -133,7 +140,7 @@ async function checkTypeScript() {
   if (!existsSync('node_modules/.bin/tsc')) return;
 
   try {
-    await execAsync(`npx tsc --noEmit --project "${tsconfig}"`, { encoding: 'utf8' });
+    await execAsync(`npx tsc --noEmit --project "${tsconfig}"`, { encoding: 'utf8', maxBuffer: MAX_BUFFER });
   } catch (e) {
     const output = execOutput(e);
     const errorLines = output.split('\n').filter(l => l.includes('error TS'));
@@ -177,7 +184,7 @@ async function checkLint() {
 
 async function runLintCommand(command, label) {
   try {
-    await execAsync(command, { encoding: 'utf8' });
+    await execAsync(command, { encoding: 'utf8', maxBuffer: MAX_BUFFER });
   } catch (e) {
     const lines = execOutput(e).split('\n').slice(0, 20).join('\n  ');
     failures.push(`[LINT] ${label}\n  ${lines}`);
@@ -209,7 +216,7 @@ async function checkSupabaseTypes(typesPathOverride) {
 
   // Guard: is Supabase running?
   try {
-    await execAsync('npx supabase status', { encoding: 'utf8' });
+    await execAsync('npx supabase status', { encoding: 'utf8', maxBuffer: MAX_BUFFER });
   } catch {
     warnings.push(
       '[feature-flow] Supabase not running locally — skipping type freshness check. Run "supabase start" to enable.'
@@ -226,6 +233,7 @@ async function checkSupabaseTypes(typesPathOverride) {
   try {
     const { stdout: fresh } = await execAsync('npx supabase gen types typescript --local', {
       encoding: 'utf8',
+      maxBuffer: MAX_BUFFER,
     });
     const existing = readFileSync(typesFile, 'utf8');
     if (fresh.trim() !== existing.trim()) {
@@ -288,9 +296,22 @@ async function checkTests() {
     await execAsync(cmd, {
       encoding: 'utf8',
       timeout: TEST_TIMEOUT_MS,
+      maxBuffer: MAX_BUFFER,
       env: { ...process.env, CI: '1' },
     });
   } catch (e) {
+    // Output overflowed even the generous MAX_BUFFER cap: exec killed the child and
+    // rejected before the suite could report. The result is UNKNOWN, not a failure —
+    // so classify it as inconclusive (block, no verified marker), never a red test.
+    // Keyed on e.code (set on every Node version); MUST precede the SIGTERM/timeout
+    // branch because an overflow can also present as killed+SIGTERM on older Node,
+    // which would otherwise be mislabeled a timeout.
+    if (e.code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER') {
+      const mb = Math.round(MAX_BUFFER / (1024 * 1024));
+      warnings.push(`[feature-flow] Test output too large to buffer (>${mb}MB) — inconclusive, not counted as passing. Run tests manually.`);
+      incomplete.push(`[TEST] Test output too large to buffer (>${mb}MB) — could not determine pass/fail.`);
+      return;
+    }
     if (e.killed && e.signal === 'SIGTERM') {
       const secs = Math.round(TEST_TIMEOUT_MS / 1000);
       warnings.push(`[feature-flow] Test suite timed out (${secs}s) — inconclusive, not counted as passing. Run tests manually.`);

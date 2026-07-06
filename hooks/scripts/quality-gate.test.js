@@ -161,5 +161,65 @@ assert('test-suite timeout: blocks as inconclusive and writes NO verified marker
     && !markerExists;
 })());
 
+assert('passing test suite with >1MB output: does NOT block and writes the verified marker (maxBuffer regression)', (() => {
+  const tmp = mkTmp();
+  execSync('git init -q', { cwd: tmp });
+  execSync('git config user.email "test@example.com"', { cwd: tmp });
+  execSync('git config user.name "Test"', { cwd: tmp });
+  // A PASSING suite that prints ~1.3MB — over exec's 1MB default buffer but well under
+  // the 64MB cap. Pre-fix this overflowed and was mis-reported as a failing test;
+  // post-fix the raised buffer lets it complete and the run verifies clean.
+  // NOTE: console.log in a loop with NO process.exit() — async stdout to a pipe must
+  // flush on natural exit; process.exit() would truncate the output and never overflow.
+  fs.writeFileSync(
+    path.join(tmp, 'package.json'),
+    JSON.stringify({ name: 'fixture', scripts: { test: 'node -e "for(let i=0;i<18000;i++)console.log(\'x\'.repeat(72))"' } })
+  );
+  fs.mkdirSync(path.join(tmp, 'node_modules')); // detectTestCommand requires node_modules for `npm test`
+  execSync('git add -A && git commit -q -m init', { cwd: tmp });
+  const gitDir = execSync('git rev-parse --git-dir', { cwd: tmp, encoding: 'utf8' }).trim();
+  const markerPath = path.join(tmp, gitDir, 'feature-flow-verified');
+
+  const r = runGate(tmp, { stop_hook_active: false });
+  const markerExists = fs.existsSync(markerPath);
+  fs.rmSync(tmp, { recursive: true });
+
+  // Clean pass: no block JSON on stdout, exits 0, and the marker was written.
+  return r.exitCode === 0 && (r.stdout || '').trim() === '' && markerExists;
+})());
+
+assert('test output overflows the buffer: blocks as inconclusive ("too large", NOT "timed out"), writes NO marker', (() => {
+  const tmp = mkTmp();
+  execSync('git init -q', { cwd: tmp });
+  execSync('git config user.email "test@example.com"', { cwd: tmp });
+  execSync('git config user.name "Test"', { cwd: tmp });
+  // A PASSING suite that prints ~50KB, run with the buffer shrunk to 8KB via env so it
+  // overflows deterministically without generating 64MB. Exercises the belt-and-suspenders
+  // ERR_CHILD_PROCESS_STDIO_MAXBUFFER branch: an overflow must be inconclusive, never a
+  // red test, and must NOT be mislabeled a timeout.
+  // NOTE: console.log loop + natural exit (see the >1MB test above for why not process.exit).
+  fs.writeFileSync(
+    path.join(tmp, 'package.json'),
+    JSON.stringify({ name: 'fixture', scripts: { test: 'node -e "for(let i=0;i<700;i++)console.log(\'x\'.repeat(72))"' } })
+  );
+  fs.mkdirSync(path.join(tmp, 'node_modules'));
+  execSync('git add -A && git commit -q -m init', { cwd: tmp });
+  const gitDir = execSync('git rev-parse --git-dir', { cwd: tmp, encoding: 'utf8' }).trim();
+  const markerPath = path.join(tmp, gitDir, 'feature-flow-verified');
+
+  const r = runGate(tmp, { stop_hook_active: false }, { FF_QG_MAX_BUFFER: '8192' });
+  const markerExists = fs.existsSync(markerPath);
+  let parsed;
+  try { parsed = JSON.parse(r.stdout); } catch { parsed = null; }
+  fs.rmSync(tmp, { recursive: true });
+
+  return r.exitCode === 0
+    && !!parsed && parsed.decision === 'block'
+    && /inconclusive/i.test(parsed.reason || '')
+    && /too large/i.test(parsed.reason || '')
+    && !/timed out/i.test(parsed.reason || '')
+    && !markerExists;
+})());
+
 console.log(`\n=== quality-gate.js: ${passed} passed, ${failed} failed ===`);
 process.exit(failed > 0 ? 1 : 0);
