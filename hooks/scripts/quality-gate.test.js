@@ -22,13 +22,14 @@ function mkFailingProject(dir) {
   );
 }
 
-function runGate(cwd, payload) {
+function runGate(cwd, payload, extraEnv) {
   try {
     const out = execSync(`node ${SCRIPT}`, {
       cwd,
       input: payload === undefined ? undefined : (typeof payload === 'string' ? payload : JSON.stringify(payload)),
       encoding: 'utf8',
       timeout: 30000,
+      env: extraEnv ? { ...process.env, ...extraEnv } : process.env,
     });
     return { exitCode: 0, stdout: out };
   } catch (err) {
@@ -104,6 +105,60 @@ assert('verification marker: clean tree at verified commit short-circuits (no bl
 
   fs.rmSync(tmp, { recursive: true });
   return cleanOk && dirtyOk;
+})());
+
+assert('crashed check (.feature-flow.yml is a directory → EISDIR): blocks as inconclusive and writes NO verified marker', (() => {
+  const tmp = mkTmp();
+  execSync('git init -q', { cwd: tmp });
+  execSync('git config user.email "test@example.com"', { cwd: tmp });
+  execSync('git config user.name "Test"', { cwd: tmp });
+  // A DIRECTORY named .feature-flow.yml makes checkTypeSync's readFileSync throw
+  // EISDIR, which propagates to the outer .catch — a check that CRASHED, not one
+  // that reported a failure. Pre-fix this was demoted to a warning and the marker
+  // was still stamped (cache poisoning).
+  fs.mkdirSync(path.join(tmp, '.feature-flow.yml'));
+  execSync('git add -A && git commit -q -m init --allow-empty', { cwd: tmp });
+  const gitDir = execSync('git rev-parse --git-dir', { cwd: tmp, encoding: 'utf8' }).trim();
+  const markerPath = path.join(tmp, gitDir, 'feature-flow-verified');
+
+  const r = runGate(tmp, { stop_hook_active: false });
+  const markerExists = fs.existsSync(markerPath);
+  let parsed;
+  try { parsed = JSON.parse(r.stdout); } catch { parsed = null; }
+  fs.rmSync(tmp, { recursive: true });
+
+  return r.exitCode === 0
+    && !!parsed && parsed.decision === 'block'
+    && /inconclusive/i.test(parsed.reason || '')
+    && !markerExists;
+})());
+
+assert('test-suite timeout: blocks as inconclusive and writes NO verified marker', (() => {
+  const tmp = mkTmp();
+  execSync('git init -q', { cwd: tmp });
+  execSync('git config user.email "test@example.com"', { cwd: tmp });
+  execSync('git config user.name "Test"', { cwd: tmp });
+  // Test script sleeps far longer than the env-shrunk timeout, guaranteeing the
+  // SIGTERM-kill branch fires (the child can never complete first).
+  fs.writeFileSync(
+    path.join(tmp, 'package.json'),
+    JSON.stringify({ name: 'fixture', scripts: { test: 'node -e "setTimeout(()=>{}, 30000)"' } })
+  );
+  fs.mkdirSync(path.join(tmp, 'node_modules')); // detectTestCommand requires node_modules for `npm test`
+  execSync('git add -A && git commit -q -m init', { cwd: tmp });
+  const gitDir = execSync('git rev-parse --git-dir', { cwd: tmp, encoding: 'utf8' }).trim();
+  const markerPath = path.join(tmp, gitDir, 'feature-flow-verified');
+
+  const r = runGate(tmp, { stop_hook_active: false }, { FF_QG_TEST_TIMEOUT_MS: '400' });
+  const markerExists = fs.existsSync(markerPath);
+  let parsed;
+  try { parsed = JSON.parse(r.stdout); } catch { parsed = null; }
+  fs.rmSync(tmp, { recursive: true });
+
+  return r.exitCode === 0
+    && !!parsed && parsed.decision === 'block'
+    && /inconclusive|timed out/i.test(parsed.reason || '')
+    && !markerExists;
 })());
 
 console.log(`\n=== quality-gate.js: ${passed} passed, ${failed} failed ===`);

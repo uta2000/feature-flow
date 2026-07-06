@@ -13,13 +13,16 @@ function main() {
   const filePath = payload.tool_input?.file_path || '';
   if (!isSourceFile(filePath)) process.exit(0);
 
-  const errors = runLinter(filePath);
-  if (errors) {
+  const result = runLinter(filePath);
+  if (result) {
     const name = path.basename(filePath);
+    const context = result.failedToRun
+      ? `[feature-flow] LINT DID NOT RUN for ${name} — the ${result.linter} linter failed to start (${result.detail}). Lint status is unknown; this is NOT a clean result. Investigate before relying on lint here.`
+      : `[feature-flow] LINT ERRORS in ${name} — fix these before continuing:\n${result.output}`;
     console.log(JSON.stringify({
       hookSpecificOutput: {
         hookEventName: 'PostToolUse',
-        additionalContext: `[feature-flow] LINT ERRORS in ${name} — fix these before continuing:\n${errors}`,
+        additionalContext: context,
       },
     }));
   }
@@ -46,8 +49,17 @@ function runLinter(filePath) {
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     if (result.status === 0) return null;
-    if (result.error || result.signal) return null;
-    return (result.stdout || result.stderr || 'Lint errors found').trim();
+    // The linter could not run: the binary failed to spawn (result.error, e.g.
+    // ENOENT/EACCES) or was killed by a signal (result.signal). Surface this as an
+    // advisory rather than returning null — a silent null is indistinguishable from
+    // "lint clean" and hides that the check never actually ran.
+    if (result.error || result.signal) {
+      const detail = result.error
+        ? (result.error.code || result.error.message || 'spawn error')
+        : `killed by signal ${result.signal}`;
+      return { failedToRun: true, linter: bin, detail };
+    }
+    return { failedToRun: false, output: (result.stdout || result.stderr || 'Lint errors found').trim() };
   }
 
   return null;
