@@ -24,12 +24,13 @@ function setupFakeLinter(dir, bin, exitCode, output) {
   fs.writeFileSync(path.join(dir, '.eslintrc.json'), '{}');
 }
 
-function run(cwd, payload) {
+function run(cwd, payload, extraEnv) {
   try {
     const out = execSync(`node ${SCRIPT}`, {
       cwd,
       input: typeof payload === 'string' ? payload : JSON.stringify(payload),
       encoding: 'utf8',
+      env: extraEnv ? { ...process.env, ...extraEnv } : process.env,
     });
     return { exitCode: 0, stdout: out };
   } catch (err) {
@@ -109,6 +110,34 @@ assert('exits 0 silently when tool_input is missing entirely', (() => {
   const r = run(tmp, { tool_name: 'Write' });
   fs.rmSync(tmp, { recursive: true });
   return r.exitCode === 0 && (r.stdout || '').trim() === '';
+})());
+
+assert('advises via additionalContext when the linter cannot be spawned (killed/unspawnable)', (() => {
+  const tmp = mkTmp();
+  // eslint is detected (node_modules/.bin/eslint + .eslintrc.json), so runLinter
+  // will try to spawn `npx eslint <file>`.
+  setupFakeLinter(tmp, 'eslint', 0, '');
+  // A fake `npx` first on PATH that kills itself with SIGTERM → spawnSync returns
+  // result.signal set (the "linter failed to run" branch). Pre-fix this returned
+  // null, silently indistinguishable from a clean lint.
+  const fakeBin = path.join(tmp, 'fakebin');
+  fs.mkdirSync(fakeBin, { recursive: true });
+  const npxShim = path.join(fakeBin, 'npx');
+  fs.writeFileSync(npxShim, '#!/bin/sh\nkill -TERM $$\n');
+  fs.chmodSync(npxShim, 0o755);
+  fs.mkdirSync(path.join(tmp, 'src'), { recursive: true });
+  const filePath = path.join(tmp, 'src', 'foo.ts');
+  fs.writeFileSync(filePath, 'const x = 1;');
+
+  const r = run(tmp, { tool_name: 'Write', tool_input: { file_path: filePath } }, {
+    PATH: `${fakeBin}:${process.env.PATH}`,
+  });
+  fs.rmSync(tmp, { recursive: true });
+  let parsed;
+  try { parsed = JSON.parse(r.stdout); } catch { return false; }
+  const ctx = parsed.hookSpecificOutput?.additionalContext || '';
+  return parsed.hookSpecificOutput?.hookEventName === 'PostToolUse'
+    && /did not run|failed to (run|start)/i.test(ctx);
 })());
 
 console.log(`\n=== lint-file.js: ${passed} passed, ${failed} failed ===`);

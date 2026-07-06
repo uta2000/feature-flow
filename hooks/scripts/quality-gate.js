@@ -10,6 +10,15 @@ const { readHookInput } = require('./lib/read-hook-input');
 
 const failures = [];
 const warnings = [];
+// Checks that could not run to completion — crashed (unexpected throw) or timed
+// out. These are INCONCLUSIVE, not passes: a check that never produced a verdict
+// must not be counted as clean. Tracked separately from failures/warnings so the
+// verified marker can be withheld and the block message can say "inconclusive".
+const incomplete = [];
+
+// Test-command timeout. Overridable via env so the timeout path can be exercised
+// in tests without waiting the full production duration.
+const TEST_TIMEOUT_MS = Number(process.env.FF_QG_TEST_TIMEOUT_MS) || 60000;
 
 async function main() {
   // Respect the harness's loop-protection flag: when a previous Stop block already fired
@@ -47,7 +56,9 @@ async function main() {
   await Promise.allSettled(
     checks.map(([name, fn]) =>
       fn().catch(e => {
-        warnings.push(`[feature-flow] ${name} check failed unexpectedly: ${e.message?.slice(0, 100)}`);
+        const detail = e.message?.slice(0, 100) || 'unknown error';
+        warnings.push(`[feature-flow] ${name} check could not complete: ${detail}`);
+        incomplete.push(`[${name}] check crashed before producing a result: ${detail}`);
       })
     )
   );
@@ -56,23 +67,36 @@ async function main() {
   const hasTypeErrors = failures.some(f => f.startsWith('[TSC]'));
   if (!hasTypeErrors) {
     await checkTests().catch(e => {
-      warnings.push(`[feature-flow] Test check failed unexpectedly: ${e.message?.slice(0, 100)}`);
+      const detail = e.message?.slice(0, 100) || 'unknown error';
+      warnings.push(`[feature-flow] Test check could not complete: ${detail}`);
+      incomplete.push(`[TEST] check crashed before producing a result: ${detail}`);
     });
   }
 
-  if (failures.length > 0) {
-    const report = failures.join('\n\n');
-    const warn = warnings.length > 0 ? '\n\n' + warnings.join('\n') : '';
-    console.log(JSON.stringify({
-      decision: 'block',
-      reason: `Code quality checks failed. Fix before ending session:\n\n${report}${warn}`,
-    }));
+  if (failures.length > 0 || incomplete.length > 0) {
+    const sections = [];
+    if (failures.length > 0) sections.push(failures.join('\n\n'));
+    if (incomplete.length > 0) {
+      sections.push(
+        'Checks that could not complete (inconclusive — not counted as passing):\n' +
+          incomplete.join('\n')
+      );
+    }
+    if (warnings.length > 0) sections.push(warnings.join('\n'));
+    const body = sections.join('\n\n');
+    const reason = failures.length > 0
+      ? `Code quality checks failed. Fix before ending session:\n\n${body}`
+      : `Code quality checks are inconclusive — some checks could not complete, so this session is not verified. Re-run after resolving, or investigate the check itself:\n\n${body}`;
+    console.log(JSON.stringify({ decision: 'block', reason }));
   } else if (warnings.length > 0) {
     console.error(warnings.join('\n'));
   }
 
-  // Write verification marker when all checks pass (warnings are OK, failures are not)
-  if (failures.length === 0) {
+  // Write the verification marker only when every check truly completed clean.
+  // A crashed or timed-out check is inconclusive, not a pass — stamping "verified"
+  // on it would let the next Stop at this commit short-circuit and skip all checks
+  // (the cache-poisoning bug this guards against).
+  if (failures.length === 0 && incomplete.length === 0) {
     writeVerificationMarker();
   }
 }
@@ -263,12 +287,14 @@ async function checkTests() {
   try {
     await execAsync(cmd, {
       encoding: 'utf8',
-      timeout: 60000,
+      timeout: TEST_TIMEOUT_MS,
       env: { ...process.env, CI: '1' },
     });
   } catch (e) {
     if (e.killed && e.signal === 'SIGTERM') {
-      warnings.push('[feature-flow] Test suite timed out (60s) — skipping. Run tests manually.');
+      const secs = Math.round(TEST_TIMEOUT_MS / 1000);
+      warnings.push(`[feature-flow] Test suite timed out (${secs}s) — inconclusive, not counted as passing. Run tests manually.`);
+      incomplete.push(`[TEST] Test suite timed out after ${secs}s — could not determine pass/fail.`);
       return;
     }
     // e.code is the numeric exit code with promisify(exec); 127 = shell "command not found"
