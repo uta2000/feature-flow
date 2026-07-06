@@ -217,8 +217,36 @@ assert('test output overflows the buffer: blocks as inconclusive ("too large", N
     && !!parsed && parsed.decision === 'block'
     && /inconclusive/i.test(parsed.reason || '')
     && /too large/i.test(parsed.reason || '')
+    && /8KB/i.test(parsed.reason || '')      // buffer size reported in the right unit,
+    && !/0MB/.test(parsed.reason || '')      // not a misleading rounded-to-zero ">0MB"
     && !/timed out/i.test(parsed.reason || '')
     && !markerExists;
+})());
+
+assert('invalid (negative) FF_QG_MAX_BUFFER falls back to the default: passing suite verifies clean, no crash', (() => {
+  const tmp = mkTmp();
+  execSync('git init -q', { cwd: tmp });
+  execSync('git config user.email "test@example.com"', { cwd: tmp });
+  execSync('git config user.name "Test"', { cwd: tmp });
+  // A trivially-passing suite. With a negative buffer override, the naive
+  // `Number(env) || default` parse would pass -100 straight to exec(), which throws
+  // RangeError (maxBuffer must be >= 0) — turning a clean run into a false block.
+  // The positive-number guard must fall back to the 64MB default instead.
+  fs.writeFileSync(
+    path.join(tmp, 'package.json'),
+    JSON.stringify({ name: 'fixture', scripts: { test: 'node -e "console.log(\'ok\')"' } })
+  );
+  fs.mkdirSync(path.join(tmp, 'node_modules'));
+  execSync('git add -A && git commit -q -m init', { cwd: tmp });
+  const gitDir = execSync('git rev-parse --git-dir', { cwd: tmp, encoding: 'utf8' }).trim();
+  const markerPath = path.join(tmp, gitDir, 'feature-flow-verified');
+
+  const r = runGate(tmp, { stop_hook_active: false }, { FF_QG_MAX_BUFFER: '-100' });
+  const markerExists = fs.existsSync(markerPath);
+  fs.rmSync(tmp, { recursive: true });
+
+  // Clean pass: no block JSON, exits 0, marker written (proves exec never saw -100).
+  return r.exitCode === 0 && (r.stdout || '').trim() === '' && markerExists;
 })());
 
 console.log(`\n=== quality-gate.js: ${passed} passed, ${failed} failed ===`);
